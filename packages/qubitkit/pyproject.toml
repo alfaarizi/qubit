@@ -15,5 +15,20 @@ authors = [
     {name = "Muhammad Al Farizi"}
 ]
 requires-python = ">=3.8"
+dependencies = [
+    "qiskit",
+    "numpy>=1.20.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+    "pytest"
+]
+viz = [
+    "matplotlib>=3.5.0",
+    "plotly>=5.0.0"
+]
 
 [tool.setuptools.packages.find]
