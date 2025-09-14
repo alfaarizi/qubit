@@ -93,4 +93,60 @@ package "Circuit Model" {
     
 }
 
+package "Library Adapters" {
+    class CircuitAdapterFactory {
+        - adapters: Map<string, CircuitAdapter>
+        --
+        + register_adapter(library: string, adapter: CircuitAdapter): void
+        + get_adapter(library: string): CircuitAdapter
+        + detect_adapter(circuit: Object): CircuitAdapter
+        + get_supported_libraries(): string[]
+        + is_supported(library: string): boolean
+    }
+    
+    interface CircuitAdapter {
+        + import_circuit(external: Object): Circuit
+        + export_circuit(internal: Circuit): Object
+        + get_library_name(): string
+        + can_convert(circuit: Object): boolean
+        + get_gate_mapping(): Map<string, string>
+    }
+    
+    class SquanderAdapter implements CircuitAdapter {
+        - gate_type_mapping: Map<string, GateType>
+        - parameter_mapping: Map<string, string>
+        --
+        + import_circuit(squander_circuit: Object): Circuit
+        + export_circuit(circuit: Circuit): Object
+        + get_library_name(): string
+        + can_convert(circuit: Object): boolean
+        + get_gate_mapping(): Map<string, string>
+        - map_gate_type(squander_type: string): GateType
+        - extract_dependencies(squander_circuit: Object): void
+    }
+    
+    class QiskitAdapter implements CircuitAdapter {
+        --
+        + import_circuit(qiskit_circuit: Object): Circuit
+        + export_circuit(circuit: Circuit): Object
+        + get_library_name(): string
+        + can_convert(circuit: Object): boolean
+        + get_gate_mapping(): Map<string, string>
+        - handle_qiskit_barriers(qc: Object): void
+        - convert_classical_bits(qc: Object): void
+    }
+    
+    class BqskitAdapter implements CircuitAdapter {
+        --
+        + import_circuit(bqskit_circuit: Object): Circuit
+        + export_circuit(circuit: Circuit): Object
+        + get_library_name(): string
+        + can_convert(circuit: Object): boolean
+        + get_gate_mapping(): Map<string, string>
+        - handle_variable_gates(circuit: Object): void
+    }
+    
+    CircuitAdapter --o CircuitAdapterFactory : manages
+}
+
 @enduml
