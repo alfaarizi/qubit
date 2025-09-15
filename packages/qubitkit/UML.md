@@ -79,17 +79,10 @@ package "Circuit Model" {
         + clone(): Circuit
     }
     
-    class Utils<<utility>> {
-        + {static} partition(input: Circuit, method: string, max_qubits: int): PartitionedCircuit
-        + {static} partition(input: PartitionedCircuit, method: string, max_qubits: int): PartitionedCircuit
-    }
-    
     Gate --> GateType : uses
     Circuit o-- Gate : contains
     PartitionedCircuit --> Circuit : stores
     PartitionedCircuit o-- Gate : contains
-    Utils ..> Circuit : uses
-    Utils ..> PartitionedCircuit : creates
     
 }
 
@@ -104,7 +97,7 @@ package "Library Adapters" {
         + is_supported(library: string): boolean
     }
     
-    interface CircuitAdapter {
+    interface CircuitAdapter<<Adapter>> {
         + import_circuit(external: Object): Circuit
         + export_circuit(internal: Circuit): Object
         + get_library_name(): string
@@ -147,6 +140,23 @@ package "Library Adapters" {
     }
     
     CircuitAdapter --o CircuitAdapterFactory : manages
+}
+
+package "Partitioning Util" {
+    class Utils<<Facade>> {
+        - {static} partitioners: Map<string, Function>
+        - {static} adapter_factory: CircuitAdapterFactory
+        --
+        + {static} partition(circuit: Object, method: string, max_qubits: int, options: Map<string, Object>): PartitionedCircuit
+        + {static} register_partition(name: string, func: Function): void
+        + {static} register_partition(name: string, library: string, method: string): void
+        + {static} get_available_partitioners(): Set<string>
+        - {static} get_adapter_factory(): CircuitAdapterFactory
+    }
+    
+    Utils ..> Circuit : uses
+    Utils ..> PartitionedCircuit : creates
+    Utils --> CircuitAdapterFactory : internally uses
 }
 
 @enduml
