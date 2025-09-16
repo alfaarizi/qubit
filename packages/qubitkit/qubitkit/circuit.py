@@ -1,6 +1,7 @@
 from typing import List, Set, Dict, Union, Any
 from gate import Gate
 from interfaces import Operation
+import copy
 
 class Circuit(Operation):
     def __init__(
@@ -15,10 +16,12 @@ class Circuit(Operation):
         self.metadata: Dict[str, Any] = {}
         self.source_library = source_library
         # private
+        self._depth: int = 0
         self._num_qubits: int = num_qubits
         self._qubits: Set[int] = set()
         self._qubits_dirty: bool = True
         self._dependencies_dirty: bool = True
+        self._depth_dirty = True
         # DAG helper attributes
         self._gate_dict: Dict[int, Gate] = {}
         self._gate_qubit: Dict[int, Set[int]] = {}
@@ -27,8 +30,36 @@ class Circuit(Operation):
         self._s: Set[int] = set()
 
     @property
-    def num_gates(self) -> int:
+    def num_gates_flat(self) -> int:
         return len(self.gates)
+
+    @property
+    def depth(self) -> int:
+        """
+        The time it takes to execute the circuit
+        :return: the longest path in a DAG
+        """
+        if not self.gates:
+            return 0
+        if not self._depth_dirty:
+            return self._depth
+        n = self.num_gates_flat
+        gates_depth = [0] * n
+        gates_visited = [False] * n
+        def dfs(gate_idx: int) -> None:
+            gates_visited[gate_idx] = True
+            for child_idx in self.gates[gate_idx].children:
+                if not gates_visited[child_idx]:
+                    dfs(child_idx)
+                gates_depth[gate_idx] = max(gates_depth[gate_idx], 1 + gates_depth[child_idx])
+
+        for i in range(n):
+            if not gates_visited[i]:
+                dfs(i)
+
+        self._depth = max(gates_depth) + 1 if gates_depth else 0
+        self._depth_dirty = False
+        return self._depth
 
     @property
     def num_qubits(self) -> int:
@@ -62,14 +93,14 @@ class Circuit(Operation):
                 raise IndexError(f"Qubit index {max_qubit} out of bounds for {self.num_qubits}-qubit Circuit")
         gate.num_qubits = self.num_qubits
         self.gates.append(gate)
-        self._determine_parents(self.num_gates - 1)
-        self._qubits_dirty, self._dependencies_dirty = True, True
+        self._determine_parents(self.num_gates_flat - 1)
+        self._qubits_dirty, self._dependencies_dirty, self._depth_dirty = True, True, True
 
     def get_parents(self, gate_idx: int) -> List[int]:
-        return self.gates[gate_idx].parents if 0 <= gate_idx < self.num_gates else []
+        return self.gates[gate_idx].parents if 0 <= gate_idx < self.num_gates_flat else []
 
     def get_children(self, gate_idx: int) -> List[int]:
-        return self.gates[gate_idx].children if 0 <= gate_idx < self.num_gates else []
+        return self.gates[gate_idx].children if 0 <= gate_idx < self.num_gates_flat else []
 
     def build_dependencies(self, use_cache: bool = True):
         if use_cache and not self._dependencies_dirty:
@@ -87,10 +118,31 @@ class Circuit(Operation):
         self._dependencies_dirty = False
 
     def flatten(self):
-        pass
+        flat_circuit = Circuit(
+            self.num_qubits,
+            f"{self.name}_flat",
+            self.source_library
+        )
+        for gate in self.gates:
+            if isinstance(gate, Circuit):
+                flat_circuit_inner = gate.flatten()
+                for gate in flat_circuit_inner.gates:
+                    flat_circuit.add_gate(gate.clone())
+            else:
+                flat_circuit.add_gate(gate.clone())
+        flat_circuit.metadata = self.metadata.copy()
+        return flat_circuit
 
     def clone(self):
-        pass
+        new_circuit = Circuit(
+            self.num_qubits,
+            f"{self.name}_clone",
+            self.source_library
+        )
+        for gate in self.gates:
+            new_circuit.add_gate(gate.clone())
+        new_circuit.metadata = copy.deepcopy(self.metadata)
+        return new_circuit
 
     def _determine_parents(self, gate_idx: int):
         gate = self.gates[gate_idx]
@@ -145,3 +197,46 @@ if __name__ == "__main__":
         children = inner_circuit.get_children(gi)
         gate_name = inner_circuit.gates[gi].name
         print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
+
+    print("\n=== THE MOMENT TOP CIRCUIT TRUTH ===")
+    print([circuit_top.gates[parent] for parent in circuit_top.gates[1].parents])
+    print([circuit_top.gates[child] for child in circuit_top.gates[1].children])
+
+    print("\n=== THE MOMENT INNER CIRCUIT TRUTH ===")
+    print([inner_circuit.gates[parent] for parent in inner_circuit.gates[1].parents])
+    print([inner_circuit.gates[child] for child in inner_circuit.gates[1].children])
+
+    # https://quantum.cloud.ibm.com/docs/en/api/qiskit/0.42/qiskit.circuit.QuantumCircuit
+    CircuitB = Circuit(12)
+    CircuitB.add_gate(Gate("H", [0]))
+    CircuitB.add_gate(Gate("H", [1]))
+    CircuitB.add_gate(Gate("H", [2]))
+    CircuitB.add_gate(Gate("H", [3]))
+    CircuitB.add_gate(Gate("H", [4]))
+
+    CircuitB.add_gate(Gate("CNOT", [0], [5]))
+    CircuitB.add_gate(Gate("CNOT", [1], [6]))
+    CircuitB.add_gate(Gate("CNOT", [2], [7]))
+    CircuitB.add_gate(Gate("CNOT", [3], [8]))
+    CircuitB.add_gate(Gate("CNOT", [4], [9]))
+
+    CircuitB.add_gate(Gate("CNOT", [1], [7]))
+    CircuitB.add_gate(Gate("X", [8]))
+
+    CircuitB.add_gate(Gate("CNOT", [1], [9]))
+    CircuitB.add_gate(Gate("X", [7]))
+
+    CircuitB.add_gate(Gate("CNOT", [1], [11]))
+
+    CircuitB.add_gate(Gate("XX", [6], [11]))
+    CircuitB.add_gate(Gate("XX", [6], [9]))
+    CircuitB.add_gate(Gate("XX", [6], [10]))
+
+    CircuitB.add_gate(Gate("X", [6]))
+
+    print(CircuitB.depth)
+
+    print("Circuit Top Flatten")
+    circuit_top_flat = circuit_top.flatten()
+    for gate in circuit_top_flat.gates:
+        print(gate)

@@ -5,7 +5,6 @@ class Operation(ABC):
     def __init__(self):
         self.name: str = ""
         # DAG info
-        # self.depth: int = 0
         self.parents: List[int] = []
         self.children: List[int] = []
         self.partition_id: int = -1

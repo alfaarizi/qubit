@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List, Set, Dict, Any, Optional
 from interfaces import Operation
+import copy
 
 class GateType(Enum):
     SINGLE_QUBIT    = "single_qubit"
@@ -72,6 +73,18 @@ class Gate(Operation):
             if qbit >= self._num_qubits:
                 raise IndexError(f"Control qubit index {qbit} out of bounds for {self._num_qubits}-qubit Gate")
         self._control_qubits = value
+
+    def clone(self) -> 'Gate':
+        new_gate = Gate(
+            self.name,
+            self.target_qubits.copy(),
+            self.control_qubits.copy() if self.control_qubits else None,
+            copy.deepcopy(self.parameters)
+        )
+        new_gate.num_qubits = self.num_qubits
+        new_gate.source_library = self.source_library
+        return new_gate
+
 
     def __eq__(self, other):
         if not isinstance(other, Gate):
