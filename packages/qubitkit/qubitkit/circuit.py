@@ -44,20 +44,30 @@ class Circuit(Operation):
             return 0
         if not self._depth_dirty:
             return self._depth
+
+        # clear dependencies at this level
+        for gate in self.gates:
+            gate.parents.clear()
+            gate.children.clear()
+        for i in range(len(self.gates)):
+            self._determine_parents(i)
+
         n = self.num_gates_flat
         gates_depth = [0] * n
         gates_visited = [False] * n
         def dfs(gate_idx: int) -> None:
+            if gates_visited[gate_idx]:
+                return
             gates_visited[gate_idx] = True
-            for child_idx in self.gates[gate_idx].children:
-                if not gates_visited[child_idx]:
-                    dfs(child_idx)
-                gates_depth[gate_idx] = max(gates_depth[gate_idx], 1 + gates_depth[child_idx])
+            for parent_idx in self.gates[gate_idx].parents:
+                dfs(parent_idx)
+            gates_depth[gate_idx] = 1 + max((gates_depth[p] for p in self.gates[gate_idx].parents), default=-1)
 
         for i in range(n):
             if not gates_visited[i]:
                 dfs(i)
 
+        self._gate_depths = [d + 1 for d in gates_depth]
         self._depth = max(gates_depth) + 1 if gates_depth else 0
         self._depth_dirty = False
         return self._depth
@@ -93,13 +103,21 @@ class Circuit(Operation):
             if max_qubit >= self.num_qubits:
                 raise IndexError(f"Qubit index {max_qubit} out of bounds for {self.num_qubits}-qubit Circuit")
         gate.num_qubits = self.num_qubits
+
+        # clear gate dependencies
+        if isinstance(gate, Circuit):
+            gate.parents.clear()
+            gate.children.clear()
+
         self.gates.append(gate)
         self._determine_parents(self.num_gates_flat - 1)
         self._qubits_dirty, self._dependencies_dirty, self._depth_dirty = True, True, True
 
     def get_depth(self, gate_idx: int) -> int:
-        gate = self.gates[gate_idx]
-        return 1 + max(self.get_depth(p_idx) for p_idx in gate.parents) if gate.parents else 1
+        if gate_idx >= len(self.gates) or gate_idx < 0:
+            raise IndexError(f"gate index {gate_idx} out of bounds")
+        _ = self.depth
+        return self._gate_depths[gate_idx]
 
     def get_parents(self, gate_idx: int) -> List[int]:
         return self.gates[gate_idx].parents if 0 <= gate_idx < self.num_gates_flat else []
@@ -110,6 +128,15 @@ class Circuit(Operation):
     def build_dependencies(self, use_cache: bool = True):
         if use_cache and not self._dependencies_dirty:
             return
+
+        # clear dependencies at this level
+        for gate in self.gates:
+            gate.parents.clear()
+            gate.children.clear()
+        for i in range(len(self.gates)):
+            self._determine_parents(i)
+
+        # Build data structures for dependency analysis
         self._gate_dict = {i: gate for i, gate in enumerate(self.gates)}
         self._gate_qubit = {i: gate.qubits for i, gate in enumerate(self.gates)}
         self._g, self._rg = {i: set() for i in self._gate_dict}, {i: set() for i in self._gate_dict}
@@ -131,21 +158,23 @@ class Circuit(Operation):
         for gate in self.gates:
             if isinstance(gate, Circuit):
                 flat_circuit_inner = gate.flatten()
-                for gate in flat_circuit_inner.gates:
-                    flat_circuit.add_gate(gate.clone())
+                for inner_gate in flat_circuit_inner.gates:
+                    flat_circuit.add_gate(inner_gate.clone())
             else:
                 flat_circuit.add_gate(gate.clone())
         flat_circuit.metadata = self.metadata.copy()
         return flat_circuit
 
     def clone(self):
+        """Create a deep copy of this circuit"""
         new_circuit = Circuit(
             self.num_qubits,
             f"{self.name}_clone",
             self.source_library
         )
         for gate in self.gates:
-            new_circuit.add_gate(gate.clone())
+            new_gate = gate.clone()
+            new_circuit.add_gate(new_gate)
         new_circuit.metadata = copy.deepcopy(self.metadata)
         return new_circuit
 
@@ -192,17 +221,12 @@ class Circuit(Operation):
                 # multi-qubit sub-circuit
                 for j, qubit in enumerate(involved_qubits):
                     if j == 0:
-                        # top line
-                        content = f"┌{gate.name.center(name_width - 2, '─')}┐"
-                        draw_preserving_controls(lines[qubit], col, content)
+                        content = f"┌{gate.name.center(name_width - 2, '─')}┐" # top line
                     elif j == len(involved_qubits) - 1:
-                        # bottom line
-                        content = f"└{'─' * (name_width - 2)}┘"
-                        draw_preserving_controls(lines[qubit], col, content)
+                        content = f"└{'─' * (name_width - 2)}┘" # bottom line
                     else:
-                        # middle lines
-                        content = f"│{' ' * (name_width - 2)}│"
-                        draw_preserving_controls(lines[qubit], col, content)
+                        content = f"│{' ' * (name_width - 2)}│" # middle lines
+                    draw_preserving_controls(lines[qubit], col, content)
 
         # calculate widths and columns
         if show_depth:
@@ -232,6 +256,11 @@ class Circuit(Operation):
     def _determine_parents(self, gate_idx: int):
         gate = self.gates[gate_idx]
         gate_qubits = set(gate.qubits)
+        # clear gate parents
+        gate.parents.clear()
+        for prev_gate in self.gates[:gate_idx]:
+            if gate_idx in prev_gate.children:
+                prev_gate.children.remove(gate_idx)
         for i in range(gate_idx-1, -1, -1):
             parent_gate = self.gates[i]
             parent_qubits = parent_gate.qubits
@@ -243,8 +272,43 @@ class Circuit(Operation):
                 if not gate_qubits:
                     break
 
+    def validate_dependencies(self):
+        print(f"validating_dependencies of circuit {self.name}")
+        # check 1: All parent-child relationships are bidirectional and valid
+        for i, gate in enumerate(self.gates):
+            print(f"Gate {i} ({gate.name}): parents={gate.parents}, children={gate.children}")
+            # check parents
+            for parent_idx in gate.parents:
+                assert 0 <= parent_idx < len(self.gates), f"Gate {i} has invalid parent index {parent_idx}"
+                assert parent_idx < i, f"Gate {i} has parent {parent_idx} that comes after it"
+                assert i in self.gates[parent_idx].children, \
+                    f"Gate {i} claims parent {parent_idx}, but parent doesn't claim it as child"
+            # check children
+            for child_idx in gate.children:
+                assert 0 <= child_idx < len(self.gates), f"Gate {i} has invalid child index {child_idx}"
+                assert child_idx > i, f"Gate {i} has child {child_idx} that comes before it"
+                assert i in self.gates[child_idx].parents, \
+                    f"Gate {i} claims child {child_idx}, but child doesn't claim it as parent"
+        # Check 2: dependencies make sense based on qubit overlap
+        for i, gate in enumerate(self.gates):
+            gate_qubits = gate.qubits
+            for parent_idx in gate.parents:
+                parent_qubits = self.gates[parent_idx].qubits
+                assert gate_qubits & parent_qubits, f"Gate {i} and parent {parent_idx} have no qubit overlap"
+        # Check 3: no duplicate relationships
+        for i, gate in enumerate(self.gates):
+            assert len(gate.parents) == len(set(gate.parents)), f"Gate {i} has duplicate parents"
+            assert len(gate.children) == len(set(gate.children)), f"Gate {i} has duplicate children"
+
+        for i, gate in enumerate(self.gates):
+            if isinstance(gate, Circuit):
+                print(f"  Validating sub-circuit: {gate.name}, {gate.parents}, {gate.children}")
+                gate.validate_dependencies()
+
+        print(f"✓ Circuit {self.name} passes all dependency checks")
+
     def __repr__(self) -> str:
-        return  f"{self.name}({self.num_qubits})"
+        return f"{self.name}({self.num_qubits})"
 
     def __str__(self):
         return self.draw(show_depth=False)
@@ -255,18 +319,22 @@ if __name__ == "__main__":
     inner_circuit.add_gate(Gate("H", [0]))
     inner_circuit.add_gate(Gate("CNOT", [2], [0]))
     inner_circuit.build_dependencies()
+    inner_circuit.validate_dependencies()  # Should pass
 
     circuit_top = Circuit(3, "top")
     circuit_top.add_gate(Gate("X", [2]))  # Gate 0
     circuit_top.add_gate(inner_circuit) # Add circuit as a composite gate
     circuit_top.add_gate(Gate("Y", [0]))  # Gate 2
-    circuit_top.build_dependencies()
+    inner_circuit.build_dependencies()
+    circuit_top.validate_dependencies()  # Should pass
 
     circuit_top_2 = Circuit(3, "top_2")
     circuit_top_2.add_gate(Gate("X", [1]))  # Gate 0
+    circuit_top_2.add_gate(Gate("X", [1]))  # Gate 0
     circuit_top_2.add_gate(inner_circuit) # Add circuit as a composite gate
     circuit_top_2.add_gate(Gate("Y", [0]))  # Gate 2
-    circuit_top_2.build_dependencies()
+    inner_circuit.build_dependencies()
+    circuit_top_2.validate_dependencies()  # Should pass
 
     print("\n=== Checking circuit_top ===")
     print(f"Circuit depth: {circuit_top.depth}")
