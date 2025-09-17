@@ -152,41 +152,83 @@ class Circuit(Operation):
         new_circuit.metadata = copy.deepcopy(self.metadata)
         return new_circuit
 
-    def draw(self, use_depth: bool = True) -> str:
-        depth_widths = {}
-        if use_depth:
+    def draw(self, show_depth: bool = True) -> str:
+        # get gate width including sub-circuit borders
+        def get_gate_width(gate):
+            return len(gate.name) + (2 if isinstance(gate, Circuit) else 0)
+
+        # calculate widths and columns based on layout mode
+        if show_depth:
+            depth_widths = {}
             for i, gate in enumerate(self.gates):
                 depth = self.get_depth(i)
-                depth_widths[depth] = max(depth_widths.get(depth, 0), len(gate.name))
-            cols = sum(width + 1 for width in depth_widths.values()) - 1
+                depth_widths[depth] = max(depth_widths.get(depth, 0), get_gate_width(gate)) # get maximum width
+            cols = sum(width + 1 for width in depth_widths.values()) - 1  # no padding on the last
         else:
-            cols = sum(max(1, len(gate.name))+1 for gate in self.gates)-1
+            cols = sum(max(1, get_gate_width(gate)) + 1 for gate in self.gates) - 1
 
         lines = [["─"] * cols for _ in range(self.num_qubits)]
 
         for i, gate in enumerate(self.gates):
-            if use_depth:
+            # calculate position and width for this gate
+            if show_depth:
                 depth = self.get_depth(i)
                 name_width = depth_widths[depth]
                 col = sum(depth_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
             else:
-                name_width = max(1, len(gate.name))
-                col = sum(max(1, len(g.name)) + 1 for g in self.gates[:i])
+                name_width = max(1, get_gate_width(gate))
+                col = sum(max(1, get_gate_width(g)) + 1 for g in self.gates[:i])
+
             col_center = col - 1 + name_width // 2
-            for target in gate.target_qubits:
-                lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
-            # draw control qubits
-            for control in gate.control_qubits:
-                top_qubit, bottom_qubit = min(control, gate.target_qubits[0]), max(control, gate.target_qubits[0])
-                lines[control][col_center] = "●"
-                for qubit in range(top_qubit, bottom_qubit+1):
-                    if qubit not in gate.qubits:
-                        lines[qubit][col_center] = "│"
-        # label the lines
-        label_width = 3 + len(str(self.num_qubits))
+
+            # draw gate based on type
+            if isinstance(gate, Circuit): # draw sub-circuit
+                involved_qubits = sorted(gate.qubits)
+                if len(involved_qubits) == 1:
+                    # Single qubit sub-circuit, draw the name with borders
+                    qubit = involved_qubits[0]
+                    content = f"┌{gate.name}┐"
+                    lines[qubit][col:col + name_width] = list(content.ljust(name_width, "─"))
+                else:
+                    # multi-qubit sub-circuit
+                    for j, qubit in enumerate(involved_qubits):
+                        if j == 0:
+                            # top line
+                            content = f"┌{gate.name.center(name_width - 2, '─')}┐"
+                            lines[qubit][col:col + name_width] = list(content)
+                        elif j == len(involved_qubits) - 1:
+                            # bottom line
+                            content = f"└{'─' * (name_width - 2)}┘"
+                            lines[qubit][col:col + name_width] = list(content)
+                        else:
+                            # middle lines
+                            content = f"│{' ' * (name_width - 2)}│"
+                            lines[qubit][col:col + name_width] = list(content)
+                    # fill vertical connectors for qubits between involved qubits
+                    min_qubit = min(involved_qubits)
+                    max_qubit = max(involved_qubits)
+                    for qubit in range(min_qubit + 1, max_qubit):
+                        if qubit not in involved_qubits:
+                            lines[qubit][col] = "│"
+                            lines[qubit][col + name_width - 1] = "│"
+                            for c in range(col + 1, col + name_width - 1):
+                                lines[qubit][c] = " "
+            else: # draw gate
+                # draw target qubits
+                for target in gate.target_qubits:
+                    lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
+                # draw control qubits
+                for control in gate.control_qubits:
+                    top_qubit = min(control, gate.target_qubits[0])
+                    bottom_qubit = max(control, gate.target_qubits[0])
+                    lines[control][col_center] = "●"
+                    for qubit in range(top_qubit, bottom_qubit + 1):
+                        if qubit not in gate.qubits:
+                            lines[qubit][col_center] = "│"
+        # Label the lines
+        label_width = 2 + len(str(self.num_qubits))
         return "\n".join(
-            # qubit, ' ', line
-            f"{'q'+str(i)+':':^{label_width}}{''.join(row)}"
+            f"{('q'+str(i)+':').rjust(label_width)} {''.join(row)}"
             for i, row in enumerate(lines)
         ) + "\n"
 
@@ -207,6 +249,8 @@ class Circuit(Operation):
     def __repr__(self) -> str:
         return  f"{self.name}({self.num_qubits})"
 
+    def __str__(self):
+        return self.draw(show_depth=False)
 
 # Example: Adding Circuit as a gate
 if __name__ == "__main__":
@@ -291,4 +335,9 @@ if __name__ == "__main__":
         print(gate)
 
     # print(circuit_top)
-    print(CircuitB.draw(use_depth=False))
+    print(inner_circuit)
+    print(inner_circuit.draw(show_depth=True))
+    print(circuit_top)
+    print(circuit_top.draw(show_depth=True))
+    print(CircuitB)
+    print(CircuitB.draw(show_depth=True))
