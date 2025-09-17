@@ -1,11 +1,8 @@
 from typing import List, Set, Dict, Union, Any
-
-from PIL.ImageChops import offset
-from numpy.testing.print_coercion_tables import print_new_cast_table
+import copy
 
 from gate import Gate
 from interfaces import Operation
-import copy
 
 class Circuit(Operation):
     def __init__(
@@ -156,8 +153,58 @@ class Circuit(Operation):
         # get gate width including sub-circuit borders
         def get_gate_width(gate):
             return len(gate.name) + (2 if isinstance(gate, Circuit) else 0)
+        def get_gate_position(gate_idx, gate):
+            if show_depth:
+                depth = self.get_depth(gate_idx)
+                name_width = depth_widths[depth]
+                col = sum(depth_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
+            else:
+                name_width = max(1, get_gate_width(gate))
+                col = sum(max(1, get_gate_width(g)) + 1 for g in self.gates[:gate_idx])
+            return col, name_width
+        def draw_preserving_controls(line, column, content):
+            for k, char in enumerate(content):
+                if line[column + k] not in ["│", "●"]:
+                    line[column + k] = char
+        def draw_gate(gate_idx, gate):
+            col, name_width = get_gate_position(gate_idx, gate)
+            col_center = col + (name_width-1) // 2
+            # draw target qubits
+            for target in gate.target_qubits:
+                lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
+            # draw control qubits
+            for control in gate.control_qubits:
+                top_qubit = min(control, gate.target_qubits[0])
+                bottom_qubit = max(control, gate.target_qubits[0])
+                lines[control][col_center] = "●"
+                for qubit in range(top_qubit, bottom_qubit + 1):
+                    if qubit not in gate.qubits:
+                        draw_preserving_controls(lines[qubit], col_center,"│")
+        def draw_sub_circuit(gate_idx, gate):
+            col, name_width = get_gate_position(gate_idx, gate)
+            involved_qubits = sorted(gate.qubits)
+            if len(involved_qubits) == 1:
+                # single qubit sub-circuit
+                qubit = involved_qubits[0]
+                content = f"┌{gate.name}┐"
+                draw_preserving_controls(lines[qubit], col, content.ljust(name_width, "─"))
+            else:
+                # multi-qubit sub-circuit
+                for j, qubit in enumerate(involved_qubits):
+                    if j == 0:
+                        # top line
+                        content = f"┌{gate.name.center(name_width - 2, '─')}┐"
+                        draw_preserving_controls(lines[qubit], col, content)
+                    elif j == len(involved_qubits) - 1:
+                        # bottom line
+                        content = f"└{'─' * (name_width - 2)}┘"
+                        draw_preserving_controls(lines[qubit], col, content)
+                    else:
+                        # middle lines
+                        content = f"│{' ' * (name_width - 2)}│"
+                        draw_preserving_controls(lines[qubit], col, content)
 
-        # calculate widths and columns based on layout mode
+        # calculate widths and columns
         if show_depth:
             depth_widths = {}
             for i, gate in enumerate(self.gates):
@@ -170,64 +217,14 @@ class Circuit(Operation):
         lines = [["─"] * cols for _ in range(self.num_qubits)]
 
         for i, gate in enumerate(self.gates):
-            # calculate position and width for this gate
-            if show_depth:
-                depth = self.get_depth(i)
-                name_width = depth_widths[depth]
-                col = sum(depth_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
+            if isinstance(gate, Circuit):
+                draw_sub_circuit(i, gate)
             else:
-                name_width = max(1, get_gate_width(gate))
-                col = sum(max(1, get_gate_width(g)) + 1 for g in self.gates[:i])
+                draw_gate(i, gate)
 
-            col_center = col - 1 + name_width // 2
-
-            # draw gate based on type
-            if isinstance(gate, Circuit): # draw sub-circuit
-                involved_qubits = sorted(gate.qubits)
-                if len(involved_qubits) == 1:
-                    # Single qubit sub-circuit, draw the name with borders
-                    qubit = involved_qubits[0]
-                    content = f"┌{gate.name}┐"
-                    lines[qubit][col:col + name_width] = list(content.ljust(name_width, "─"))
-                else:
-                    # multi-qubit sub-circuit
-                    for j, qubit in enumerate(involved_qubits):
-                        if j == 0:
-                            # top line
-                            content = f"┌{gate.name.center(name_width - 2, '─')}┐"
-                            lines[qubit][col:col + name_width] = list(content)
-                        elif j == len(involved_qubits) - 1:
-                            # bottom line
-                            content = f"└{'─' * (name_width - 2)}┘"
-                            lines[qubit][col:col + name_width] = list(content)
-                        else:
-                            # middle lines
-                            content = f"│{' ' * (name_width - 2)}│"
-                            lines[qubit][col:col + name_width] = list(content)
-                    # fill vertical connectors for qubits between involved qubits
-                    min_qubit = min(involved_qubits)
-                    max_qubit = max(involved_qubits)
-                    for qubit in range(min_qubit + 1, max_qubit):
-                        if qubit not in involved_qubits:
-                            lines[qubit][col] = "│"
-                            lines[qubit][col + name_width - 1] = "│"
-                            for c in range(col + 1, col + name_width - 1):
-                                lines[qubit][c] = " "
-            else: # draw gate
-                # draw target qubits
-                for target in gate.target_qubits:
-                    lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
-                # draw control qubits
-                for control in gate.control_qubits:
-                    top_qubit = min(control, gate.target_qubits[0])
-                    bottom_qubit = max(control, gate.target_qubits[0])
-                    lines[control][col_center] = "●"
-                    for qubit in range(top_qubit, bottom_qubit + 1):
-                        if qubit not in gate.qubits:
-                            lines[qubit][col_center] = "│"
-        # Label the lines
+        # label the lines
         label_width = 2 + len(str(self.num_qubits))
-        return "\n".join(
+        return f"{self.name}:\n" + "\n".join(
             f"{('q'+str(i)+':').rjust(label_width)} {''.join(row)}"
             for i, row in enumerate(lines)
         ) + "\n"
@@ -254,9 +251,9 @@ class Circuit(Operation):
 
 # Example: Adding Circuit as a gate
 if __name__ == "__main__":
-    inner_circuit = Circuit(2, "inner")
+    inner_circuit = Circuit(3, "inner")
     inner_circuit.add_gate(Gate("H", [0]))
-    inner_circuit.add_gate(Gate("CNOT", [1], [0]))
+    inner_circuit.add_gate(Gate("CNOT", [2], [0]))
     inner_circuit.build_dependencies()
 
     circuit_top = Circuit(3, "top")
@@ -264,6 +261,12 @@ if __name__ == "__main__":
     circuit_top.add_gate(inner_circuit) # Add circuit as a composite gate
     circuit_top.add_gate(Gate("Y", [0]))  # Gate 2
     circuit_top.build_dependencies()
+
+    circuit_top_2 = Circuit(3, "top_2")
+    circuit_top_2.add_gate(Gate("X", [1]))  # Gate 0
+    circuit_top_2.add_gate(inner_circuit) # Add circuit as a composite gate
+    circuit_top_2.add_gate(Gate("Y", [0]))  # Gate 2
+    circuit_top_2.build_dependencies()
 
     print("\n=== Checking circuit_top ===")
     print(f"Circuit depth: {circuit_top.depth}")
@@ -300,7 +303,7 @@ if __name__ == "__main__":
     print([inner_circuit.gates[child] for child in inner_circuit.gates[1].children])
 
     # https://quantum.cloud.ibm.com/docs/en/api/qiskit/0.42/qiskit.circuit.QuantumCircuit
-    CircuitB = Circuit(12)
+    CircuitB = Circuit(12, "tetris")
     CircuitB.add_gate(Gate("H", [0]))
     CircuitB.add_gate(Gate("H", [1]))
     CircuitB.add_gate(Gate("H", [2]))
@@ -317,7 +320,7 @@ if __name__ == "__main__":
     CircuitB.add_gate(Gate("X", [8]))
 
     CircuitB.add_gate(Gate("CNOT", [1], [9]))
-    CircuitB.add_gate(Gate("X", [7]))
+    CircuitB.add_gate(Gate("H", [7]))
 
     CircuitB.add_gate(Gate("CNOT", [1], [11]))
 
@@ -327,6 +330,10 @@ if __name__ == "__main__":
 
     CircuitB.add_gate(Gate("X", [6]))
 
+    CircuitB.add_gate(circuit_top)
+
+    CircuitB.add_gate(circuit_top_2)
+
     print(CircuitB.depth)
 
     print("Circuit Top Flatten")
@@ -334,10 +341,11 @@ if __name__ == "__main__":
     for gate in circuit_top_flat.gates:
         print(gate)
 
-    # print(circuit_top)
     print(inner_circuit)
     print(inner_circuit.draw(show_depth=True))
     print(circuit_top)
     print(circuit_top.draw(show_depth=True))
+    print(circuit_top_2)
+    print(circuit_top_2.draw(show_depth=True))
     print(CircuitB)
     print(CircuitB.draw(show_depth=True))

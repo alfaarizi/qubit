@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import List, Set, Dict, Any, Optional
-from interfaces import Operation
 import copy
+
+from interfaces import Operation
 
 class GateType(Enum):
     SINGLE_QUBIT    = "single_qubit"
