@@ -1,4 +1,8 @@
 from typing import List, Set, Dict, Union, Any
+
+from PIL.ImageChops import offset
+from numpy.testing.print_coercion_tables import print_new_cast_table
+
 from gate import Gate
 from interfaces import Operation
 import copy
@@ -96,6 +100,10 @@ class Circuit(Operation):
         self._determine_parents(self.num_gates_flat - 1)
         self._qubits_dirty, self._dependencies_dirty, self._depth_dirty = True, True, True
 
+    def get_depth(self, gate_idx: int) -> int:
+        gate = self.gates[gate_idx]
+        return 1 + max(self.get_depth(p_idx) for p_idx in gate.parents) if gate.parents else 1
+
     def get_parents(self, gate_idx: int) -> List[int]:
         return self.gates[gate_idx].parents if 0 <= gate_idx < self.num_gates_flat else []
 
@@ -144,6 +152,44 @@ class Circuit(Operation):
         new_circuit.metadata = copy.deepcopy(self.metadata)
         return new_circuit
 
+    def draw(self, use_depth: bool = True) -> str:
+        depth_widths = {}
+        if use_depth:
+            for i, gate in enumerate(self.gates):
+                depth = self.get_depth(i)
+                depth_widths[depth] = max(depth_widths.get(depth, 0), len(gate.name))
+            cols = sum(width + 1 for width in depth_widths.values()) - 1
+        else:
+            cols = sum(max(1, len(gate.name))+1 for gate in self.gates)-1
+
+        lines = [["─"] * cols for _ in range(self.num_qubits)]
+
+        for i, gate in enumerate(self.gates):
+            if use_depth:
+                depth = self.get_depth(i)
+                name_width = depth_widths[depth]
+                col = sum(depth_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
+            else:
+                name_width = max(1, len(gate.name))
+                col = sum(max(1, len(g.name)) + 1 for g in self.gates[:i])
+            col_center = col - 1 + name_width // 2
+            for target in gate.target_qubits:
+                lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
+            # draw control qubits
+            for control in gate.control_qubits:
+                top_qubit, bottom_qubit = min(control, gate.target_qubits[0]), max(control, gate.target_qubits[0])
+                lines[control][col_center] = "●"
+                for qubit in range(top_qubit, bottom_qubit+1):
+                    if qubit not in gate.qubits:
+                        lines[qubit][col_center] = "│"
+        # label the lines
+        label_width = 3 + len(str(self.num_qubits))
+        return "\n".join(
+            # qubit, ' ', line
+            f"{'q'+str(i)+':':^{label_width}}{''.join(row)}"
+            for i, row in enumerate(lines)
+        ) + "\n"
+
     def _determine_parents(self, gate_idx: int):
         gate = self.gates[gate_idx]
         gate_qubits = set(gate.qubits)
@@ -157,6 +203,9 @@ class Circuit(Operation):
                 gate_qubits -= qubit_overlap
                 if not gate_qubits:
                     break
+
+    def __repr__(self) -> str:
+        return  f"{self.name}({self.num_qubits})"
 
 
 # Example: Adding Circuit as a gate
@@ -230,7 +279,7 @@ if __name__ == "__main__":
 
     CircuitB.add_gate(Gate("XX", [6], [11]))
     CircuitB.add_gate(Gate("XX", [6], [9]))
-    CircuitB.add_gate(Gate("XX", [6], [10]))
+    CircuitB.add_gate(Gate("", [6], [10]))
 
     CircuitB.add_gate(Gate("X", [6]))
 
@@ -240,3 +289,6 @@ if __name__ == "__main__":
     circuit_top_flat = circuit_top.flatten()
     for gate in circuit_top_flat.gates:
         print(gate)
+
+    # print(circuit_top)
+    print(CircuitB.draw(use_depth=False))

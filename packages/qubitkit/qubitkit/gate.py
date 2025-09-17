@@ -18,7 +18,7 @@ class Gate(Operation):
         parameters: Optional[Dict[str, Any]] = None
     ):
         super().__init__()
-        self.name: str = name
+        self.name: str = name or "Gate"
         self.source_library: str = ""
         self.parameters: Dict[str, Any] = parameters or {}
         # private
@@ -105,12 +105,7 @@ class Gate(Operation):
         ))
 
     def __repr__(self) -> str:
-        return (
-            f"Gate({self.name!r}, "
-            f"targets={self.target_qubits}, "
-            f"controls={self.control_qubits}, "
-            f"type={self.gate_type.value})"
-        )
+        return  f"{self.name}({self.target_qubits}, {self._control_qubits})"
 
     def __str__(self) -> str:
         if self.gate_type == GateType.MEASUREMENT:
