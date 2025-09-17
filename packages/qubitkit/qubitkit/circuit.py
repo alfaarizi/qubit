@@ -17,7 +17,6 @@ class Circuit(Operation):
         self.metadata: Dict[str, Any] = {}
         self.source_library = source_library
         # private
-        self._depth: int = 0
         self._num_qubits: int = num_qubits
         self._qubits: Set[int] = set()
         self._qubits_dirty: bool = True
@@ -29,6 +28,9 @@ class Circuit(Operation):
         self._g: Dict[int, Set[int]] = {}
         self._rg: Dict[int, Set[int]] = {}
         self._s: Set[int] = set()
+        # Draw helper attributes
+        self._gate_depths: Dict[int, int] = {}
+        self._depth_gates: Dict[int, List[int]] = {}
 
     @property
     def num_gates_flat(self) -> int:
@@ -42,35 +44,7 @@ class Circuit(Operation):
         """
         if not self.gates:
             return 0
-        if not self._depth_dirty:
-            return self._depth
-
-        # clear dependencies at this level
-        for gate in self.gates:
-            gate.parents.clear()
-            gate.children.clear()
-        for i in range(len(self.gates)):
-            self._determine_parents(i)
-
-        n = self.num_gates_flat
-        gates_depth = [0] * n
-        gates_visited = [False] * n
-        def dfs(gate_idx: int) -> None:
-            if gates_visited[gate_idx]:
-                return
-            gates_visited[gate_idx] = True
-            for parent_idx in self.gates[gate_idx].parents:
-                dfs(parent_idx)
-            gates_depth[gate_idx] = 1 + max((gates_depth[p] for p in self.gates[gate_idx].parents), default=-1)
-
-        for i in range(n):
-            if not gates_visited[i]:
-                dfs(i)
-
-        self._gate_depths = [d + 1 for d in gates_depth]
-        self._depth = max(gates_depth) + 1 if gates_depth else 0
-        self._depth_dirty = False
-        return self._depth
+        return max(self.get_depth(i) for i in range(len(self.gates)))
 
     @property
     def num_qubits(self) -> int:
@@ -103,21 +77,25 @@ class Circuit(Operation):
             if max_qubit >= self.num_qubits:
                 raise IndexError(f"Qubit index {max_qubit} out of bounds for {self.num_qubits}-qubit Circuit")
         gate.num_qubits = self.num_qubits
-
-        # clear gate dependencies
-        if isinstance(gate, Circuit):
-            gate.parents.clear()
-            gate.children.clear()
-
-        self.gates.append(gate)
+        self.gates.append(gate.clone())
         self._determine_parents(self.num_gates_flat - 1)
         self._qubits_dirty, self._dependencies_dirty, self._depth_dirty = True, True, True
 
     def get_depth(self, gate_idx: int) -> int:
-        if gate_idx >= len(self.gates) or gate_idx < 0:
+        if gate_idx >= self.num_gates_flat or gate_idx < 0:
             raise IndexError(f"gate index {gate_idx} out of bounds")
-        _ = self.depth
-        return self._gate_depths[gate_idx]
+        if gate_idx in self._gate_depths:
+            return self._gate_depths[gate_idx]
+
+        gate = self.gates[gate_idx]
+        gate_depth = 1 + max(self.get_depth(p_idx) for p_idx in gate.parents) if gate.parents else 1
+
+        self._gate_depths[gate_idx] = gate_depth
+        if gate_depth not in self._depth_gates:
+            self._depth_gates[gate_depth] = []
+        self._depth_gates[gate_depth].append(gate_idx)
+
+        return gate_depth
 
     def get_parents(self, gate_idx: int) -> List[int]:
         return self.gates[gate_idx].parents if 0 <= gate_idx < self.num_gates_flat else []
@@ -129,14 +107,6 @@ class Circuit(Operation):
         if use_cache and not self._dependencies_dirty:
             return
 
-        # clear dependencies at this level
-        for gate in self.gates:
-            gate.parents.clear()
-            gate.children.clear()
-        for i in range(len(self.gates)):
-            self._determine_parents(i)
-
-        # Build data structures for dependency analysis
         self._gate_dict = {i: gate for i, gate in enumerate(self.gates)}
         self._gate_qubit = {i: gate.qubits for i, gate in enumerate(self.gates)}
         self._g, self._rg = {i: set() for i in self._gate_dict}, {i: set() for i in self._gate_dict}
@@ -166,10 +136,9 @@ class Circuit(Operation):
         return flat_circuit
 
     def clone(self):
-        """Create a deep copy of this circuit"""
         new_circuit = Circuit(
             self.num_qubits,
-            f"{self.name}_clone",
+            self.name,
             self.source_library
         )
         for gate in self.gates:
@@ -184,7 +153,7 @@ class Circuit(Operation):
             return len(gate.name) + (2 if isinstance(gate, Circuit) else 0)
         def get_gate_position(gate_idx, gate):
             if show_depth:
-                depth = self.get_depth(gate_idx)
+                depth = self._gate_depths[gate_idx]
                 name_width = depth_widths[depth]
                 col = sum(depth_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
             else:
@@ -231,9 +200,12 @@ class Circuit(Operation):
         # calculate widths and columns
         if show_depth:
             depth_widths = {}
-            for i, gate in enumerate(self.gates):
-                depth = self.get_depth(i)
-                depth_widths[depth] = max(depth_widths.get(depth, 0), get_gate_width(gate)) # get maximum width
+            for i in range(len(self.gates)):
+                if i not in self._gate_depths:
+                    self.get_depth(i)
+            for depth, gate_indices in self._depth_gates.items():
+                max_width = max(get_gate_width(self.gates[idx]) for idx in gate_indices)
+                depth_widths[depth] = max_width
             cols = sum(width + 1 for width in depth_widths.values()) - 1  # no padding on the last
         else:
             cols = sum(max(1, get_gate_width(gate)) + 1 for gate in self.gates) - 1
@@ -417,3 +389,4 @@ if __name__ == "__main__":
     print(circuit_top_2.draw(show_depth=True))
     print(CircuitB)
     print(CircuitB.draw(show_depth=True))
+    print(CircuitB._depth_gates)
