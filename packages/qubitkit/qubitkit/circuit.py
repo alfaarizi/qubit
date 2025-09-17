@@ -1,4 +1,4 @@
-from typing import List, Set, Dict, Union, Any
+from typing import List, Set, Dict, Union, Any, Optional
 import copy
 
 from gate import Gate
@@ -29,7 +29,7 @@ class Circuit(Operation):
         self._rg: Dict[int, Set[int]] = {}
         self._s: Set[int] = set()
         # Draw helper attributes
-        self._gate_depths: Dict[int, int] = {}
+        self._gate_depths: List[Optional[int]] = []
         self._depth_gates: Dict[int, List[int]] = {}
 
     @property
@@ -84,7 +84,13 @@ class Circuit(Operation):
     def get_depth(self, gate_idx: int) -> int:
         if gate_idx >= self.num_gates_flat or gate_idx < 0:
             raise IndexError(f"gate index {gate_idx} out of bounds")
-        if gate_idx in self._gate_depths:
+
+        gate_depths_len = len(self._gate_depths)
+        while gate_depths_len <= gate_idx:
+            self._gate_depths.append(None)
+            gate_depths_len += 1
+
+        if self._gate_depths[gate_idx] is not None:
             return self._gate_depths[gate_idx]
 
         gate = self.gates[gate_idx]
@@ -154,11 +160,11 @@ class Circuit(Operation):
         def get_gate_position(gate_idx, gate):
             if show_depth:
                 depth = self._gate_depths[gate_idx]
-                name_width = depth_widths[depth]
                 col = sum(depth_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
+                name_width = depth_widths[depth]
             else:
-                name_width = max(1, get_gate_width(gate))
                 col = sum(max(1, get_gate_width(g)) + 1 for g in self.gates[:gate_idx])
+                name_width = max(1, get_gate_width(gate))
             return col, name_width
         def draw_preserving_controls(line, column, content):
             for k, char in enumerate(content):
@@ -167,50 +173,41 @@ class Circuit(Operation):
         def draw_gate(gate_idx, gate):
             col, name_width = get_gate_position(gate_idx, gate)
             col_center = col + (name_width-1) // 2
+            # draw control qubits
+            for control in gate.control_qubits:
+                top_qubit, bottom_qubit = min(control, gate.target_qubits[0]), max(control, gate.target_qubits[0])
+                lines[control][col_center] = "●"
+                for qubit in range(top_qubit + 1, bottom_qubit + 1):
+                    draw_preserving_controls(lines[qubit], col_center,"│")
             # draw target qubits
             for target in gate.target_qubits:
                 lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
-            # draw control qubits
-            for control in gate.control_qubits:
-                top_qubit = min(control, gate.target_qubits[0])
-                bottom_qubit = max(control, gate.target_qubits[0])
-                lines[control][col_center] = "●"
-                for qubit in range(top_qubit, bottom_qubit + 1):
-                    if qubit not in gate.qubits:
-                        draw_preserving_controls(lines[qubit], col_center,"│")
         def draw_sub_circuit(gate_idx, gate):
             col, name_width = get_gate_position(gate_idx, gate)
             involved_qubits = sorted(gate.qubits)
-            if len(involved_qubits) == 1:
-                # single qubit sub-circuit
-                qubit = involved_qubits[0]
-                content = f"┌{gate.name}┐"
-                draw_preserving_controls(lines[qubit], col, content.ljust(name_width, "─"))
-            else:
-                # multi-qubit sub-circuit
-                for j, qubit in enumerate(involved_qubits):
-                    if j == 0:
-                        content = f"┌{gate.name.center(name_width - 2, '─')}┐" # top line
-                    elif j == len(involved_qubits) - 1:
-                        content = f"└{'─' * (name_width - 2)}┘" # bottom line
-                    else:
-                        content = f"│{' ' * (name_width - 2)}│" # middle lines
-                    draw_preserving_controls(lines[qubit], col, content)
+            for j, qubit in enumerate(involved_qubits):
+                content = (
+                    f"┌{gate.name.center(name_width - 2, '─')}┐" if j == 0 else # top line
+                    f"└{'─' * (name_width - 2)}┘" if j == len(involved_qubits) - 1 else # bottom line
+                    f"│{' ' * (name_width - 2)}│" # middle lines
+                )
+                draw_preserving_controls(lines[qubit], col, content)
 
         # calculate widths and columns
         if show_depth:
             depth_widths = {}
+            # ensures all the depths are calculated
             for i in range(len(self.gates)):
-                if i not in self._gate_depths:
+                if i >= len(self._gate_depths) or self._gate_depths[i] is None:
                     self.get_depth(i)
             for depth, gate_indices in self._depth_gates.items():
                 max_width = max(get_gate_width(self.gates[idx]) for idx in gate_indices)
                 depth_widths[depth] = max_width
-            cols = sum(width + 1 for width in depth_widths.values()) - 1  # no padding on the last
+            num_columns = sum(width + 1 for width in depth_widths.values()) - 1  # no padding on the last
         else:
-            cols = sum(max(1, get_gate_width(gate)) + 1 for gate in self.gates) - 1
+            num_columns = sum(max(1, get_gate_width(gate)) + 1 for gate in self.gates) - 1
 
-        lines = [["─"] * cols for _ in range(self.num_qubits)]
+        lines = [["─"] * num_columns for _ in range(self.num_qubits)]
 
         for i, gate in enumerate(self.gates):
             if isinstance(gate, Circuit):
@@ -390,3 +387,4 @@ if __name__ == "__main__":
     print(CircuitB)
     print(CircuitB.draw(show_depth=True))
     print(CircuitB._depth_gates)
+    print(CircuitB._gate_depths)
