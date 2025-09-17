@@ -128,7 +128,7 @@ class Circuit(Operation):
     def flatten(self):
         flat_circuit = Circuit(
             self.num_qubits,
-            f"{self.name}_flat",
+            self.name,
             self.source_library
         )
         for gate in self.gates:
@@ -173,15 +173,16 @@ class Circuit(Operation):
         def draw_gate(gate_idx, gate):
             col, name_width = get_gate_position(gate_idx, gate)
             col_center = col + (name_width-1) // 2
+            # draw target qubits
+            for target in gate.target_qubits:
+                lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
             # draw control qubits
             for control in gate.control_qubits:
                 top_qubit, bottom_qubit = min(control, gate.target_qubits[0]), max(control, gate.target_qubits[0])
                 lines[control][col_center] = "●"
-                for qubit in range(top_qubit + 1, bottom_qubit + 1):
-                    draw_preserving_controls(lines[qubit], col_center,"│")
-            # draw target qubits
-            for target in gate.target_qubits:
-                lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
+                for qubit in range(top_qubit + 1, bottom_qubit):
+                    if qubit not in gate.qubits and lines[qubit][col_center] == "─":
+                        draw_preserving_controls(lines[qubit], col_center,"│")
         def draw_sub_circuit(gate_idx, gate):
             col, name_width = get_gate_position(gate_idx, gate)
             involved_qubits = sorted(gate.qubits)
@@ -367,9 +368,15 @@ if __name__ == "__main__":
 
     CircuitB.add_gate(Gate("X", [6]))
 
-    CircuitB.add_gate(circuit_top)
+    circuit_top_3 = Circuit(5, "top_3")
+    circuit_top_3.add_gate(circuit_top)
+    circuit_top_3.add_gate(circuit_top_2)
 
-    CircuitB.add_gate(circuit_top_2)
+    # CircuitB.add_gate(circuit_top)
+
+    # CircuitB.add_gate(circuit_top_2)
+
+    CircuitB.add_gate(circuit_top_3)
 
     print(CircuitB.depth)
 
@@ -385,6 +392,8 @@ if __name__ == "__main__":
     print(circuit_top_2)
     print(circuit_top_2.draw(show_depth=True))
     print(CircuitB)
+    print(CircuitB.flatten())
     print(CircuitB.draw(show_depth=True))
+    print(CircuitB.flatten().draw(show_depth=True))
     print(CircuitB._depth_gates)
     print(CircuitB._gate_depths)
