@@ -125,15 +125,15 @@ class Circuit(Operation):
         self._s = {m for m in self._rg if len(self._rg[m]) == 0}
         self._dependencies_dirty = False
 
-    def flatten(self):
+    def flatten(self, repeat: int = -1):
         flat_circuit = Circuit(
             self.num_qubits,
             self.name,
             self.source_library
         )
         for gate in self.gates:
-            if isinstance(gate, Circuit):
-                flat_circuit_inner = gate.flatten()
+            if isinstance(gate, Circuit) and repeat != 0:
+                flat_circuit_inner = gate.flatten(-1 if repeat < 0 else repeat - 1)
                 for inner_gate in flat_circuit_inner.gates:
                     flat_circuit.add_gate(inner_gate.clone())
             else:
@@ -392,8 +392,8 @@ if __name__ == "__main__":
     print(circuit_top_2)
     print(circuit_top_2.draw(show_depth=True))
     print(CircuitB)
-    print(CircuitB.flatten())
     print(CircuitB.draw(show_depth=True))
+    print(CircuitB.flatten(1).draw(show_depth=True))
     print(CircuitB.flatten().draw(show_depth=True))
     print(CircuitB._depth_gates)
     print(CircuitB._gate_depths)
