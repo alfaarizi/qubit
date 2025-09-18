@@ -43,13 +43,7 @@ class Circuit(Operation):
         The time it takes to execute the circuit
         :return: the longest path in a DAG
         """
-        if not self.gates:
-            return 0
-        max_depth = 0
-        for i, gate in enumerate(self.gates):
-            depth = self.get_depth(i) + (gate.depth - 1 if isinstance(gate, Circuit) else 0)
-            max_depth = max(max_depth, depth)
-        return max_depth
+        return self.get_circ_depth(expand=True)
 
     @property
     def num_qubits(self) -> int:
@@ -88,27 +82,44 @@ class Circuit(Operation):
             self._num_circuits += 1
         self._qubits_dirty, self._dependencies_dirty, self._depth_dirty = True, True, True
 
-    def get_depth(self, gate_idx: int) -> int:
+    def get_depth(self, gate_idx: int, expand: bool = False) -> int:
+        """
+        The time it takes to execute the circuit.
+
+        :param gate_idx:
+        :param atomic:  if True, expand into sub-circuits
+                        if False, treat each sub-circuit as atomic
+        :return: the longest path in a DAG
+        """
         if gate_idx >= self.num_gates_flat or gate_idx < 0:
             raise IndexError(f"gate index {gate_idx} out of bounds")
 
-        gate_depths_len = len(self._gate_depths)
-        while gate_depths_len <= gate_idx:
-            self._gate_depths.append(None)
-            gate_depths_len += 1
+        if not expand:
+            gate_depths_len = len(self._gate_depths)
+            while gate_depths_len <= gate_idx:
+                self._gate_depths.append(None)
+                gate_depths_len += 1
 
-        if self._gate_depths[gate_idx] is not None:
-            return self._gate_depths[gate_idx]
+            if self._gate_depths[gate_idx] is not None:
+                return self._gate_depths[gate_idx]
 
         gate = self.gates[gate_idx]
-        gate_depth = 1 + max(self.get_depth(p_idx) for p_idx in gate.parents) if gate.parents else 1
+        gate_depth = 1 + max(self.get_depth(p_idx, expand=expand) for p_idx in gate.parents) if gate.parents else 1
+        if expand and isinstance(gate, Circuit):
+            gate_depth = gate_depth - 1 + gate.get_circ_depth(expand=False)
 
-        self._gate_depths[gate_idx] = gate_depth
-        if gate_depth not in self._depth_gates:
-            self._depth_gates[gate_depth] = []
-        self._depth_gates[gate_depth].append(gate_idx)
+        if not expand:
+            self._gate_depths[gate_idx] = gate_depth
+            if gate_depth not in self._depth_gates:
+                self._depth_gates[gate_depth] = []
+            self._depth_gates[gate_depth].append(gate_idx)
 
         return gate_depth
+
+    def get_circ_depth(self, expand: bool = False) -> int:
+        if not self.gates:
+            return 0
+        return max(self.get_depth(i, expand=expand) for i in range(len(self.gates)))
 
     def get_parents(self, gate_idx: int) -> List[int]:
         return self.gates[gate_idx].parents if 0 <= gate_idx < self.num_gates_flat else []
@@ -166,7 +177,7 @@ class Circuit(Operation):
             if isinstance(gate, Circuit):
                 if calculate_sub_circuit:
                     return max(len(gate.name) + 2, len(gate.flatten().gates) * 2)
-                return max(len(gate.name) + 2, gate.depth * 2)
+                return max(len(gate.name) + 2, gate.get_circ_depth() * 2)
             return len(gate.name)
         def get_gate_position(gate_idx, gate):
             if show_depth:
@@ -207,7 +218,7 @@ class Circuit(Operation):
 
         # calculate widths and columns
         # flatten_top = self.flatten(self._layer-1)
-        print("NUM CIRCUITS", self._num_circuits, "; DEPTH", self.depth)
+        # print("NUM CIRCUITS", self._num_circuits, "; DEPTH", self.get_circ_depth())
         if show_depth:
             depth_widths = {}
             # ensures all the depths are calculated
@@ -222,6 +233,34 @@ class Circuit(Operation):
             num_columns = sum(max(1, get_gate_width(gate)) + 1 for gate in self.gates) - 1
 
         lines = [["─"] * num_columns for _ in range(self.num_qubits)]
+
+        # START
+        # flat_circ = self.flatten()
+        # _ = flat_circ.get_circ_depth()
+        # print("flat", flat_circ._gate_depths)
+        # print("flat", flat_circ._depth_gates)
+
+        # gate_depths = [len(flat_circ.gates[gate_idx].name) for gate_idx, gate_depth in enumerate(flat_circ._gate_depths)]
+        # print(gate_depths)
+
+        # depth_widths_2 = {
+        #     depth: max((len(flat_circ.gates[idx].name)) for idx in gate_indices)
+        #     for depth, gate_indices in flat_circ._depth_gates.items()
+        # }
+        # total_cols = sum(width+1 for width in depth_widths_2.values())-1
+        #
+        # print(total_cols, depth_widths_2)
+        # lines_2 = [["─"] * total_cols for _ in range(self.num_qubits)]
+
+        # for i, gate in enumerate(self.gates):
+        #     if isinstance(gate, Circuit):
+        #         flat_circ_inner = gate.flatten()
+        #         some = flat_circ_inner.get_circ_depth()
+        #         print(f"{gate.name}.get_circ_depth", some)
+        #         # pos = the depth of its first gate relative to the flat circuit
+        #         print(gate.name, "pos=", "dept=", gate.get_circ_depth())
+
+
 
         for i, gate in enumerate(self.gates):
             if isinstance(gate, Circuit):
@@ -294,149 +333,159 @@ class Circuit(Operation):
         return f"{self.name}({self.num_qubits})"
 
     def __str__(self):
-        return self.draw(show_depth=False)
+        return self.draw(show_depth=True)
 
 # Example: Adding Circuit as a gate
 if __name__ == "__main__":
-    inner_circuit = Circuit(3, "inner")
-    inner_circuit.add_gate(Gate("H", [0]))
-    inner_circuit.add_gate(Gate("CNOT", [2], [0]))
-    inner_circuit.build_dependencies()
-    inner_circuit.validate_dependencies()  # Should pass
+    # Example: Adding Circuit as a gate
+    from qiskit import QuantumCircuit
+    from qiskit.circuit import Instruction
 
-    circuit_top = Circuit(3, "top")
-    circuit_top.add_gate(Gate("X", [2]))  # Gate 0
-    circuit_top.add_gate(inner_circuit) # Add circuit as a composite gate
-    circuit_top.add_gate(Gate("Y", [0]))  # Gate 2
-    inner_circuit.build_dependencies()
-    circuit_top.validate_dependencies()  # Should pass
+    print("=== CIRCUIT COMPARISON ===\n")
 
-    circuit_top_2 = Circuit(3, "top_2")
-    circuit_top_2.add_gate(Gate("X", [1]))  # Gate 0
-    circuit_top_2.add_gate(Gate("X", [1]))  # Gate 0
-    circuit_top_2.add_gate(inner_circuit) # Add circuit as a composite gate
-    circuit_top_2.add_gate(Gate("Y", [0]))  # Gate 2
-    inner_circuit.build_dependencies()
-    circuit_top_2.validate_dependencies()  # Should pass
+    # Inner Circuit
+    print("1. INNER CIRCUIT:")
+    inner_circuit_qiskit = QuantumCircuit(3, name='inner')
+    inner_circuit_qiskit.h(0)
+    inner_circuit_qiskit.cx(0, 2)
+    inner_instruction = inner_circuit_qiskit.to_instruction()
 
-    print(circuit_top_2.depth) # THIS RETURNS 2
+    # Your circuit equivalent
+    inner_circuit_yours = Circuit(3, "inner")
+    inner_circuit_yours.add_gate(Gate("H", [0]))
+    inner_circuit_yours.add_gate(Gate("CNOT", [2], [0]))
+    print()
 
-    print("\n=== Checking inner_circuit ===")
-    print(f"Circuit depth: {inner_circuit.depth}")
-    print(f"Gate dict: {dict(inner_circuit._gate_dict)}")
-    print(f"Gate qubit: {dict(inner_circuit._gate_qubit)}")
-    print(f"Forward graph: {dict(inner_circuit._g)}")
-    print(f"Reverse graph: {dict(inner_circuit._rg)}")
-    print(f"Starting gates: {inner_circuit._s}")
-    for gi in range(len(inner_circuit.gates)):
-        parents = inner_circuit.get_parents(gi)
-        children = inner_circuit.get_children(gi)
-        gate_name = inner_circuit.gates[gi].name
-        print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
+    print(inner_circuit_qiskit)
+    print(inner_circuit_yours)
 
-    print("\n=== Checking circuit_top ===")
-    print(f"Circuit depth: {circuit_top.depth}")
-    print(f"Gate dict: {dict(circuit_top._gate_dict)}")
-    print(f"Gate qubit: {dict(circuit_top._gate_qubit)}")
-    print(f"Forward graph: {dict(circuit_top._g)}")
-    print(f"Reverse graph: {dict(circuit_top._rg)}")
-    print(f"Starting gates: {circuit_top._s}")
-    for gi in range(len(circuit_top.gates)):
-        parents = circuit_top.get_parents(gi)
-        children = circuit_top.get_children(gi)
-        gate_name = circuit_top.gates[gi].name
-        print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
+    print(f"  Qiskit depth: {inner_circuit_qiskit.depth()}")
+    print(f"  Your depth: {inner_circuit_yours.get_circ_depth()} | {inner_circuit_yours.depth}")
+    print(f"  Qiskit decomposed: {inner_circuit_qiskit.decompose().depth()}")
+    print()
 
-    print("\n=== Checking circuit_top_2 ===")
-    print(f"Circuit depth: {circuit_top_2.depth}")
-    print(f"Gate dict: {dict(circuit_top_2._gate_dict)}")
-    print(f"Gate qubit: {dict(circuit_top_2._gate_qubit)}")
-    print(f"Forward graph: {dict(circuit_top_2._g)}")
-    print(f"Reverse graph: {dict(circuit_top_2._rg)}")
-    print(f"Starting gates: {circuit_top_2._s}")
-    for gi in range(len(circuit_top_2.gates)):
-        parents = circuit_top_2.get_parents(gi)
-        children = circuit_top_2.get_children(gi)
-        gate_name = circuit_top_2.gates[gi].name
-        print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
+    # Circuit Top
+    print("2. CIRCUIT TOP:")
+    circuit_top_qiskit = QuantumCircuit(3, name='top')
+    circuit_top_qiskit.x(2)
+    circuit_top_qiskit.append(inner_instruction, [0, 1, 2])
+    circuit_top_qiskit.y(0)
 
-    print("\n=== THE MOMENT TOP CIRCUIT TRUTH ===")
-    print([circuit_top.gates[parent] for parent in circuit_top.gates[1].parents])
-    print([circuit_top.gates[child] for child in circuit_top.gates[1].children])
+    circuit_top_yours = Circuit(3, "top")
+    circuit_top_yours.add_gate(Gate("X", [2]))
+    circuit_top_yours.add_gate(inner_circuit_yours)
+    circuit_top_yours.add_gate(Gate("Y", [0]))
+    print()
 
-    print("\n=== THE MOMENT INNER CIRCUIT TRUTH ===")
-    print([inner_circuit.gates[parent] for parent in inner_circuit.gates[1].parents])
-    print([inner_circuit.gates[child] for child in inner_circuit.gates[1].children])
+    print(circuit_top_qiskit)
+    print(circuit_top_yours)
+    print(circuit_top_yours.flatten())
+    print(circuit_top_yours._depth_gates)
 
-    # https://quantum.cloud.ibm.com/docs/en/api/qiskit/0.42/qiskit.circuit.QuantumCircuit
-    CircuitB = Circuit(12, "tetris")
-    CircuitB.add_gate(Gate("H", [0]))
-    CircuitB.add_gate(Gate("H", [1]))
-    CircuitB.add_gate(Gate("H", [2]))
-    CircuitB.add_gate(Gate("H", [3]))
-    CircuitB.add_gate(Gate("H", [4]))
+    print(f"  Qiskit depth: {circuit_top_qiskit.depth()}")
+    print(f"  Your depth: {circuit_top_yours.get_circ_depth()} | {circuit_top_yours.depth}")
+    print(f"  Qiskit decomposed: {circuit_top_qiskit.decompose().depth()}")
+    print()
 
-    CircuitB.add_gate(Gate("CNOT", [0], [5]))
-    CircuitB.add_gate(Gate("CNOT", [1], [6]))
-    CircuitB.add_gate(Gate("CNOT", [2], [7]))
-    CircuitB.add_gate(Gate("CNOT", [3], [8]))
-    CircuitB.add_gate(Gate("CNOT", [4], [9]))
+    # Circuit Top 2
+    print("3. CIRCUIT TOP 2:")
+    circuit_top_2_qiskit = QuantumCircuit(3, name='top_2')
+    circuit_top_2_qiskit.x(1)
+    circuit_top_2_qiskit.x(1)
+    circuit_top_2_qiskit.append(inner_instruction, [0, 1, 2])
+    circuit_top_2_qiskit.y(0)
 
-    CircuitB.add_gate(Gate("CNOT", [1], [7]))
-    CircuitB.add_gate(Gate("X", [8]))
+    circuit_top_2_yours = Circuit(3, "top_2")
+    circuit_top_2_yours.add_gate(Gate("X", [1]))
+    circuit_top_2_yours.add_gate(Gate("X", [1]))
+    circuit_top_2_yours.add_gate(inner_circuit_yours)
+    circuit_top_2_yours.add_gate(Gate("Y", [0]))
+    print()
 
-    CircuitB.add_gate(Gate("CNOT", [1], [9]))
-    CircuitB.add_gate(Gate("H", [7]))
+    print(f"  Qiskit depth: {circuit_top_2_qiskit.depth()}")
+    print(f"  Your depth: {circuit_top_2_yours.get_circ_depth()} | {circuit_top_2_yours.depth}")
+    print(f"  Qiskit decomposed: {circuit_top_2_qiskit.decompose().depth()}")
+    print()
 
-    CircuitB.add_gate(Gate("CNOT", [1], [11]))
+    # Circuit B (simplified)
+    print("4. CIRCUIT B (TETRIS - simplified):")
+    CircuitB_qiskit = QuantumCircuit(12, name='tetris')
+    CircuitB_qiskit.h([0, 1, 2, 3, 4])
+    CircuitB_qiskit.cx(5, 0)
+    CircuitB_qiskit.cx(6, 1)
+    CircuitB_qiskit.cx(7, 2)
+    CircuitB_qiskit.cx(8, 3)
+    CircuitB_qiskit.cx(9, 4)
+    CircuitB_qiskit.cx(7, 1)
+    CircuitB_qiskit.x(8)
+    CircuitB_qiskit.cx(9, 1)
+    CircuitB_qiskit.h(7)
+    CircuitB_qiskit.cx(11, 1)
+    CircuitB_qiskit.x(6)  # Simplified XX gates to X
+    CircuitB_qiskit.x(11)
+    CircuitB_qiskit.x(6)
 
-    CircuitB.add_gate(Gate("XX", [6], [11]))
-    CircuitB.add_gate(Gate("XX", [6], [9]))
-    CircuitB.add_gate(Gate("", [6], [10]))
+    CircuitB_yours = Circuit(12, "tetris")
+    CircuitB_yours.add_gate(Gate("H", [0]))
+    CircuitB_yours.add_gate(Gate("H", [1]))
+    CircuitB_yours.add_gate(Gate("H", [2]))
+    CircuitB_yours.add_gate(Gate("H", [3]))
+    CircuitB_yours.add_gate(Gate("H", [4]))
+    CircuitB_yours.add_gate(Gate("CNOT", [0], [5]))
+    CircuitB_yours.add_gate(Gate("CNOT", [1], [6]))
+    CircuitB_yours.add_gate(Gate("CNOT", [2], [7]))
+    CircuitB_yours.add_gate(Gate("CNOT", [3], [8]))
+    CircuitB_yours.add_gate(Gate("CNOT", [4], [9]))
+    CircuitB_yours.add_gate(Gate("CNOT", [1], [7]))
+    CircuitB_yours.add_gate(Gate("X", [8]))
+    CircuitB_yours.add_gate(Gate("CNOT", [1], [9]))
+    CircuitB_yours.add_gate(Gate("H", [7]))
+    CircuitB_yours.add_gate(Gate("CNOT", [1], [11]))
+    CircuitB_yours.add_gate(Gate("X", [6]))
+    CircuitB_yours.add_gate(Gate("X", [11]))
+    CircuitB_yours.add_gate(Gate("X", [6]))
+    print()
 
-    CircuitB.add_gate(Gate("X", [6]))
+    CircuitB_yours_inner = Circuit(3)
+    CircuitB_yours_inner.add_gate(Gate("H", [2]))
+    CircuitB_yours_inner.add_gate(Gate("CX", [0], [2]))
+    CircuitB_yours_inner.add_gate(Gate("CX", [0], [2]))
+    # CircuitB_yours.add_gate(Gate("H", [2]))
+    CircuitB_yours.add_gate(Gate("H", [0]))
+    CircuitB_yours.add_gate(CircuitB_yours_inner)
+    print(CircuitB_yours._depth_gates)
+    print()
 
-    circuit_top_3 = Circuit(5, "top_3")
-    circuit_top_3.add_gate(circuit_top)
-    circuit_top_3.add_gate(circuit_top_2)
+    print(CircuitB_yours_inner)
+    print(CircuitB_yours.draw(False))
+    print(CircuitB_yours)
+    print("CIRCUIT INDEX", len(CircuitB_yours.gates)-1)
+    # print(CircuitB_yours.gates[-1].qubits, CircuitB_yours.get_depth(len(CircuitB_yours.gates)-1), CircuitB_yours.gates[-1].flatten().depth )
+    print(CircuitB_yours._depth_gates)
 
-    print("circuit_top_3 HEHEHEHEHE", circuit_top_3.get_depth(len(circuit_top_3.gates)-1))  # THIS RETURNS 2
-
-    # CircuitB.add_gate(circuit_top)
-
-    # CircuitB.add_gate(circuit_top_2)
-
-    CircuitB.add_gate(circuit_top_3)
+    print(CircuitB_yours.flatten())
 
 
-    print("Circuit Top Flatten")
-    circuit_top_flat = circuit_top.flatten()
-    for gate in circuit_top_flat.gates:
-        print(gate)
+    print(f"  Qiskit depth: {CircuitB_qiskit.depth()}")
+    print(f"  Your depth: {CircuitB_yours.get_circ_depth()} | {CircuitB_yours.depth}")
+    print(f"  Qiskit decomposed: {CircuitB_qiskit.decompose().depth()}")
+    print()
 
-    print(inner_circuit.depth)
-    print(inner_circuit)
-    print(inner_circuit.draw(show_depth=True))
+    # Circuit C
+    print("5. CIRCUIT C:")
+    circuit_c_qiskit = QuantumCircuit(3)
+    circuit_c_qiskit.append(inner_instruction, [0, 1, 2])
 
-    print(circuit_top.depth)
-    print(circuit_top.draw(show_depth=True))
-    print(circuit_top.flatten().draw(show_depth=True))
+    circuit_c_yours = Circuit(3)
+    circuit_c_yours.add_gate(inner_circuit_yours)
+    print()
 
-    print(circuit_top_2.depth)
-    print(circuit_top_2)
-    print(circuit_top_2.flatten().draw(show_depth=True))
+    print(f"  Qiskit depth: {circuit_c_qiskit.depth()}")
+    print(f"  Your depth: {circuit_c_yours.get_circ_depth()} | {circuit_c_yours.depth}")
+    print(f"  Qiskit decomposed: {circuit_c_qiskit.decompose().depth()}")
+    print()
 
-    print(CircuitB.depth)
-    print(CircuitB)
-    print(CircuitB.draw(show_depth=True))
-    print(CircuitB._depth_gates)
-
-    flat_once = CircuitB.flatten(1)
-    print(flat_once.depth)
-    print(flat_once.draw(show_depth=True))
-    print(flat_once._depth_gates)
-
-    flat_all = CircuitB.flatten()
-    print(flat_all.depth)
-    print(flat_all.draw(show_depth=True))
-    print(flat_all._depth_gates)
+    print("=== ANALYSIS ===")
+    print("- 'Your depth' shows: get_circ_depth(expand=False) | depth (expand=True)")
+    print("- 'Qiskit decomposed' should match your expanded depth")
+    print("- Differences may indicate issues in depth calculation logic")
