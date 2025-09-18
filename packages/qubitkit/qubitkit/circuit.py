@@ -44,7 +44,11 @@ class Circuit(Operation):
         """
         if not self.gates:
             return 0
-        return max(self.get_depth(i) for i in range(len(self.gates)))
+        max_depth = 0
+        for i, gate in enumerate(self.gates):
+            depth = self.get_depth(i) + (gate.depth - 1 if isinstance(gate, Circuit) else 0)
+            max_depth = max(max_depth, depth)
+        return max_depth
 
     @property
     def num_qubits(self) -> int:
