@@ -31,6 +31,7 @@ class Circuit(Operation):
         # Draw helper attributes
         self._gate_depths: List[Optional[int]] = []
         self._depth_gates: Dict[int, List[int]] = {}
+        self._num_circuits: int = 0
 
     @property
     def num_gates_flat(self) -> int:
@@ -83,6 +84,8 @@ class Circuit(Operation):
         gate.num_qubits = self.num_qubits
         self.gates.append(gate.clone())
         self._determine_parents(self.num_gates_flat - 1)
+        if isinstance(gate, Circuit):
+            self._num_circuits += 1
         self._qubits_dirty, self._dependencies_dirty, self._depth_dirty = True, True, True
 
     def get_depth(self, gate_idx: int) -> int:
@@ -159,8 +162,12 @@ class Circuit(Operation):
 
     def draw(self, show_depth: bool = True) -> str:
         # get gate width including sub-circuit borders
-        def get_gate_width(gate):
-            return len(gate.name) + (2 if isinstance(gate, Circuit) else 0)
+        def get_gate_width(gate, calculate_sub_circuit: bool = True):
+            if isinstance(gate, Circuit):
+                if calculate_sub_circuit:
+                    return max(len(gate.name) + 2, len(gate.flatten().gates) * 2)
+                return max(len(gate.name) + 2, gate.depth * 2)
+            return len(gate.name)
         def get_gate_position(gate_idx, gate):
             if show_depth:
                 depth = self._gate_depths[gate_idx]
@@ -199,6 +206,8 @@ class Circuit(Operation):
                 draw_preserving_controls(lines[qubit], col, content)
 
         # calculate widths and columns
+        # flatten_top = self.flatten(self._layer-1)
+        print("NUM CIRCUITS", self._num_circuits, "; DEPTH", self.depth)
         if show_depth:
             depth_widths = {}
             # ensures all the depths are calculated
@@ -310,6 +319,21 @@ if __name__ == "__main__":
     inner_circuit.build_dependencies()
     circuit_top_2.validate_dependencies()  # Should pass
 
+    print(circuit_top_2.depth) # THIS RETURNS 2
+
+    print("\n=== Checking inner_circuit ===")
+    print(f"Circuit depth: {inner_circuit.depth}")
+    print(f"Gate dict: {dict(inner_circuit._gate_dict)}")
+    print(f"Gate qubit: {dict(inner_circuit._gate_qubit)}")
+    print(f"Forward graph: {dict(inner_circuit._g)}")
+    print(f"Reverse graph: {dict(inner_circuit._rg)}")
+    print(f"Starting gates: {inner_circuit._s}")
+    for gi in range(len(inner_circuit.gates)):
+        parents = inner_circuit.get_parents(gi)
+        children = inner_circuit.get_children(gi)
+        gate_name = inner_circuit.gates[gi].name
+        print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
+
     print("\n=== Checking circuit_top ===")
     print(f"Circuit depth: {circuit_top.depth}")
     print(f"Gate dict: {dict(circuit_top._gate_dict)}")
@@ -323,17 +347,17 @@ if __name__ == "__main__":
         gate_name = circuit_top.gates[gi].name
         print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
 
-    print("\n=== Checking inner_circuit ===")
-    print(f"Circuit depth: {inner_circuit.depth}")
-    print(f"Gate dict: {dict(inner_circuit._gate_dict)}")
-    print(f"Gate qubit: {dict(inner_circuit._gate_qubit)}")
-    print(f"Forward graph: {dict(inner_circuit._g)}")
-    print(f"Reverse graph: {dict(inner_circuit._rg)}")
-    print(f"Starting gates: {inner_circuit._s}")
-    for gi in range(len(inner_circuit.gates)):
-        parents = inner_circuit.get_parents(gi)
-        children = inner_circuit.get_children(gi)
-        gate_name = inner_circuit.gates[gi].name
+    print("\n=== Checking circuit_top_2 ===")
+    print(f"Circuit depth: {circuit_top_2.depth}")
+    print(f"Gate dict: {dict(circuit_top_2._gate_dict)}")
+    print(f"Gate qubit: {dict(circuit_top_2._gate_qubit)}")
+    print(f"Forward graph: {dict(circuit_top_2._g)}")
+    print(f"Reverse graph: {dict(circuit_top_2._rg)}")
+    print(f"Starting gates: {circuit_top_2._s}")
+    for gi in range(len(circuit_top_2.gates)):
+        parents = circuit_top_2.get_parents(gi)
+        children = circuit_top_2.get_children(gi)
+        gate_name = circuit_top_2.gates[gi].name
         print(f"Gate {gi} ({gate_name}): parents = {parents}, children = {children}")
 
     print("\n=== THE MOMENT TOP CIRCUIT TRUTH ===")
@@ -376,28 +400,43 @@ if __name__ == "__main__":
     circuit_top_3.add_gate(circuit_top)
     circuit_top_3.add_gate(circuit_top_2)
 
+    print("circuit_top_3 HEHEHEHEHE", circuit_top_3.get_depth(len(circuit_top_3.gates)-1))  # THIS RETURNS 2
+
     # CircuitB.add_gate(circuit_top)
 
     # CircuitB.add_gate(circuit_top_2)
 
     CircuitB.add_gate(circuit_top_3)
 
-    print(CircuitB.depth)
 
     print("Circuit Top Flatten")
     circuit_top_flat = circuit_top.flatten()
     for gate in circuit_top_flat.gates:
         print(gate)
 
+    print(inner_circuit.depth)
     print(inner_circuit)
     print(inner_circuit.draw(show_depth=True))
-    print(circuit_top)
+
+    print(circuit_top.depth)
     print(circuit_top.draw(show_depth=True))
+    print(circuit_top.flatten().draw(show_depth=True))
+
+    print(circuit_top_2.depth)
     print(circuit_top_2)
-    print(circuit_top_2.draw(show_depth=True))
+    print(circuit_top_2.flatten().draw(show_depth=True))
+
+    print(CircuitB.depth)
     print(CircuitB)
     print(CircuitB.draw(show_depth=True))
-    print(CircuitB.flatten(1).draw(show_depth=True))
-    print(CircuitB.flatten().draw(show_depth=True))
     print(CircuitB._depth_gates)
-    print(CircuitB._gate_depths)
+
+    flat_once = CircuitB.flatten(1)
+    print(flat_once.depth)
+    print(flat_once.draw(show_depth=True))
+    print(flat_once._depth_gates)
+
+    flat_all = CircuitB.flatten()
+    print(flat_all.depth)
+    print(flat_all.draw(show_depth=True))
+    print(flat_all._depth_gates)
