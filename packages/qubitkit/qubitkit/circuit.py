@@ -110,11 +110,10 @@ class Circuit(Operation):
         gate_depth = 1 + max(self.get_depth(p_idx, depth_resolution) for p_idx in gate.parents) if gate.parents else 1
 
         if isinstance(gate, Circuit):
-            if depth_resolution == DepthResolution.EXPANDED:
+            if depth_resolution == DepthResolution.EXPANDED or depth_resolution == DepthResolution.FRAGMENTED: # TODO: Remove extra condition
                 gate_depth = gate_depth - 1 + gate.get_circ_depth(DepthResolution.EXPANDED)
-                # internal_depth = gate.get_circ_depth(DepthResolution.ATOMIC)
-                # gate_depth += internal_depth - 1
             elif depth_resolution == DepthResolution.FRAGMENTED:
+                # TODO: Fragment sub-circuit
                 pass
 
         self._gate_depths[depth_resolution][gate_idx] = gate_depth
@@ -185,8 +184,21 @@ class Circuit(Operation):
         def get_position_and_width(gate_idx, gate):
             if show_depth:
                 depth = self._gate_depths[depth_resolution][gate_idx]
-                start_col = sum(max_col_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
-                width = max_col_widths[depth]
+                start_col = sum(max_col_widths.get(d, 0) + 1 for d in range(1, depth)) if depth > 1 else 0
+                if isinstance(gate, Circuit):
+                    start_depth = (
+                        max(self._gate_depths[depth_resolution][p] for p in gate.parents) + 1
+                    ) if gate.parents else 1
+
+                    if depth_resolution == DepthResolution.ATOMIC:
+                        start_col = sum(max_col_widths[d] + 1 for d in range(1, depth)) if depth > 1 else 0
+                        width = max_col_widths[depth]
+                    else:
+                        start_col = sum(max_col_widths[d] + 1 for d in range(1, start_depth)) if start_depth > 1 else 0
+                        spanning_depths = range(start_depth, depth)  # depth-1 becomes just depth in range
+                        width = sum(max_col_widths.get(d, 0) for d in spanning_depths) + len(spanning_depths) - 1
+                else:
+                    width = max_col_widths[depth]
             else:
                 start_col = sum(len(self.gates[i].name) + 1 for i in range(gate_idx))
                 width = len(gate.name) + (2 if isinstance(gate, Circuit) else 0)
@@ -197,23 +209,24 @@ class Circuit(Operation):
             for target in gate.target_qubits:
                 lines[target][col:col + name_width] = list(gate.name.center(name_width, "─"))
                 # draw control qubits
-                for control in gate.control_qubits:
-                    top_qubit, bottom_qubit = min(control, gate.target_qubits[0]), max(control, gate.target_qubits[0])
-                    lines[control][col_center] = "●"
-                    for qubit in range(top_qubit + 1, bottom_qubit):
-                        if qubit in gate.qubits or lines[qubit][col_center] != "─":
-                            continue
-                        for k, char in enumerate("│"):
-                            if lines[qubit][col_center + k] not in ["│", "●"]:
-                                lines[qubit][col_center + k] = char
+            for control in gate.control_qubits:
+                top_qubit, bottom_qubit = min(control, gate.target_qubits[0]), max(control, gate.target_qubits[0])
+                lines[control][col_center] = "●"
+                for qubit in range(top_qubit + 1, bottom_qubit):
+                    if qubit in gate.qubits or lines[qubit][col_center] != "─":
+                        continue
+                    for k, char in enumerate("│"):
+                        if lines[qubit][col_center + k] not in ["│", "●"]:
+                            lines[qubit][col_center + k] = char
         def draw_circuit(gate_idx, gate):
             start_col, name_width = get_position_and_width(gate_idx, gate)
             involved_qubits = sorted(gate.qubits)
             for j, qubit in enumerate(involved_qubits):
+                mid_content = gate.name.center(name_width - 2, '─')
                 content = (
-                    f"┌{gate.name.center(name_width - 2, '─')}┐" if j == 0 else
-                    f"└{'─' * (name_width - 2)}┘" if j == len(involved_qubits) - 1 else
-                    f"│{' ' * (name_width - 2)}│"
+                    f"┌{mid_content}┐" if j == 0 else
+                    f"└{'─' * len(mid_content)}┘" if j == len(involved_qubits) - 1 else
+                    f"│{' ' * len(mid_content)}│"
                 )
                 for k, char in enumerate(content):
                     if start_col + k < len(lines[qubit]):
@@ -238,7 +251,8 @@ class Circuit(Operation):
         for i, gate in enumerate(self.gates):
             if isinstance(gate, Circuit):
                 draw_circuit(i, gate)
-            else:
+        for i, gate in enumerate(self.gates):
+            if not isinstance(gate, Circuit):
                 draw_gate(i, gate)
 
         # label the lines
@@ -271,7 +285,8 @@ class Circuit(Operation):
         return f"{self.name}({self.num_qubits})"
 
     def __str__(self):
-        return self.draw()
+        return self.draw(True, DepthResolution.EXPANDED)
+
 
     def validate_dependencies(self):
         print(f"validating_dependencies of circuit {self.name}")
@@ -351,7 +366,7 @@ if __name__ == "__main__":
     print()
 
     print(circuit_top_qiskit)
-    print(circuit_top_yours)
+    print(circuit_top_yours.draw(True, DepthResolution.EXPANDED)) # IT DOES NOT WORK HERE
     print(circuit_top_yours.flatten())
     print(circuit_top_yours._depth_gates)
 
@@ -430,7 +445,13 @@ if __name__ == "__main__":
     CircuitB_yours_inner_inner.add_gate(CircuitB_yours_inner)
     print(CircuitB_yours_inner_inner)
 
+    CircuitB_yours_inner_inner_2 = Circuit(6, "BCA2HAHA")
+    CircuitB_yours_inner_inner_2.add_gate(Gate("X", [3]))
+    CircuitB_yours_inner_inner_2.add_gate(Gate("RX", [5]))
+
+
     CircuitB_yours.add_gate(CircuitB_yours_inner_inner)
+    CircuitB_yours.add_gate(CircuitB_yours_inner_inner_2)
     print(CircuitB_yours._depth_gates)
     print()
 
@@ -438,12 +459,12 @@ if __name__ == "__main__":
     print("CIRCUIT INDEX", len(CircuitB_yours.gates)-1)
     print("DIFFERENT RESOLUTIONS")
 
-    print("SEQUENTIAL\n", CircuitB_yours.draw(False))
+    # print("SEQUENTIAL\n", CircuitB_yours.draw(False))
 
     print("BASIC\n", CircuitB_yours.draw(True,DepthResolution.ATOMIC))
     print(CircuitB_yours._depth_gates[DepthResolution.ATOMIC], "\n\n")
 
-    print("EXPANDED\n", CircuitB_yours.draw(True, DepthResolution.EXPANDED))
+    print("EXPANDED\n", CircuitB_yours.draw(True, DepthResolution.EXPANDED)) ## IT WORKS WHEN I DO IT HERE
     print(CircuitB_yours._depth_gates[DepthResolution.EXPANDED], "\n\n")
 
     print("FRAGMENTED\n", CircuitB_yours.draw(True, DepthResolution.FRAGMENTED))
