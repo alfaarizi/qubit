@@ -2,8 +2,8 @@ from typing import List, Set, Dict, Union, Any, Optional
 from enum import IntEnum
 import copy
 
-from gate import Gate
-from interfaces import Operation
+from .gate import Gate
+from .interfaces import Operation
 
 class DepthResolution(IntEnum):
     # sub-circuit as single units (1 time unit)

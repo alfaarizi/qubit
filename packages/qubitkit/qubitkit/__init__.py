@@ -1,8 +1,10 @@
+from importlib.metadata import version
+
 from .gate import Gate
 from .circuit import Circuit
 from .interfaces import Operation
 
-__version__ = "0.1.0"
+__version__ = version("qubitkit")
 __all__ = ['Gate', 'Circuit', 'Operation']
 
 def hello():
