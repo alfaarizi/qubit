@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-qubitkit-server = "app.main:main"
+serve = "app.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
