@@ -441,13 +441,16 @@ if __name__ == "__main__":
     # CircuitB_yours.add_gate(Gate("H", [2]))
     CircuitB_yours.add_gate(Gate("H", [0]))
 
+    print(CircuitB_yours_inner)
+
     CircuitB_yours_inner_inner = Circuit(3, "BCA")
     CircuitB_yours_inner_inner.add_gate(CircuitB_yours_inner)
     print(CircuitB_yours_inner_inner)
 
-    CircuitB_yours_inner_inner_2 = Circuit(6, "BCA2HAHA")
+    CircuitB_yours_inner_inner_2 = Circuit(6, "ACB")
     CircuitB_yours_inner_inner_2.add_gate(Gate("X", [3]))
     CircuitB_yours_inner_inner_2.add_gate(Gate("RX", [5]))
+    print(CircuitB_yours_inner_inner_2)
 
 
     CircuitB_yours.add_gate(CircuitB_yours_inner_inner)
@@ -455,11 +458,10 @@ if __name__ == "__main__":
     print(CircuitB_yours._depth_gates)
     print()
 
-    print(CircuitB_yours_inner)
     print("CIRCUIT INDEX", len(CircuitB_yours.gates)-1)
     print("DIFFERENT RESOLUTIONS")
 
-    # print("SEQUENTIAL\n", CircuitB_yours.draw(False))
+    print("SEQUENTIAL\n", CircuitB_yours.draw(False))
 
     print("BASIC\n", CircuitB_yours.draw(True,DepthResolution.ATOMIC))
     print(CircuitB_yours._depth_gates[DepthResolution.ATOMIC], "\n\n")
@@ -467,8 +469,8 @@ if __name__ == "__main__":
     print("EXPANDED\n", CircuitB_yours.draw(True, DepthResolution.EXPANDED)) ## IT WORKS WHEN I DO IT HERE
     print(CircuitB_yours._depth_gates[DepthResolution.EXPANDED], "\n\n")
 
-    print("FRAGMENTED\n", CircuitB_yours.draw(True, DepthResolution.FRAGMENTED))
-    print(CircuitB_yours._depth_gates[DepthResolution.FRAGMENTED], "\n\n")
+    # print("FRAGMENTED\n", CircuitB_yours.draw(True, DepthResolution.FRAGMENTED))
+    # print(CircuitB_yours._depth_gates[DepthResolution.FRAGMENTED], "\n\n")
 
     print(CircuitB_yours.flatten())
 
