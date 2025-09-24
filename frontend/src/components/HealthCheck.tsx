@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { healthAPI } from '../services/api';
+import { healthCheck } from '@/api/common/HealthService';
 
 const HealthCheck: React.FC = () => {
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
 
     useEffect(() => {
-        healthAPI.check()
+        healthCheck()
             .then(() => setStatus('success'))
             .catch(() => setStatus('error'));
     }, []);
