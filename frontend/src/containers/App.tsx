@@ -1,48 +1,37 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import HealthCheck from '@/components/HealthCheck';
 
 function App() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-            <div className="max-w-4xl mx-auto space-y-6">
-                {/* Header Section */}
-                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                    <CardHeader className="text-center space-y-2">
-                        <div className="flex items-center justify-center space-x-3">
-                            <div className="text-4xl">⚛️</div>
-                            <CardTitle className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+        <div className="min-h-screen bg-neutral-800 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 to-neutral-950"></div>
+
+            <div className="relative z-10 p-6">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    {/* Header */}
+                    <Card className="border-white/15 bg-white/5 backdrop-blur-3xl shadow-2xl shadow-black/40">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-3xl font-bold text-white drop-shadow-lg">
                                 QubitKit Partitioner
                             </CardTitle>
-                        </div>
-                        <CardDescription className="text-lg text-slate-600">
-                            Visual Quantum Circuit Partitioner
-                        </CardDescription>
-                        <div className="flex justify-center space-x-2 pt-2">
-                            <Badge variant="secondary">React</Badge>
-                            <Badge variant="secondary">TypeScript</Badge>
-                            <Badge variant="secondary">Tailwind</Badge>
-                            <Badge variant="secondary">D3.js</Badge>
-                        </div>
-                    </CardHeader>
-                </Card>
+                            <CardDescription className="text-neutral-300 drop-shadow-md">
+                                Visual Quantum Circuit Partitioner
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
 
-                {/* Status Section */}
-                <Card className="shadow-lg bg-white/90 backdrop-blur-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                            <span>🔧</span>
-                            <span>System Status</span>
-                        </CardTitle>
-                        <CardDescription>
-                            Frontend application is running. Backend connection status below.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <HealthCheck />
-                    </CardContent>
-                </Card>
+                    {/* Status */}
+                    <Card className="border-white/15 bg-white/5 backdrop-blur-3xl shadow-2xl shadow-black/40">
+                        <CardHeader>
+                            <CardTitle className="text-white drop-shadow-lg">System Status</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <HealthCheck />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
+
         </div>
     );
 }
