@@ -30,7 +30,7 @@ export function useWebSocketHealth() {
     // Poll HTTP and send WS ping
     useEffect(() => {
         recheckHttp();
-        const httpInterval = setInterval(recheckHttp, 5_000);
+        const httpInterval = setInterval(recheckHttp, 30_000);
         const pingInterval = setInterval(() => {
             if (isConnected) sendPing();
         }, 30_000);
