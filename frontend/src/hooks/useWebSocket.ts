@@ -19,7 +19,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     // Build WebSocket URL
     const wsUrl = (() => {
         const baseUrl = import.meta.env.VITE_API_BASE_URL;
-        return baseUrl.replace(/^https?/, 'ws') + endpoint;
+        const url = new URL(baseUrl, window.location.origin);
+        const protocol = url.protocol === 'https:' ? 'wss' : 'ws';
+        return `${protocol}://${url.host}${endpoint}`;
     })();
 
     const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocketLib(wsUrl, {
