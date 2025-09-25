@@ -13,8 +13,6 @@ async def health_check():
         dependencies["qubitkit"] = f"OK (v{qubitkit.__version__})"
     except ImportError as e:
         dependencies["qubitkit"] = f"ERROR: {str(e)}"
-    except Exception as e:
-        dependencies["qubitkit"] = f"ERROR: {str(e)}"
 
     is_healthy = all("OK" in status for status in dependencies.values())
 

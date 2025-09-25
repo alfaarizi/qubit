@@ -6,13 +6,13 @@ from .core.config import settings
 from .api.v1.api import api_router
 
 def create_application() -> FastAPI:
-    app = FastAPI(
+    application = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
         docs_url=f"{settings.API_V1_STR}/docs"
     )
 
-    app.add_middleware(
+    application.add_middleware(
         CORSMiddleware, # type: ignore
         allow_origins=settings.BACKEND_CORS_ORIGINS,
         allow_credentials=True,
@@ -20,17 +20,17 @@ def create_application() -> FastAPI:
         allow_headers=["*"]
     )
 
-    app.include_router(api_router, prefix=settings.API_V1_STR)
+    application.include_router(api_router, prefix=settings.API_V1_STR)
 
-    @app.get('/favicon.ico', include_in_schema=False)
+    @application.get('/favicon.ico', include_in_schema=False)
     async def favicon():
         return FileResponse('favicon.ico')
 
-    @app.get("/")
+    @application.get("/")
     async def root():
         return {"message": f"Welcome to {settings.PROJECT_NAME}"}
 
-    return app
+    return application
 
 app = create_application()
 
