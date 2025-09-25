@@ -1,10 +1,11 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
 from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 try:
-    from importlib.metadata import version
+    from importlib.metadata import version, PackageNotFoundError
     VERSION = version("qubitkit-backend")
-except Exception:
+except PackageNotFoundError:
     VERSION = "unknown"
 
 class Settings(BaseSettings):
@@ -22,7 +23,8 @@ class Settings(BaseSettings):
     def BACKEND_CORS_ORIGINS(self) -> List[str]:
         return [self.FRONTEND_URL]
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).parent.parent.parent / ".env"
+    )
 
 settings = Settings()
