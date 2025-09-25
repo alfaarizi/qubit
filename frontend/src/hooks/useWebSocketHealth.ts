@@ -1,9 +1,8 @@
-// src/hooks/useWebSocketHealth.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { healthCheck } from '@/api/common/HealthService';
 
-type HealthStatus = 'loading' | 'healthy' | 'degraded' | 'offline';
+export type HealthStatus = 'loading' | 'healthy' | 'degraded' | 'offline';
 
 export function useWebSocketHealth() {
     const [httpHealthy, setHttpHealthy] = useState(false);
@@ -12,45 +11,47 @@ export function useWebSocketHealth() {
     const ws = useWebSocket();
     const { isConnected, connectionState, sendPing } = ws;
 
-    // Calculate overall status
-    useEffect(() => {
-        if (isConnected && httpHealthy) {
-            setStatus('healthy');
-        } else if (isConnected || httpHealthy) {
-            setStatus('degraded');
-        } else if (connectionState === 'connecting') {
-            setStatus('loading');
-        } else {
-            setStatus('offline');
-        }
-    }, [isConnected, connectionState, httpHealthy]);
-
-    // Initial HTTP check
-    useEffect(() => {
-        healthCheck()
-            .then(() => setHttpHealthy(true))
-            .catch(() => setHttpHealthy(false));
-    }, []);
-
-    // Ping every 30s when connected
-    useEffect(() => {
-        if (!isConnected) return;
-        const interval = setInterval(() => sendPing(), 30000);
-        return () => clearInterval(interval);
-    }, [isConnected, sendPing]);
-
-    const recheckHttp = async () => {
+    const recheckHttp = useCallback(async () => {
         try {
             await healthCheck();
             setHttpHealthy(true);
         } catch {
             setHttpHealthy(false);
         }
-    };
+    }, []);
+
+    // Initial check + polling + ping
+    useEffect(() => {
+        recheckHttp();
+        const httpInterval = setInterval(recheckHttp, 30000);
+        const pingInterval= isConnected ? setInterval(() => sendPing(), 30000) : null;
+        return () => {
+            clearInterval(httpInterval);
+            if (pingInterval) clearInterval(pingInterval);
+        };
+    }, [isConnected, recheckHttp, sendPing]);
+
+    // Compute status with smoothing
+    useEffect(() => {
+        let timeout: ReturnType<typeof setTimeout> | null = null;
+
+        let nextStatus: HealthStatus;
+        if (!httpHealthy && connectionState === 'connecting') nextStatus = 'loading';
+        else if (!httpHealthy && !isConnected) nextStatus = 'offline';
+        else if (httpHealthy && isConnected) nextStatus = 'healthy';
+        else nextStatus = 'degraded';
+
+        if (status !== nextStatus) {
+            timeout = setTimeout(() => setStatus(nextStatus), 300);
+        }
+        return () => {
+            if (timeout) clearTimeout(timeout);
+        };
+    }, [httpHealthy, isConnected, connectionState, status]);
 
     return {
         status,
-        isWebSocketConnected: ws.isConnected,
+        isWebSocketConnected: isConnected,
         recheckHttp,
     };
 }
