@@ -11,7 +11,7 @@ pip install -e .
 ## Usage
 
 ```bash
-qubitkit-server
+serve
 # Or
 python -m app.main
 ```
