@@ -66,7 +66,8 @@ def main():
         "app.main:app" if settings.DEBUG else app,
         host=settings.HOST,
         port=settings.PORT,
-        reload=settings.DEBUG
+        reload=settings.DEBUG,
+        log_config=None
     )
 
 if __name__ == "__main__":
