@@ -1,65 +1,54 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { healthCheck } from '@/api/common/HealthService';
 
 export type HealthStatus = 'loading' | 'healthy' | 'degraded' | 'offline';
 
-const STATUS_KEY = 'healthStatus';
+interface UseWebSocketHealthOptions {
+    pingInterval?: number;
+    enabled?: boolean;
+}
 
-export function useWebSocketHealth() {
-    const ws = useWebSocket();
-    const { isConnected, connectionState, sendPing } = ws;
+export function useWebSocketHealth(options: UseWebSocketHealthOptions = {}) {
+    const {
+        pingInterval = 30_000,
+        enabled = true
+    } = options;
 
-    const [status, setStatus] = useState<HealthStatus>(
-        (localStorage.getItem(STATUS_KEY) as HealthStatus) || 'loading'
-    );
-    const [httpHealthy, setHttpHealthy] = useState(false);
-    const [httpChecked, setHttpChecked] = useState(false);
+    const [lastPongTime, setLastPongTime] = useState<number | null>(null);
 
-    const recheckHttp = useCallback(async () => {
-        try {
-            await healthCheck();
-            setHttpHealthy(true);
-        } catch {
-            setHttpHealthy(false);
-        } finally {
-            setHttpChecked(true);
+    const { isConnected, sendPing } = useWebSocket({
+        enabled: enabled,
+        onMessage: (message) => {
+            if (message.type === 'pong') {
+                setLastPongTime(Date.now());
+            }
         }
-    }, []);
+    });
 
-    // Poll HTTP and send WS ping
     useEffect(() => {
-        recheckHttp();
-        const httpInterval = setInterval(recheckHttp, 30_000);
-        const pingInterval = setInterval(() => {
-            if (isConnected) sendPing();
-        }, 30_000);
-        return () => {
-            clearInterval(httpInterval);
-            clearInterval(pingInterval);
-        };
-    }, [isConnected, recheckHttp, sendPing]);
+        if (!isConnected) return;
+        sendPing(); // Send initial ping
+        const intervalId = setInterval(sendPing, pingInterval);
+        return () => clearInterval(intervalId);
+    }, [isConnected, pingInterval, sendPing]);
 
-    // Compute status with tiny debounce and save to localStorage
-    useEffect(() => {
-        let nextStatus: HealthStatus;
-        if (!httpChecked || connectionState === 'connecting') nextStatus = 'loading';
-        else if (!httpHealthy && !isConnected) nextStatus = 'offline';
-        else if (httpHealthy && isConnected)  nextStatus = 'healthy';
-        else  nextStatus = 'degraded';
+    const status = useMemo<HealthStatus>(() => {
+        if (!isConnected)
+            return 'offline';
+        if (lastPongTime === null)
+            return 'loading';
+        const timeSinceLastPong = Date.now() - lastPongTime;
+        return timeSinceLastPong > pingInterval * 2 ? 'degraded' : 'healthy';
+    }, [isConnected, lastPongTime, pingInterval]);
 
-        if (status !== nextStatus) {
-            const timeout = setTimeout(() => {
-                setStatus(nextStatus);
-                localStorage.setItem(STATUS_KEY, nextStatus);
-            }, 200);
-            return () => clearTimeout(timeout);
+    const checkHealth = useCallback(() => {
+        if (isConnected) {
+            sendPing();
         }
-    }, [httpChecked, httpHealthy, isConnected, connectionState, status]);
+    }, [isConnected, sendPing]);
 
     return {
         status,
-        isWebSocketConnected: isConnected,
-        recheckHttp
+        checkHealth
     };
 }
