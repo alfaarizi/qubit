@@ -96,10 +96,10 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
             })
 
     except ConnectionError as e:
-        logger.error(f"Connection error for {connection_id}: {e}")
+        logger.error("Connection error", extra={"connection_id": connection_id, "error": str(e)})
         manager.disconnect(connection_id)
     except Exception as e:
-        logger.error(f"Error handling message from {connection_id}: {e}")
+        logger.error("Error handling message", extra={"connection_id": connection_id, "error": str(e), "message_type": message_type})
         await manager.send_message(connection_id, {
             "type": ServerMessage.ERROR,
             "message": f"internal server error: {type(e).__name__}",
@@ -132,7 +132,7 @@ async def websocket_endpoint(
                 if not isinstance(message_data, dict):
                     raise ValueError
             except (json.JSONDecodeError, ValueError):
-                logger.warning(f"Received non-JSON message from {connection_id}, broadcasting as text")
+                logger.warning("Received non-JSON message", extra={"connection_id": connection_id})
                 message_data = {
                     "type": ClientMessage.BROADCAST,
                     "content": data
@@ -141,7 +141,7 @@ async def websocket_endpoint(
     except WebSocketDisconnect:
         manager.disconnect(connection_id)
     except Exception as e:
-        logger.error(f"WebSocket error for connection {connection_id}: {e}")
+        logger.error("Connection error", extra={"connection_id": connection_id, "error": str(e)})
         manager.disconnect(connection_id)
 
 
@@ -174,7 +174,7 @@ async def room_websocket_endpoint(
                 if not isinstance(message_data, dict):
                     raise ValueError
             except (json.JSONDecodeError, ValueError):
-                logger.warning(f"Received non-JSON message from {connection_id}, broadcasting as text")
+                logger.warning("Received non-JSON message", extra={"connection_id": connection_id})
                 message_data = {
                     "type": ClientMessage.ROOM_BROADCAST,
                     "room": room_name,
@@ -184,7 +184,7 @@ async def room_websocket_endpoint(
     except WebSocketDisconnect:
         manager.disconnect(connection_id)
     except Exception as e:
-        logger.error(f"Room WebSocket error for connection {connection_id}: {e}")
+        logger.error("Connection error in the room", extra={"connection_id": connection_id, "error": str(e), "room": room_name})
         manager.disconnect(connection_id)
 
 
@@ -215,7 +215,7 @@ async def broadcast(message: BroadcastMessage):
             "total_connections": len(manager.connections)
         })
     except Exception as e:
-        logger.error(f"Error broadcasting JSON message: {e}")
+        logger.error("Error broadcasting JSON message", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail="Failed to broadcast JSON message")
 
 @router.post("/broadcast/room/{room_name}")
@@ -242,5 +242,5 @@ async def broadcast_to_room(room_name: str, message: BroadcastMessage):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error broadcasting JSON to room {room_name}: {e}")
+        logger.error("Error broadcasting JSON message to the room", extra={"error": str(e), "room": room_name})
         raise HTTPException(status_code=500, detail="Failed to broadcast JSON to room")

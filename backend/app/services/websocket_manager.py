@@ -65,7 +65,7 @@ class ConnectionManager:
                 "messages_sent": 0 # server -> client
             }
         }
-        logger.info(f"WebSocket connection established: {connection_id}")
+        logger.info("WebSocket connection established", extra={"connection_id": connection_id})
         await self.broadcast_to_all({
             "type": ServerMessage.CONNECTION_UPDATE,
             "event": ConnectionEvent.USER_CONNECTED,
@@ -88,7 +88,7 @@ class ConnectionManager:
             del self.sessions[connection_id]
         if connection_id in self.connections:
             del self.connections[connection_id]
-        logger.info(f"WebSocket connection closed: {connection_id}")
+        logger.info("WebSocket connection closed", extra={"connection_id": connection_id})
         try:
             asyncio.get_running_loop().create_task(self.broadcast_to_all({
                 "type": ServerMessage.CONNECTION_UPDATE,
@@ -110,7 +110,7 @@ class ConnectionManager:
         if connection_id in self.sessions:
             self.sessions[connection_id]["rooms"].add(room)
         if is_added:
-            logger.info(f"Connection {connection_id} joined room {room}")
+            logger.info("Connection joined room", extra={"connection_id": connection_id, "room": room})
             await self.broadcast_to_room(room, {
                 "type": ServerMessage.CONNECTION_UPDATE,
                 "event": ConnectionEvent.USER_JOINED_ROOM,
@@ -130,7 +130,7 @@ class ConnectionManager:
         if connection_id in self.sessions:
             self.sessions[connection_id]["rooms"].discard(room)
         if is_removed:
-            logger.info(f"Connection {connection_id} left room {room}")
+            logger.info("Connection left room", extra={"connection_id": connection_id, "room": room})
             await self.broadcast_to_room(room, {
                 "type": ServerMessage.CONNECTION_UPDATE,
                 "event": ConnectionEvent.USER_LEFT_ROOM,
@@ -223,7 +223,7 @@ class ConnectionManager:
                 activity["last_seen_outbound"] = datetime.now(UTC)
                 activity["messages_sent"] += 1
         except Exception as e:
-            logger.error(f"Error broadcasting to {connection_id}: {e}")
+            logger.error("Error broadcasting", extra={"connection_id": connection_id, "error": str(e)})
             self.disconnect(connection_id)
 
 manager = ConnectionManager()

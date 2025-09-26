@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 try:
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     FRONTEND_URL: str
+    LOG_FILE_PATH: Optional[Path] = None
 
     @property
     def BACKEND_CORS_ORIGINS(self) -> List[str]:
