@@ -9,7 +9,7 @@ interface SidePanelLayoutProps {
 
 export function SidePanelLayout({ children }: SidePanelLayoutProps) {
     return (
-        <div className="flex h-[calc(100vh-3rem)] w-full gap-4">
+        <div className="flex h-full w-full gap-4">
             {children}
         </div>
     );
