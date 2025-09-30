@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SidePanelLayout, SidePanel } from '@/components/SidePanelLayout';
+import { SidePanelLayout, SidePanel } from '@/components/Panels/SidePanelLayout';
 import {Layers, FileCode, CircuitBoard, Github, Mail} from 'lucide-react';
-import { Header } from "@/components/Header";
+import { Header } from "@/components/Header/Header";
 
 /**
  * Partitioner page component - main workspace for quantum circuit partitioning

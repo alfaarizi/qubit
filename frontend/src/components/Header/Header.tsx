@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { ModeToggle } from "@/components/ModeToggle"
+import { ModeToggle } from "@/components/Buttons/ModeToggle"
 import { type LucideIcon} from "lucide-react"
 import { Link } from "react-router-dom"
 
