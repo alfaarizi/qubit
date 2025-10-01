@@ -9,47 +9,42 @@ interface UseCircuitRendererProps {
     placedGates: DraggableGate[];
     numQubits: number;
     maxDepth: number;
-    rowHeight: number;
-    gateWidth: number;
-    onStartDraggingGate: (gateId: string) => void;
     onUpdateGatePosition: (gateId: string, depth: number, qubit: number) => void;
     onRemoveGate: (gateId: string) => void;
     onShowPreview: (gate: DraggableGate['gate'], depth: number, qubit: number) => void;
     onHidePreview: () => void;
+    onStartDragging: (gateId: string) => void;
     onEndDragging: () => void;
 }
 
 export function useCircuitRenderer({
-                                       svgRef,
-                                       gates,
-                                       placedGates,
-                                       numQubits,
-                                       maxDepth,
-                                       rowHeight,
-                                       gateWidth,
-                                       onStartDraggingGate,
-                                       onUpdateGatePosition,
-                                       onRemoveGate,
-                                       onShowPreview,
-                                       onHidePreview,
-                                       onEndDragging
-                                   }: UseCircuitRendererProps) {
+    svgRef,
+    gates,
+    placedGates,
+    numQubits,
+    maxDepth,
+    onStartDragging,
+    onUpdateGatePosition,
+    onRemoveGate,
+    onShowPreview,
+    onHidePreview,
+    onEndDragging
+}: UseCircuitRendererProps) {
+    const GATE_SPACING = GATE_STYLES.gateSpacing;
 
     // ========== Logic Functions ==========
 
     const getGridPosition = useCallback((e: { clientX: number; clientY: number }) => {
         if (!svgRef.current) return null;
-
         const rect = svgRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
         return {
-            depth: Math.floor(x / gateWidth),
-            qubit: Math.floor(y / rowHeight),
+            depth: Math.floor(x / GATE_SPACING),
+            qubit: Math.floor(y / GATE_SPACING),
             y
         };
-    }, [svgRef, gateWidth, rowHeight]);
+    }, [svgRef, GATE_SPACING]);
 
     const hasCollision = useCallback((
         depth: number,
@@ -60,7 +55,6 @@ export function useCircuitRenderer({
         return placedGates.some(pg => {
             if (pg.id === excludeId) return false;
             if (pg.depth !== depth) return false;
-
             const end1 = qubit + qubits - 1;
             const end2 = pg.qubit + pg.gate.qubits - 1;
             return !(end1 < pg.qubit || end2 < qubit);
@@ -88,8 +82,8 @@ export function useCircuitRenderer({
 
         gates.forEach(draggableGate => {
             const { gate, depth, qubit, isPreview, id } = draggableGate;
-            const x = depth * gateWidth + gateWidth / 2;
-            const y = qubit * rowHeight + rowHeight / 2;
+            const x = depth * GATE_SPACING + GATE_SPACING / 2;
+            const y = qubit * GATE_SPACING + GATE_SPACING / 2;
 
             const group = svg.append('g')
                 .attr('class', 'gate-element')
@@ -98,7 +92,6 @@ export function useCircuitRenderer({
                 .style('cursor', isPreview ? 'default' : 'grab');
 
             if (gate.qubits === 1) {
-                // Single qubit gate
                 const { size, borderWidth, borderRadius } = GATE_STYLES.singleQubit;
 
                 group.append('rect')
@@ -132,9 +125,8 @@ export function useCircuitRenderer({
                     .text(gate.symbol);
 
             } else if (gate.qubits === 2) {
-                // Two qubit gate (CNOT style)
                 const { lineWidth, controlDotRadius, targetRadius } = GATE_STYLES.multiQubit;
-                const y2 = (qubit + 1) * rowHeight + rowHeight / 2;
+                const y2 = (qubit + 1) * GATE_SPACING + GATE_SPACING / 2;
 
                 group.append('line')
                     .attr('x1', x).attr('y1', y)
@@ -175,12 +167,11 @@ export function useCircuitRenderer({
             if (!isPreview) {
                 group.on('mousedown', function(event) {
                     event.preventDefault();
-                    onStartDraggingGate(id);
+                    onStartDragging(id);
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                         const pos = getGridPosition(moveEvent);
                         if (!pos) return;
-
                         if (isValid(pos.depth, pos.qubit, gate.qubits, id)) {
                             onShowPreview(gate, pos.depth, pos.qubit);
                         } else {
@@ -190,28 +181,25 @@ export function useCircuitRenderer({
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
                         const pos = getGridPosition(upEvent);
-
                         if (pos) {
-                            const circuitHeight = numQubits * rowHeight;
+                            const circuitHeight = numQubits * GATE_SPACING;
                             if (pos.y < 0 || pos.y > circuitHeight) {
                                 onRemoveGate(id);
                             } else if (isValid(pos.depth, pos.qubit, gate.qubits, id)) {
                                 onUpdateGatePosition(id, pos.depth, pos.qubit);
                             }
                         }
-
                         onEndDragging();
                         document.removeEventListener('mousemove', handleMouseMove);
                         document.removeEventListener('mouseup', handleMouseUp);
                     };
-
                     document.addEventListener('mousemove', handleMouseMove);
                     document.addEventListener('mouseup', handleMouseUp);
                 });
             }
         });
-    }, [gates, svgRef, rowHeight, gateWidth, numQubits, getGridPosition, isValid,
-        onStartDraggingGate, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
+    }, [gates, svgRef, GATE_SPACING, numQubits, getGridPosition, isValid,
+        onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
     return {
         getGridPosition,

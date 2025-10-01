@@ -1,3 +1,9 @@
+export const CIRCUIT_CONFIG = {
+    defaultNumQubits: 3,
+    defaultMaxDepth: 10,
+    footerHeight: 60
+};
+
 export const GATE_STYLES = {
     singleQubit: {
         size: 42,
