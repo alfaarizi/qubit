@@ -1,8 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+// src/components/CircuitCanvas.tsx
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CircuitBoard } from "lucide-react";
 import * as d3 from 'd3';
+import { dragState } from '@/lib/dragState';
+import { GATES } from '@/types/gates';
+import { GATE_STYLES } from '@/lib/styles';
+import type { DraggableGate } from '@/types/circuit';
+import { useCircuitRenderer } from '@/hooks/useCircuitRenderer';
 
 interface QubitLabelsProps {
     numQubits: number;
@@ -24,18 +30,13 @@ function QubitLabels({ numQubits, rowHeight, footerHeight, onAddQubit, onRemoveQ
                 <button
                     onClick={onRemoveQubit}
                     disabled={numQubits <= 1}
-                    className={`
-                        w-6 h-6 rounded border border-border bg-background flex items-center justify-center 
-                        hover:bg-accent disabled:opacity-30
-                    `}
+                    className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent disabled:opacity-30"
                 >
                     −
                 </button>
                 <button
                     onClick={onAddQubit}
-                    className={`
-                        w-6 h-6 rounded border border-border bg-background flex items-center justify-center 
-                        hover:bg-accent`}
+                    className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent"
                 >
                     +
                 </button>
@@ -61,8 +62,7 @@ export function MeasurementToggles({ measurements, rowHeight, onToggle }: Measur
                             isMeasured ? 'bg-yellow-400/30 border-yellow-500' : 'bg-gray-300/30 border-gray-400'
                         }`}
                     >
-                        <span
-                            className={`text-xs font-bold ${isMeasured ? 'text-yellow-600' : 'text-gray-500'}`}>M</span>
+                        <span className={`text-xs font-bold ${isMeasured ? 'text-yellow-600' : 'text-gray-500'}`}>M</span>
                     </button>
                 </div>
             ))}
@@ -73,16 +73,17 @@ export function MeasurementToggles({ measurements, rowHeight, onToggle }: Measur
 export function CircuitCanvas() {
     const [numQubits, setNumQubits] = useState(3);
     const [measurements, setMeasurements] = useState<boolean[]>([true, true, true]);
-    const [maxDepth] = useState(10);
+    const [placedGates, setPlacedGates] = useState<DraggableGate[]>([]);
+    const [previewGate, setPreviewGate] = useState<DraggableGate | null>(null);
+    const [draggingId, setDraggingId] = useState<string | null>(null);
 
     const svgRef = useRef<SVGSVGElement>(null);
-
-    const [scrollContainerWidth, setScrollContainerWidth] = useState(0);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [scrollContainerWidth, setScrollContainerWidth] = useState(0);
 
-    const ROW_HEIGHT = 60;
-    const GATE_WIDTH = 50;
-    const FOOTER_HEIGHT = 40;
+    const FOOTER_HEIGHT = 38;
+    const MAX_DEPTH = 10;
+    const GATE_SPACING = GATE_STYLES.gateSpacing;
 
     const addQubit = useCallback(() => {
         setNumQubits(prev => prev + 1);
@@ -93,6 +94,7 @@ export function CircuitCanvas() {
         if (numQubits > 1) {
             setNumQubits(prev => prev - 1);
             setMeasurements(prev => prev.slice(0, -1));
+            setPlacedGates(prev => prev.filter(g => g.qubit + g.gate.qubits <= numQubits - 1));
         }
     }, [numQubits]);
 
@@ -104,50 +106,154 @@ export function CircuitCanvas() {
         });
     }, []);
 
+    // Combine gates for rendering (exclude dragging gate, add preview)
+    const gatesToRender = [
+        ...placedGates.map(g =>
+            g.id === draggingId ? { ...g, isPreview: true } : g  // Make dragging gate semi-transparent
+        ),
+        ...(previewGate && previewGate.id === 'preview' ? [previewGate] : [])  // Add preview only if it's the preview, not original position
+    ];
+
+    // Use the circuit renderer (handles both logic and rendering)
+    const { getGridPosition, isValid } = useCircuitRenderer({
+        svgRef,
+        gates: gatesToRender,
+        placedGates,
+        numQubits,
+        maxDepth: MAX_DEPTH,
+        rowHeight: GATE_SPACING,
+        gateWidth: GATE_SPACING,
+        onStartDraggingGate: useCallback((gateId: string) => {
+            setDraggingId(gateId);
+        }, []),
+        onUpdateGatePosition: useCallback((gateId: string, depth: number, qubit: number) => {
+            setPlacedGates(prev => prev.map(g =>
+                g.id === gateId ? { ...g, depth, qubit } : g
+            ));
+        }, []),
+        onRemoveGate: useCallback((gateId: string) => {
+            setPlacedGates(prev => prev.filter(g => g.id !== gateId));
+        }, []),
+        onShowPreview: useCallback((gate: DraggableGate['gate'], depth: number, qubit: number) => {
+            setPreviewGate({
+                id: 'preview',
+                gate,
+                depth,
+                qubit,
+                isPreview: true
+            });
+        }, []),
+        onHidePreview: useCallback(() => {
+            setPreviewGate(null);
+        }, []),
+        onEndDragging: useCallback(() => {
+            setPreviewGate(null);
+            setDraggingId(null);
+        }, [])
+    });
+
+    // Drag from GatesPanel
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+
+        const gateId = dragState.get();
+        if (!gateId) return;
+
+        const gate = GATES.find(g => g.id === gateId);
+        if (!gate) return;
+
+        const pos = getGridPosition(e);
+        if (!pos) return;
+
+        if (isValid(pos.depth, pos.qubit, gate.qubits)) {
+            setPreviewGate({
+                id: 'preview',
+                gate,
+                depth: pos.depth,
+                qubit: pos.qubit,
+                isPreview: true
+            });
+        } else {
+            setPreviewGate(null);
+        }
+    }, [getGridPosition, isValid]);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+
+        const gateId = dragState.get();
+        if (!gateId) return;
+
+        const gate = GATES.find(g => g.id === gateId);
+        if (!gate) return;
+
+        const pos = getGridPosition(e);
+        if (!pos) return;
+
+        // Revalidate position on drop
+        if (isValid(pos.depth, pos.qubit, gate.qubits)) {
+            setPlacedGates(prev => [...prev, {
+                id: `gate_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+                gate,
+                depth: pos.depth,
+                qubit: pos.qubit,
+                isPreview: false
+            }]);
+        }
+
+        setPreviewGate(null);
+    }, [getGridPosition, isValid]);
+
+    // Resize observer
     useEffect(() => {
         if (!scrollContainerRef.current) return;
-
         const resizeObserver = new ResizeObserver((entries) => {
-            const width = entries[0].contentRect.width;
-            setScrollContainerWidth(width);
+            setScrollContainerWidth(entries[0].contentRect.width);
         });
-
         resizeObserver.observe(scrollContainerRef.current);
         return () => resizeObserver.disconnect();
     }, []);
 
+    // Draw circuit lines
     useEffect(() => {
         if (!svgRef.current) return;
 
         const svg = d3.select(svgRef.current);
-        svg.selectAll('*').remove();
 
-        const contentWidth = maxDepth * GATE_WIDTH;
+        svg.select('.circuit-background').remove();
+
+        const background = svg.insert('g', ':first-child')
+            .attr('class', 'circuit-background');
+
+        const contentWidth = MAX_DEPTH * GATE_SPACING;
         const svgWidth = Math.max(scrollContainerWidth || contentWidth, contentWidth);
-        const svgHeight = numQubits * ROW_HEIGHT + FOOTER_HEIGHT;
+        const svgHeight = numQubits * GATE_SPACING + FOOTER_HEIGHT;
 
         svg.attr('width', svgWidth).attr('height', svgHeight);
 
         // Qubit lines
         for (let i = 0; i < numQubits; i++) {
-            svg.append('line')
-                .attr('x1', 0).attr('y1', i * ROW_HEIGHT + ROW_HEIGHT / 2)
-                .attr('x2', svgWidth).attr('y2', i * ROW_HEIGHT + ROW_HEIGHT / 2)
-                .attr('class', 'stroke-border').attr('stroke-width', 1);
+            background.append('line')
+                .attr('class', 'circuit-line')
+                .attr('x1', 0).attr('y1', i * GATE_SPACING + GATE_SPACING / 2)
+                .attr('x2', svgWidth).attr('y2', i * GATE_SPACING + GATE_SPACING / 2)
+                .attr('stroke', 'currentColor')
+                .attr('class', 'stroke-border circuit-line')
+                .attr('stroke-width', 1);
         }
 
         // Depth markers
-        const markersY = numQubits * ROW_HEIGHT + FOOTER_HEIGHT / 2;
-        for (let i = 1; i <= maxDepth; i++) {
-            svg.append('text')
-                .attr('x', (i - 1) * GATE_WIDTH + GATE_WIDTH / 2)
+        const markersY = numQubits * GATE_SPACING + FOOTER_HEIGHT / 2;
+        for (let i = 1; i <= MAX_DEPTH; i++) {
+            background.append('text')
+                .attr('x', (i - 1) * GATE_SPACING + GATE_SPACING / 2)
                 .attr('y', markersY)
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'middle')
-                .attr('class', 'fill-muted-foreground text-xs font-mono')
+                .attr('class', 'fill-muted-foreground text-xs font-mono depth-marker')
                 .text(i);
         }
-    }, [numQubits, maxDepth, scrollContainerWidth]);
+    }, [numQubits, scrollContainerWidth, GATE_SPACING]);
 
     return (
         <Card className="h-full flex flex-col border-border/50 bg-card/95 p-4">
@@ -160,20 +266,29 @@ export function CircuitCanvas() {
             <CardContent className="flex-1 p-0 flex overflow-hidden">
                 <QubitLabels
                     numQubits={numQubits}
-                    rowHeight={ROW_HEIGHT}
+                    rowHeight={GATE_SPACING}
                     footerHeight={FOOTER_HEIGHT}
                     onAddQubit={addQubit}
                     onRemoveQubit={removeQubit}
                 />
-                <div ref={scrollContainerRef} className="flex-1" style={{ minWidth: GATE_WIDTH }}>
+                <div
+                    ref={scrollContainerRef}
+                    className="flex-1"
+                    style={{ minWidth: GATE_SPACING }}
+                >
                     <ScrollArea className="h-full w-full">
-                        <svg ref={svgRef} style={{ display: 'block', minWidth: maxDepth * GATE_WIDTH + 6}} />
+                        <svg ref={svgRef}
+                             style={{ display: 'block', minWidth: MAX_DEPTH * GATE_SPACING + 6}}
+                             onDragOver={handleDragOver}
+                             onDragLeave={() => setPreviewGate(null)}
+                             onDrop={handleDrop}
+                        />
                         <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                 </div>
                 <MeasurementToggles
                     measurements={measurements}
-                    rowHeight={ROW_HEIGHT}
+                    rowHeight={GATE_SPACING}
                     onToggle={toggleMeasurement}
                 />
             </CardContent>

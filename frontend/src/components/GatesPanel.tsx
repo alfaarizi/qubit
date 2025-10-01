@@ -1,28 +1,21 @@
-import { useState } from 'react';
-import { QUANTUM_GATES, type QuantumGate } from '@/types/gates';
+import React, { useState } from 'react';
+import { dragState } from '@/lib/dragState';
+import { GATE_STYLES } from '@/lib/styles';
+import { GATES, type Gate } from '@/types/gates';
 
 export function GatesPanel() {
     const [draggedGate, setDraggedGate] = useState<string | null>(null);
 
-    const handleDragStart = (e: React.DragEvent, gate: QuantumGate) => {
-        // Set the gate data in the drag event
-        e.dataTransfer.effectAllowed = 'copy';
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, gate: Gate) => {
+        e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('application/json', JSON.stringify(gate));
         setDraggedGate(gate.id);
-
-        // Optional: Create a custom drag image
-        const dragImage = e.currentTarget.querySelector('div') as HTMLElement;
-        if (dragImage) {
-            const clone = dragImage.cloneNode(true) as HTMLElement;
-            clone.style.opacity = '0.8';
-            document.body.appendChild(clone);
-            e.dataTransfer.setDragImage(clone, 24, 24);  // Half of 48px gate size
-            setTimeout(() => document.body.removeChild(clone), 0);
-        }
+        dragState.set(gate.id);
     };
 
     const handleDragEnd = () => {
         setDraggedGate(null);
+        dragState.set(null);
     };
 
     return (
@@ -32,7 +25,7 @@ export function GatesPanel() {
             </div>
 
             <div className="grid grid-cols-4 gap-2">
-                {QUANTUM_GATES.map((gate) => (
+                {GATES.map((gate) => (
                     <GateItem
                         key={gate.id}
                         gate={gate}
@@ -47,9 +40,9 @@ export function GatesPanel() {
 }
 
 interface GateItemProps {
-    gate: QuantumGate;
+    gate: Gate;
     isDragging: boolean;
-    onDragStart: (e: React.DragEvent, gate: QuantumGate) => void;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, gate: Gate) => void;
     onDragEnd: () => void;
 }
 
@@ -70,19 +63,24 @@ function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
             `}
             title={gate.description}
         >
-            <div className={`w-12 h-12 flex items-center justify-center border-2 rounded-none
-              ${gate.color}
-              ${isHovered ? 'shadow-md !border-yellow-400' : 'shadow-sm border-opacity-70'}
-            `}
+            <div
+                className={`flex items-center justify-center border-2 rounded-none ${isHovered ? 'shadow-md' : 'shadow-sm'}`}
+                style={{
+                    width: GATE_STYLES.singleQubit.size,
+                    height: GATE_STYLES.singleQubit.size,
+                    backgroundColor: `${gate.color}${GATE_STYLES.backgroundOpacity}`,
+                    borderColor: isHovered ? '#eab308' : gate.color,
+                    borderWidth: GATE_STYLES.singleQubit.borderWidth
+                }}
             >
-              <span className="text-xl font-bold text-gray-700 select-none">
-                {gate.symbol}
-              </span>
+                <span className={`${GATE_STYLES.singleQubit.textSize} ${GATE_STYLES.singleQubit.fontWeight} select-none text-foreground`}>
+                    {gate.symbol}
+                </span>
             </div>
             {isHovered && gate.description && (
                 <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1
-                    bg-popover text-popover-foreground text-xs rounded shadow-lg whitespace-nowrap z-50 border
-                `}>
+                    bg-popover text-popover-foreground text-xs rounded shadow-lg whitespace-nowrap z-50 border`}
+                >
                     {gate.description}
                 </div>
             )}
