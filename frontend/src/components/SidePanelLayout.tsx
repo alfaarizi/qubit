@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { Children, isValidElement, type ReactNode, useState} from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
@@ -10,10 +10,19 @@ interface SidePanelLayoutProps {
 export function SidePanelLayout({ children }: SidePanelLayoutProps) {
     return (
         <div className="flex h-full w-full gap-4">
-            {children}
+            {Children.map(children, (child, i) =>
+                isValidElement(child) && child.type === SidePanel ? (
+                    child
+                ) : (
+                    <div key={i} className="flex-1 min-w-0">
+                        {child}
+                    </div>
+                )
+            )}
         </div>
     );
 }
+
 
 interface SidePanelProps {
     children: ReactNode;
