@@ -1,7 +1,7 @@
 export const CIRCUIT_CONFIG = {
     defaultNumQubits: 3,
     defaultMaxDepth: 10,
-    footerHeight: 60
+    footerHeight: 50
 };
 
 export const GATE_STYLES = {
