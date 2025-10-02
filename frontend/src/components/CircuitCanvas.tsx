@@ -8,6 +8,7 @@ import { GATES } from '@/types/gates';
 import {CIRCUIT_CONFIG, GATE_STYLES} from '@/lib/styles';
 import type { DraggableGate } from '@/types/circuit';
 import { useCircuitRenderer } from '@/hooks/useCircuitRenderer';
+import { CircuitExportButton } from "@/components/Buttons/CircuitExportButton";
 
 interface QubitLabelsProps {
     numQubits: number;
@@ -211,7 +212,7 @@ export function CircuitCanvas() {
                 .attr('x1', 0).attr('y1', i * GATE_SPACING + GATE_SPACING / 2)
                 .attr('x2', svgWidth).attr('y2', i * GATE_SPACING + GATE_SPACING / 2)
                 .attr('class', 'stroke-border circuit-line')
-                .attr('stroke-width', 1);
+                .attr('stroke-width', 2);
         }
 
         // Depth markers
@@ -234,6 +235,7 @@ export function CircuitCanvas() {
                     <CircuitBoard className="h-4 w-4 shrink-0" />
                     <CardTitle className="truncate">Circuit Builder</CardTitle>
                 </div>
+                <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
             </CardHeader>
             <CardContent className="flex-1 p-0 flex overflow-hidden">
                 <QubitLabels

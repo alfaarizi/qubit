@@ -12,7 +12,7 @@ interface GateItemProps {
 
 function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
     const [isHovered, setIsHovered] = useState(false);
-    const { size, borderWidth, textSize, fontWeight } = GATE_STYLES.singleQubit;
+    const { size, borderWidth, textSize, fontWeight, fontFamily } = GATE_STYLES.singleQubit;
 
     return (
         <div
@@ -36,7 +36,10 @@ function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
                     borderWidth
                 }}
             >
-                <span className={`${textSize} ${fontWeight} select-none text-foreground`}>
+                <span
+                    className={`${textSize} ${fontWeight} select-none text-foreground`}
+                    style={{ fontFamily }}
+                >
                     {gate.symbol}
                 </span>
             </div>

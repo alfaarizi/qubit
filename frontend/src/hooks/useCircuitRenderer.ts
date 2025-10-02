@@ -121,6 +121,7 @@ export function useCircuitRenderer({
                     .attr('text-anchor', 'middle')
                     .attr('dominant-baseline', 'middle')
                     .attr('class', `${GATE_STYLES.singleQubit.fontWeight} ${GATE_STYLES.singleQubit.textSize} fill-foreground`)
+                    .attr('font-family', GATE_STYLES.singleQubit.fontFamily)
                     .attr('pointer-events', 'none')
                     .text(gate.symbol);
 
@@ -129,7 +130,7 @@ export function useCircuitRenderer({
                 const targetQubit = qubit + gate.qubits - 1;
                 const yLast = targetQubit * GATE_SPACING + GATE_SPACING / 2;
 
-                const drawCircle = (cy: number, radius: number, strokeWidth: number) => {
+                const drawCircle = (cy: number, radius: number) => {
                     group.append('circle')
                         .attr('cx', x).attr('cy', cy)
                         .attr('r', radius)
@@ -140,7 +141,7 @@ export function useCircuitRenderer({
                         .attr('r', radius)
                         .attr('fill', `${gate.color}${GATE_STYLES.backgroundOpacity}`)
                         .attr('stroke', gate.color)
-                        .attr('stroke-width', strokeWidth);
+                        .attr('stroke-width', lineWidth);
                 };
 
                 // Draw line spanning all qubits
@@ -153,11 +154,11 @@ export function useCircuitRenderer({
                 // Draw control dots
                 for (let i = 0; i < gate.qubits - 1; i++) {
                     const yControl = (qubit + i) * GATE_SPACING + GATE_SPACING / 2;
-                    drawCircle(yControl, controlDotRadius, 2);
+                    drawCircle(yControl, controlDotRadius);
                 }
 
                 // Draw target on last qubit
-                drawCircle(yLast, targetRadius, lineWidth);
+                drawCircle(yLast, targetRadius);
 
                 group.append('text')
                     .attr('x', x)
@@ -165,6 +166,7 @@ export function useCircuitRenderer({
                     .attr('text-anchor', 'middle')
                     .attr('dominant-baseline', 'middle')
                     .attr('class', `${GATE_STYLES.multiQubit.fontWeight} ${GATE_STYLES.multiQubit.textSize} fill-foreground`)
+                    .attr('font-family', GATE_STYLES.multiQubit.fontFamily)
                     .attr('pointer-events', 'none')
                     .text(gate.symbol);
             }

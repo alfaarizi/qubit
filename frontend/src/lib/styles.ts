@@ -1,6 +1,7 @@
 export const CIRCUIT_CONFIG = {
     defaultNumQubits: 3,
     defaultMaxDepth: 10,
+    qubitLabelWidth: 50,
     footerHeight: 50
 };
 
@@ -10,14 +11,16 @@ export const GATE_STYLES = {
         borderWidth: 1,
         borderRadius: 0,
         textSize: 'text-md',
-        fontWeight: 'font-bold'
+        fontWeight: 'font-normal',
+        fontFamily: 'serif'
     },
     multiQubit: {
-        lineWidth: 2,
+        lineWidth: 1,
         controlDotRadius: 4,
         targetRadius: 16,
         textSize: 'text-sm',
-        fontWeight: 'font-bold'
+        fontWeight: 'font-normal',
+        fontFamily: 'serif'
     },
     gateSpacing: 50,
     backgroundOpacity: '40',
