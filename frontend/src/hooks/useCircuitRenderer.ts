@@ -124,38 +124,44 @@ export function useCircuitRenderer({
                     .attr('pointer-events', 'none')
                     .text(gate.symbol);
 
-            } else if (gate.qubits === 2) {
+            } else if (gate.qubits > 1) {
                 const { lineWidth, controlDotRadius, targetRadius } = GATE_STYLES.multiQubit;
-                const y2 = (qubit + 1) * GATE_SPACING + GATE_SPACING / 2;
+                const targetQubit = qubit + gate.qubits - 1;
+                const yLast = targetQubit * GATE_SPACING + GATE_SPACING / 2;
 
+                const drawCircle = (cy: number, radius: number, strokeWidth: number) => {
+                    group.append('circle')
+                        .attr('cx', x).attr('cy', cy)
+                        .attr('r', radius)
+                        .attr('class', 'fill-background');
+
+                    group.append('circle')
+                        .attr('cx', x).attr('cy', cy)
+                        .attr('r', radius)
+                        .attr('fill', `${gate.color}${GATE_STYLES.backgroundOpacity}`)
+                        .attr('stroke', gate.color)
+                        .attr('stroke-width', strokeWidth);
+                };
+
+                // Draw line spanning all qubits
                 group.append('line')
                     .attr('x1', x).attr('y1', y)
-                    .attr('x2', x).attr('y2', y2)
+                    .attr('x2', x).attr('y2', yLast)
                     .attr('stroke', gate.color)
                     .attr('stroke-width', lineWidth);
 
-                group.append('circle')
-                    .attr('cx', x).attr('cy', y)
-                    .attr('r', controlDotRadius)
-                    .attr('fill', `${gate.color}`)
-                    .attr('stroke', gate.color)
-                    .attr('stroke-width', 2);
+                // Draw control dots
+                for (let i = 0; i < gate.qubits - 1; i++) {
+                    const yControl = (qubit + i) * GATE_SPACING + GATE_SPACING / 2;
+                    drawCircle(yControl, controlDotRadius, 2);
+                }
 
-                group.append('circle')
-                    .attr('cx', x).attr('cy', y2)
-                    .attr('r', targetRadius)
-                    .attr('class', 'fill-background');
-
-                group.append('circle')
-                    .attr('cx', x).attr('cy', y2)
-                    .attr('r', targetRadius)
-                    .attr('fill', `${gate.color}${GATE_STYLES.backgroundOpacity}`)
-                    .attr('stroke', gate.color)
-                    .attr('stroke-width', lineWidth);
+                // Draw target on last qubit
+                drawCircle(yLast, targetRadius, lineWidth);
 
                 group.append('text')
                     .attr('x', x)
-                    .attr('y', y2)
+                    .attr('y', yLast)
                     .attr('text-anchor', 'middle')
                     .attr('dominant-baseline', 'middle')
                     .attr('class', `${GATE_STYLES.multiQubit.fontWeight} ${GATE_STYLES.multiQubit.textSize} fill-foreground`)
