@@ -235,7 +235,9 @@ export function CircuitCanvas() {
                     <CircuitBoard className="h-4 w-4 shrink-0" />
                     <CardTitle className="truncate">Circuit Builder</CardTitle>
                 </div>
-                <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
+                <div className="overflow-hidden">
+                    <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
+                </div>
             </CardHeader>
             <CardContent className="flex-1 p-0 flex overflow-hidden">
                 <QubitLabels
