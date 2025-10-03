@@ -56,8 +56,8 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
                 <div key={i} style={{height: GATE_STYLES.gateSpacing}} className="flex items-center justify-center">
                     <button
                         onClick={() => onToggle(i)}
-                        className={`w-6 h-6 border-2 flex items-center justify-center cursor-pointer ${
-                            isMeasured ? 'bg-yellow-400/30 border-yellow-500' : 'bg-gray-300/30 border-gray-400'
+                        className={`w-6 h-6 flex items-center justify-center cursor-pointer ${
+                            isMeasured ? 'bg-yellow-500/75' : 'bg-gray-400/75'
                         }`}
                     >
                         <svg className={`w-full h-full fill-foreground`} viewBox="2 2 26 26">
