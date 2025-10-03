@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react"
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { FullScreenSpinner } from '@/components/FullScreenSpinner/FullScreenSpinner';
@@ -17,6 +18,7 @@ function App() {
                     </Routes>
                 </Suspense>
             </Router>
+            <Analytics />
         </ThemeProvider>
     );
 }
