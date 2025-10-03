@@ -12,7 +12,8 @@ interface GateItemProps {
 
 function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
     const [isHovered, setIsHovered] = useState(false);
-    const { size, borderWidth, textSize, fontWeight, fontFamily } = GATE_STYLES.singleQubit;
+    const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity } = GATE_STYLES;
+    const { textSize, borderWidth } = GATE_STYLES.singleQubit;
 
     return (
         <div
@@ -29,17 +30,14 @@ function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
             <div
                 className={`flex items-center justify-center border-2 ${isHovered ? 'shadow-md' : 'shadow-sm'}`}
                 style={{
-                    width: size,
-                    height: size,
-                    backgroundColor: `${gate.color}${GATE_STYLES.backgroundOpacity}`,
+                    width: gateSize,
+                    height: gateSize,
+                    backgroundColor: `${gate.color}${backgroundOpacity}`,
                     borderColor: isHovered ? '#eab308' : gate.color,
                     borderWidth
                 }}
             >
-                <span
-                    className={`${textSize} ${fontWeight} select-none text-foreground`}
-                    style={{ fontFamily }}
-                >
+                <span className={`${textSize} select-none text-foreground`} style={{ fontFamily, fontWeight, fontStyle }}>
                     {gate.symbol}
                 </span>
             </div>

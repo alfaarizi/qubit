@@ -6,23 +6,22 @@ export const CIRCUIT_CONFIG = {
 };
 
 export const GATE_STYLES = {
+    gateSize: 42,
+    gateSpacing: 50,
+    backgroundOpacity: 40,
+    previewOpacity: 0.5,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    fontFamily: 'serif',
     singleQubit: {
-        size: 42,
-        borderWidth: 1,
-        borderRadius: 0,
         textSize: 'text-md',
-        fontWeight: 'font-normal',
-        fontFamily: 'serif'
+        borderWidth: 1,
+        borderRadius: 0
     },
     multiQubit: {
-        lineWidth: 1,
-        controlDotRadius: 4,
-        targetRadius: 16,
         textSize: 'text-sm',
-        fontWeight: 'font-normal',
-        fontFamily: 'serif'
-    },
-    gateSpacing: 50,
-    backgroundOpacity: '40',
-    previewOpacity: 0.5
+        lineWidth: 1,
+        targetRadius: 16,
+        controlDotRadius: 4
+    }
 } as const;

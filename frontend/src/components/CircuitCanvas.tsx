@@ -5,7 +5,7 @@ import { CircuitBoard } from "lucide-react";
 import * as d3 from 'd3';
 import { dragState } from '@/lib/dragState';
 import { GATES } from '@/types/gates';
-import {CIRCUIT_CONFIG, GATE_STYLES} from '@/lib/styles';
+import { CIRCUIT_CONFIG, GATE_STYLES } from '@/lib/styles';
 import type { DraggableGate } from '@/types/circuit';
 import { useCircuitRenderer } from '@/hooks/useCircuitRenderer';
 import { CircuitExportButton } from "@/components/Buttons/CircuitExportButton";
@@ -103,10 +103,11 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
 }
 
 export function CircuitCanvas() {
-    const GATE_SPACING = GATE_STYLES.gateSpacing;
+    const { gateSpacing } = GATE_STYLES;
+    const { defaultNumQubits, defaultMaxDepth, footerHeight } = CIRCUIT_CONFIG;
 
-    const [numQubits, setNumQubits] = useState(CIRCUIT_CONFIG.defaultNumQubits);
-    const [maxDepth, ] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
+    const [numQubits, setNumQubits] = useState(defaultNumQubits);
+    const [maxDepth, ] = useState(defaultMaxDepth);
     const [measurements, setMeasurements] = useState<boolean[]>(
         Array(numQubits).fill(true)
     );
@@ -234,33 +235,33 @@ export function CircuitCanvas() {
         const background = svg.insert('g', ':first-child')
             .attr('class', 'circuit-background');
 
-        const contentWidth = maxDepth * GATE_SPACING;
+        const contentWidth = maxDepth * gateSpacing;
         const svgWidth = Math.max(scrollContainerWidth || contentWidth, contentWidth);
-        const svgHeight = numQubits * GATE_SPACING + CIRCUIT_CONFIG.footerHeight;
+        const svgHeight = numQubits * gateSpacing + footerHeight;
 
         svg.attr('width', svgWidth).attr('height', svgHeight);
 
         // Qubit lines
         for (let i = 0; i < numQubits; i++) {
             background.append('line')
-                .attr('x1', 0).attr('y1', i * GATE_SPACING + GATE_SPACING / 2)
-                .attr('x2', svgWidth).attr('y2', i * GATE_SPACING + GATE_SPACING / 2)
+                .attr('x1', 0).attr('y1', i * gateSpacing + gateSpacing / 2)
+                .attr('x2', svgWidth).attr('y2', i * gateSpacing + gateSpacing / 2)
                 .attr('class', 'stroke-border circuit-line')
                 .attr('stroke-width', 2);
         }
 
         // Depth markers
-        const markersY = numQubits * GATE_SPACING + CIRCUIT_CONFIG.footerHeight / 2;
+        const markersY = numQubits * gateSpacing + footerHeight / 2;
         for (let i = 1; i <= maxDepth; i++) {
             background.append('text')
-                .attr('x', (i - 1) * GATE_SPACING + GATE_SPACING / 2)
+                .attr('x', (i - 1) * gateSpacing + gateSpacing / 2)
                 .attr('y', markersY)
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'middle')
                 .attr('class', 'fill-muted-foreground text-xs font-mono depth-marker')
                 .text(i);
         }
-    }, [numQubits, maxDepth, scrollContainerWidth, GATE_SPACING]);
+    }, [numQubits, maxDepth, scrollContainerWidth, gateSpacing, footerHeight]);
 
     return (
         <Card className="h-full flex flex-col border-border/50 bg-card/95 p-4">
@@ -282,11 +283,11 @@ export function CircuitCanvas() {
                 <div
                     ref={scrollContainerRef}
                     className="flex-1"
-                    style={{ minWidth: GATE_SPACING }}
+                    style={{ minWidth: gateSpacing }}
                 >
                     <ScrollArea className="h-full w-full">
                         <svg ref={svgRef}
-                             style={{ display: 'block', minWidth: maxDepth * GATE_SPACING + 6}}
+                             style={{ display: 'block', minWidth: maxDepth * gateSpacing + 6}}
                              onDragOver={handleDragOver}
                              onDragLeave={() => setPreviewGate(null)}
                              onDrop={handleDrop}
