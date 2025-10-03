@@ -1,4 +1,6 @@
 import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/react"
+
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { FullScreenSpinner } from '@/components/FullScreenSpinner/FullScreenSpinner';
@@ -19,6 +21,7 @@ function App() {
                 </Suspense>
             </Router>
             <Analytics />
+            <SpeedInsights/>
         </ThemeProvider>
     );
 }
