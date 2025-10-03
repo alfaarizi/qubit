@@ -56,11 +56,45 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
                 <div key={i} style={{height: GATE_STYLES.gateSpacing}} className="flex items-center justify-center">
                     <button
                         onClick={() => onToggle(i)}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer ${
+                        className={`w-6 h-6 border-2 flex items-center justify-center cursor-pointer ${
                             isMeasured ? 'bg-yellow-400/30 border-yellow-500' : 'bg-gray-300/30 border-gray-400'
                         }`}
                     >
-                        <span className={`text-xs font-bold ${isMeasured ? 'text-yellow-600' : 'text-gray-500'}`}>M</span>
+                        <svg className={`w-full h-full fill-foreground`} viewBox="2 2 26 26">
+                            <path d="
+                                M 25.2941 11.584
+                                H 22.7981
+                                L 25.2301 8.008
+                                V 7
+                                H 21.6141
+                                V 8
+                                H 23.9101
+                                L 21.4861 11.576
+                                V 12.584
+                                H 25.2941
+                                V 11.584
+                                Z
+                            "/>
+                            <path d="
+                                M 15.5662 23.4664
+                                C 15.5662 24.0836 15.0658 24.584 14.4485 24.584
+                                C 13.8313 24.584 13.3309 24.0836 13.3309 23.4664
+                                C 13.3309 22.8621 13.8104 22.3699 14.4096 22.3494
+                                L 17.1775 17.9208
+                                C 16.3359 17.5757 15.4144 17.3855 14.4485 17.3855
+                                C 10.4729 17.3855 7.25 20.6084 7.25 24.584
+                                H 6
+                                C 6 19.918 9.78254 16.1355 14.4485 16.1355
+                                C 15.658 16.1355 16.8081 16.3896 17.8483 16.8474
+                                L 19.5068 14.1939
+                                L 20.5668 14.8564
+                                L 18.9545 17.4361C21.3236 18.9327 22.8971 21.5746 22.8971 24.584
+                                H 21.6471
+                                C 21.6471 22.0216 20.3082 19.7719 18.2919 18.4962
+                                L 15.4698 23.0116
+                                C 15.5317 23.1505 15.5662 23.3044 15.5662 23.4664Z
+                            "/>
+                        </svg>
                     </button>
                 </div>
             ))}
