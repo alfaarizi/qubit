@@ -259,7 +259,7 @@ export function CircuitCanvas() {
     }, [numQubits, maxDepth, scrollContainerWidth, gateSpacing, footerHeight]);
 
     return (
-        <Card className="h-full flex flex-col border-border/50 bg-card/95 p-4">
+        <Card className="flex flex-col border-border/50 bg-card/95 p-4">
             <CardHeader className="flex flex-row items-center space-y-0 min-h-[2rem]">
                 <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                     <CircuitBoard className="h-4 w-4 shrink-0" />
