@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CircuitBoard } from "lucide-react";
 
+import { useResizeObserver } from "@/hooks/useResizeObserver.ts";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 
 import type { DraggableGate } from '@/features/circuit/types';
@@ -122,8 +123,6 @@ export function CircuitCanvas() {
     const svgRef = useRef<SVGSVGElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    const [scrollContainerWidth, setScrollContainerWidth] = useState(0);
-
     const addQubit = useCallback(() => {
         setNumQubits(prev => prev + 1);
         setMeasurements(prev => [...prev, true]);
@@ -218,14 +217,7 @@ export function CircuitCanvas() {
     }, [getGridPosition, isValid, findGateById]);
 
     // Resize observer
-    useEffect(() => {
-        if (!scrollContainerRef.current) return;
-        const resizeObserver = new ResizeObserver((entries) => {
-            setScrollContainerWidth(entries[0].contentRect.width);
-        });
-        resizeObserver.observe(scrollContainerRef.current);
-        return () => resizeObserver.disconnect();
-    }, []);
+    const { width: scrollContainerWidth } = useResizeObserver(scrollContainerRef);
 
     // Draw circuit lines
     useEffect(() => {

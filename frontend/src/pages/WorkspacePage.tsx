@@ -1,17 +1,21 @@
 import { Header } from "@/components/layout/Header";
-import { SidePanelLayout, SidePanel } from '@/components/layout/SidePanelLayout';
 import { GatesPanel } from "@/features/gates/components/GatesPanel";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor";
 import { Layers, FileCode, Github, Mail } from 'lucide-react';
+import { Layout } from "@/components/layout/Layout.tsx";
+import {ThreeColumnLayout} from "@/components/layout/ThreeColumnLayout.tsx";
+import {StatusBar} from "@/components/layout/StatusBar.tsx";
+import {Sidebar} from "@/components/layout/Sidebar.tsx";
 
 /**
  * Partitioner page component - main workspace for quantum circuit partitioning
  */
 function WorkspacePage() {
     return (
-        <div className="min-h-screen w-full bg-background">
-            <Header
+        <Layout>
+            <Layout.Header>
+                <Header
                 breadcrumbs={[
                     { label: 'Home', href: '/' },
                     { label: 'Workspace' }
@@ -21,18 +25,28 @@ function WorkspacePage() {
                     { href: 'https://github.com/alfaarizi/qubit', icon: Github, label: 'GitHub' }
                 ]}
             />
-            <div className="h-[calc(100vh-3.5rem)] px-6 pb-6">
-                <SidePanelLayout>
-                    <SidePanel title="Gates" icon={Layers} side="left">
+            </Layout.Header>
+            <Layout.Content>
+                <ThreeColumnLayout>
+                    <ThreeColumnLayout.Left>
+                        <Sidebar title="Gates" icon={Layers} side="left">
                         <GatesPanel/>
-                    </SidePanel>
-                    <CircuitCanvas/>
-                    <SidePanel title="QASM Code" icon={FileCode} side="right">
-                        <QasmEditor/>
-                    </SidePanel>
-                </SidePanelLayout>
-            </div>
-        </div>
+                        </Sidebar>
+                    </ThreeColumnLayout.Left>
+                    <ThreeColumnLayout.Center>
+                        <CircuitCanvas />
+                    </ThreeColumnLayout.Center>
+                    <ThreeColumnLayout.Right>
+                        <Sidebar title="Inspector" icon={FileCode} side="right">
+                            <QasmEditor/>
+                        </Sidebar>
+                    </ThreeColumnLayout.Right>
+                </ThreeColumnLayout>
+            </Layout.Content>
+            <Layout.Footer>
+                <StatusBar/>
+            </Layout.Footer>
+        </Layout>
     );
 }
 
