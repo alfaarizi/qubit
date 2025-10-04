@@ -1,13 +1,13 @@
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/react"
 
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { FullScreenSpinner } from '@/components/FullScreenSpinner/FullScreenSpinner';
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
+import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
 
-const Home = lazy(() => import('@/pages/Home'));
-const Workspace = lazy(() => import('@/pages/Workspace'));
+const Home = lazy(() => import('@/pages/HomePage'));
+const Workspace = lazy(() => import('@/pages/WorkspacePage'));
 
 function App() {
     return (

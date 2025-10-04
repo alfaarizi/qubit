@@ -1,9 +1,9 @@
-import { SidePanelLayout, SidePanel } from '@/components/SidePanelLayout';
-import {Layers, FileCode, Github, Mail} from 'lucide-react';
-import { Header } from "@/components/Header/Header";
-import { GatesPanel } from "@/components/GatesPanel";
-import { CircuitCanvas } from "@/components/CircuitCanvas";
-import { QasmEditor } from "@/components/QasmEditor";
+import { Header } from "@/components/layout/Header";
+import { SidePanelLayout, SidePanel } from '@/components/layout/SidePanelLayout';
+import { GatesPanel } from "@/features/gates/components/GatesPanel";
+import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas";
+import { QasmEditor } from "@/features/inspector/components/QasmEditor";
+import { Layers, FileCode, Github, Mail } from 'lucide-react';
 
 /**
  * Partitioner page component - main workspace for quantum circuit partitioning

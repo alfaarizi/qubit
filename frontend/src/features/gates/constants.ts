@@ -1,11 +1,25 @@
-export interface Gate {
-    id: string;
-    name: string;
-    symbol: string;
-    color: string;
-    description: string;
-    qubits: number;
-}
+import type { Gate } from "@/features/gates/types";
+
+export const GATE_CONFIG = {
+    gateSize: 42,
+    gateSpacing: 50,
+    backgroundOpacity: 40,
+    previewOpacity: 0.5,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    fontFamily: 'serif',
+    singleQubit: {
+        textSize: 'text-md',
+        borderWidth: 1,
+        borderRadius: 0
+    },
+    multiQubit: {
+        textSize: 'text-sm',
+        lineWidth: 1,
+        targetRadius: 16,
+        controlDotRadius: 4
+    }
+} as const;
 
 export const GATES: Gate[] = [
     {

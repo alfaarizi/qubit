@@ -6,10 +6,10 @@ import {
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { ModeToggle } from "@/components/Buttons/ModeToggle"
+} from "@/components/ui/breadcrumb.tsx"
+import { Button } from "@/components/ui/button.tsx"
+import { Separator } from "@/components/ui/separator.tsx"
+import { ModeToggle } from "@/components/common/ModeToggle.tsx"
 import { type LucideIcon} from "lucide-react"
 import { Link } from "react-router-dom"
 

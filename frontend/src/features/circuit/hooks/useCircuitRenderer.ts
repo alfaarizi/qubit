@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect } from 'react';
 import * as d3 from 'd3';
-import { GATE_STYLES } from '@/lib/styles';
-import type { DraggableGate } from '@/types/circuit';
+
+import type { DraggableGate } from '@/features/circuit/types';
+import { GATE_CONFIG } from '@/features/gates/constants';
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -30,7 +31,7 @@ export function useCircuitRenderer({
     onHidePreview,
     onEndDragging
 }: UseCircuitRendererProps) {
-    const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, backgroundOpacity, previewOpacity }  = GATE_STYLES;
+    const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, backgroundOpacity, previewOpacity }  = GATE_CONFIG;
 
     // ========== Logic Functions ==========
 
@@ -92,7 +93,7 @@ export function useCircuitRenderer({
                 .style('cursor', isPreview ? 'default' : 'grab');
 
             if (gate.qubits === 1) {
-                const { textSize, borderWidth, borderRadius } = GATE_STYLES.singleQubit;
+                const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
 
                 group.append('rect')
                     .attr('x', x - gateSize / 2)
@@ -128,7 +129,7 @@ export function useCircuitRenderer({
                     .text(gate.symbol);
 
             } else if (gate.qubits > 1) {
-                const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_STYLES.multiQubit;
+                const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
                 const targetQubit = qubit + gate.qubits - 1;
                 const yLast = targetQubit * gateSpacing + gateSpacing / 2;
 

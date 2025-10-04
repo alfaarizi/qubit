@@ -1,4 +1,6 @@
 import React, { useCallback } from 'react';
+import * as d3 from 'd3';
+
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -7,9 +9,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Download } from "lucide-react";
-import { CIRCUIT_CONFIG, GATE_STYLES } from "@/lib/styles";
-import * as d3 from 'd3';
-import type { DraggableGate } from '@/types/circuit';
+
+import type { DraggableGate } from '@/features/circuit/types';
+import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
+import { GATE_CONFIG } from '@/features/gates/constants';
 
 interface CircuitExportButtonProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -19,7 +22,7 @@ interface CircuitExportButtonProps {
 
 export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitExportButtonProps) {
     const { defaultMaxDepth, qubitLabelWidth, footerHeight} = CIRCUIT_CONFIG;
-    const { gateSpacing } = GATE_STYLES;
+    const { gateSpacing } = GATE_CONFIG;
 
     const getTimestamp = (): string => {
         const now = new Date();

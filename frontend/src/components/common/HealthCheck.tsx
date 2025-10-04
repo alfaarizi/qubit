@@ -1,9 +1,9 @@
 // src/components/HealthCheck.tsx
 import React, { useState } from "react";
-import { useWebSocketHealth } from "@/hooks/useWebSocketHealth";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useWebSocketHealth } from "@/hooks/useWebSocketHealth.ts";
+import { Card, CardContent } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import {
     CheckCircle,
     AlertTriangle,

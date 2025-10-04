@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import HealthCheck from '@/components/HealthCheck';
+import HealthCheck from '@/components/common/HealthCheck';
 
 const cardStyle = 'border-white/15 bg-white/5 backdrop-blur-3xl shadow-2xl shadow-black/40';
 

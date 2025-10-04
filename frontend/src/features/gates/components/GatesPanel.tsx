@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+
+import type { Gate } from '@/features/gates/types';
+import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
-import { GATE_STYLES } from '@/lib/styles';
-import { GATES, type Gate } from '@/types/gates';
 
 interface GateItemProps {
     gate: Gate;
@@ -12,8 +13,8 @@ interface GateItemProps {
 
 function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
     const [isHovered, setIsHovered] = useState(false);
-    const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity } = GATE_STYLES;
-    const { textSize, borderWidth } = GATE_STYLES.singleQubit;
+    const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity } = GATE_CONFIG;
+    const { textSize, borderWidth } = GATE_CONFIG.singleQubit;
 
     return (
         <div

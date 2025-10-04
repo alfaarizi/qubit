@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import * as d3 from 'd3';
+
+import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CircuitBoard } from "lucide-react";
-import * as d3 from 'd3';
+
+import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
+
+import type { DraggableGate } from '@/features/circuit/types';
+import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
+import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
-import { GATES } from '@/types/gates';
-import { CIRCUIT_CONFIG, GATE_STYLES } from '@/lib/styles';
-import type { DraggableGate } from '@/types/circuit';
-import { useCircuitRenderer } from '@/hooks/useCircuitRenderer';
-import { CircuitExportButton } from "@/components/Buttons/CircuitExportButton";
 
 interface QubitLabelsProps {
     numQubits: number;
@@ -20,7 +23,7 @@ function QubitLabels({ numQubits, onAddQubit, onRemoveQubit }: QubitLabelsProps)
     return (
         <div className="flex flex-col">
             {Array.from({ length: numQubits }, (_, i) => (
-                <div key={i} style={{ height: GATE_STYLES.gateSpacing }}
+                <div key={i} style={{ height: GATE_CONFIG.gateSpacing }}
                      className="flex items-center justify-center font-mono text-sm">
                     q[{i}]
                 </div>
@@ -53,7 +56,7 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
     return (
         <div className="flex flex-col">
             {measurements.map((isMeasured, i) => (
-                <div key={i} style={{height: GATE_STYLES.gateSpacing}} className="flex items-center justify-center">
+                <div key={i} style={{height: GATE_CONFIG.gateSpacing}} className="flex items-center justify-center">
                     <button
                         onClick={() => onToggle(i)}
                         className={`w-6 h-6 flex items-center justify-center cursor-pointer ${
@@ -103,7 +106,7 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
 }
 
 export function CircuitCanvas() {
-    const { gateSpacing } = GATE_STYLES;
+    const { gateSpacing } = GATE_CONFIG;
     const { defaultNumQubits, defaultMaxDepth, footerHeight } = CIRCUIT_CONFIG;
 
     const [numQubits, setNumQubits] = useState(defaultNumQubits);
