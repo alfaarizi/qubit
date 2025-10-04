@@ -40,7 +40,7 @@ export function SidePanel({ children, title, icon: Icon, side, defaultOpen = tru
 
     return (
         <div className="transition-all duration-300" style={{ width: `${width}px` }}>
-            <Card className="h-full border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 overflow-hidden">
+            <Card className="h-full rounded-none border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 overflow-hidden">
                 {isOpen ? (
                     <>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0">
