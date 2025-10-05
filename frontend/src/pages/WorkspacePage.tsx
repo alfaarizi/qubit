@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-import { Layers, FileCode, Github, Mail, ChevronRight, ChevronLeft } from 'lucide-react'
+import { FileCode, Github, Mail, ChevronRight, ChevronLeft } from 'lucide-react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Header } from "@/components/layout/Header"
 import { Layout } from "@/components/layout/Layout"
 import { StatusBar } from "@/components/layout/StatusBar"
-import { Sidebar } from "@/components/layout/Sidebar"
 import { Panel } from "@/components/layout/Panel"
 
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
@@ -51,9 +50,7 @@ function WorkspacePage() {
 
             <Layout.Content>
                 <div className="grid grid-cols-[auto_1fr] h-full overflow-hidden">
-                    <Sidebar title="Gates" icon={Layers} side="left">
-                        <GatesPanel />
-                    </Sidebar>
+                    <GatesPanel />
                     <ResizablePanelGroup direction="horizontal">
                         <ResizablePanel defaultSize={70} minSize={30} className="relative"
                         >
