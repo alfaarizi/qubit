@@ -1,4 +1,5 @@
-import {Cloud, HelpCircle, Share2, Github, Mail, House} from "lucide-react"
+import { Link } from "react-router-dom"
+import {Cloud, HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -33,9 +34,17 @@ export function Header({
         <header className="h-12 w-full border-b bg-muted/50 flex items-center px-4 text-xs text-muted-foreground">
             {/* Column 1: Logo and Name */}
             <div className="flex items-center gap-2 w-52">
-                <div className="w-4 h-4 bg-blue-600 rounded flex items-center justify-center">
-                    <House className="w-2.5 h-2.5" />
-                </div>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    asChild
+                >
+                    <Link to="/">
+                        <Home className="w-3.5 h-3.5" />
+                        <span className="sr-only">Home</span>
+                    </Link>
+                </Button>
                 <span className="font-semibold text-foreground">Qubitkit</span>
             </div>
 
