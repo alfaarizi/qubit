@@ -69,8 +69,8 @@ function WorkspacePage() {
                                 onClick={toggleInspector}
                             >
                                 { isInspectorCollapsed
-                                    ? <ChevronRight className="h-2 w-2" />
-                                    : <ChevronLeft className="h-2 w-2" />
+                                    ? <ChevronLeft className="h-2 w-2" />
+                                    : <ChevronRight className="h-2 w-2" />
                                 }
                             </Button>
                         </ResizablePanel>
@@ -82,8 +82,9 @@ function WorkspacePage() {
                             defaultSize={DEFAULT_INSPECTOR_SIZE}
                             minSize={COLLAPSED_INSPECTOR_SIZE}
                             maxSize={EXPANDED_INSPECTOR_SIZE}
-                            onCollapse={() => setIsInspectorCollapsed(true)}
-                            onExpand={() => setIsInspectorCollapsed(false)}
+                            onResize={(size) => {
+                                setIsInspectorCollapsed(size <= 1)
+                            }}
                             className={`overflow-hidden ${shouldAnimate ? 'transition-all duration-300 ease-in-out' : ''}`}
                             style={{ minWidth: "14px" }}
                         >
