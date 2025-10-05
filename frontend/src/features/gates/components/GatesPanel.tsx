@@ -109,7 +109,7 @@ export function GatesPanel() {
 
                 <CardContent className="flex-1 overflow-y-auto p-2 scroll-smooth">
                     {isExpanded && <p className="text-sm text-muted-foreground mb-4">Drag gates to the circuit canvas</p> }
-                    <div className={`grid gap-2 ${showExpandedGrid ? 'grid-cols-3 lg:grid-cols-4' : 'grid-cols-1 lg:grid-cols-2'}`}>
+                    <div className={`grid gap-2 ${showExpandedGrid ? 'grid-cols-4' : 'grid-cols-2'}`}>
                         {GATES.map((gate) => (
                             <GateItem
                                 key={gate.id}
