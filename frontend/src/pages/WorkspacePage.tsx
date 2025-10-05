@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-import { FileCode, Github, Mail, ChevronRight, ChevronLeft } from 'lucide-react'
+import { FileCode, ChevronRight, ChevronLeft } from 'lucide-react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 
@@ -40,11 +40,13 @@ function WorkspacePage() {
         <Layout>
             <Layout.Header>
                 <Header
-                    breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Workspace' }]}
-                    externalLinks={[
-                        { href: 'mailto:ocswom@inf.elte.hu', icon: Mail, label: 'Email' },
-                        { href: 'https://github.com/alfaarizi/qubit', icon: Github, label: 'GitHub' }
-                    ]}
+                    githubUrl="https://github.com/alfaarizi/qubit"
+                    emailUrl="mailto:ocswom@inf.elte.hu"
+                    // breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Workspace' }]}
+                    // externalLinks={[
+                    //     { href: 'mailto:ocswom@inf.elte.hu', icon: Mail, label: 'Email' },
+                    //     { href: 'https://github.com/alfaarizi/qubit', icon: GitHub, label: 'GitHub' }
+                    // ]}
                 />
             </Layout.Header>
 
@@ -54,7 +56,9 @@ function WorkspacePage() {
                     <ResizablePanelGroup direction="horizontal">
                         <ResizablePanel defaultSize={70} minSize={30} className="relative"
                         >
-                            <CircuitCanvas />
+                            <div className="flex justify-center pt-8 w-full">
+                                <CircuitCanvas />
+                            </div>
                             <Button
                                 variant="default"
                                 size="icon"

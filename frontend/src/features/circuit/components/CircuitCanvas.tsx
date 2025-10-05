@@ -259,42 +259,45 @@ export function CircuitCanvas() {
     }, [numQubits, maxDepth, scrollContainerWidth, gateSpacing, footerHeight]);
 
     return (
-        <Card className="flex flex-col border-border/50 bg-card/95 p-4">
-            <CardHeader className="flex flex-row items-center space-y-0 min-h-[2rem]">
-                <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                    <CircuitBoard className="h-4 w-4 shrink-0" />
-                    <CardTitle className="truncate">Circuit Builder</CardTitle>
-                </div>
-                <div className="overflow-hidden">
-                    <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
-                </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 flex overflow-hidden">
-                <QubitLabels
-                    numQubits={numQubits}
-                    onAddQubit={addQubit}
-                    onRemoveQubit={removeQubit}
-                />
-                <div
-                    ref={scrollContainerRef}
-                    className="flex-1"
-                    style={{ minWidth: gateSpacing }}
-                >
-                    <ScrollArea className="h-full w-full">
-                        <svg ref={svgRef}
-                             style={{ display: 'block', minWidth: maxDepth * gateSpacing + 6}}
-                             onDragOver={handleDragOver}
-                             onDragLeave={() => setPreviewGate(null)}
-                             onDrop={handleDrop}
-                        />
-                        <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
-                </div>
-                <MeasurementToggles
-                    measurements={measurements}
-                    onToggle={toggleMeasurement}
-                />
-            </CardContent>
-        </Card>
+        <div>
+            <Card className="flex flex-col rounded-none border-border/50 bg-card/95 p-4">
+                <CardHeader className="flex flex-row items-center space-y-0 min-h-[2rem]">
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                        <CircuitBoard className="h-4 w-4 shrink-0" />
+                        <CardTitle className="truncate">Circuit Builder</CardTitle>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-1 p-0 flex overflow-hidden">
+                    <QubitLabels
+                        numQubits={numQubits}
+                        onAddQubit={addQubit}
+                        onRemoveQubit={removeQubit}
+                    />
+                    <div
+                        ref={scrollContainerRef}
+                        className="flex-1"
+                        style={{ minWidth: gateSpacing }}
+                    >
+                        <ScrollArea className="h-full w-full">
+                            <svg ref={svgRef}
+                                 style={{ display: 'block', minWidth: maxDepth * gateSpacing + 6}}
+                                 onDragOver={handleDragOver}
+                                 onDragLeave={() => setPreviewGate(null)}
+                                 onDrop={handleDrop}
+                            />
+                            <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                    </div>
+                    <MeasurementToggles
+                        measurements={measurements}
+                        onToggle={toggleMeasurement}
+                    />
+                </CardContent>
+            </Card>
+            <div className="overflow-hidden mt-2">
+                <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
+            </div>
+        </div>
+
     );
 }

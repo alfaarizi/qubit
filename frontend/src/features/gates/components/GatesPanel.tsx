@@ -96,7 +96,7 @@ export function GatesPanel() {
             className="h-full transition-all duration-300 ease-in-out"
             style={{ width: `${isExpanded ? calcPanelWidth(4) : calcPanelWidth(2)}px` }}
         >
-            <Card className="h-full flex flex-col rounded-none border-border/50 bg-card/95 backdrop-blur">
+            <Card className="h-full flex flex-col rounded-none border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                         <Layers className="h-5 w-5 shrink-0" />
