@@ -10,14 +10,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Download } from "lucide-react";
 
-import type { CircuitGate } from '@/features/circuit/types';
+import type { DraggableGate } from '@/features/circuit/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
 
 interface CircuitExportButtonProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
-    placedGates: CircuitGate[];
+    placedGates: DraggableGate[];
 }
 
 export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitExportButtonProps) {

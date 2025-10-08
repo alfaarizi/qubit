@@ -1,37 +1,40 @@
 import React, { useCallback, useEffect } from 'react';
 import * as d3 from 'd3';
-
-import type { CircuitGate } from '@/features/circuit/types';
+import type { DraggableGate } from '@/features/circuit/types';
 import { GATE_CONFIG } from '@/features/gates/constants';
+import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    gates: CircuitGate[];
-    placedGates: CircuitGate[];
+    placedGates: DraggableGate[];
     numQubits: number;
     maxDepth: number;
-    onUpdateGatePosition: (gateId: string, depth: number, qubit: number) => void;
-    onRemoveGate: (gateId: string) => void;
-    onShowPreview: (gate: CircuitGate['gate'], depth: number, qubit: number) => void;
-    onHidePreview: () => void;
-    onStartDragging: (gateId: string) => void;
-    onEndDragging: () => void;
+    gatesToRender?: DraggableGate[];
+    scrollContainerWidth?: number;
+    onUpdateGatePosition?: (gateId: string, depth: number, qubit: number) => void;
+    onRemoveGate?: (gateId: string) => void;
+    onShowPreview?: (gate: DraggableGate['gate'], depth: number, qubit: number) => void;
+    onHidePreview?: () => void;
+    onStartDragging?: (gateId: string) => void;
+    onEndDragging?: () => void;
 }
 
 export function useCircuitRenderer({
     svgRef,
-    gates,
+    gatesToRender = [],
     placedGates,
     numQubits,
     maxDepth,
-    onStartDragging,
-    onUpdateGatePosition,
-    onRemoveGate,
-    onShowPreview,
-    onHidePreview,
-    onEndDragging
+    scrollContainerWidth = 0,
+    onStartDragging = () => {},
+    onUpdateGatePosition = () => {},
+    onRemoveGate = () => {},
+    onShowPreview = () => {},
+    onHidePreview = () => {},
+    onEndDragging = () => {}
 }: UseCircuitRendererProps) {
-    const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, backgroundOpacity, previewOpacity }  = GATE_CONFIG;
+    const { footerHeight } = CIRCUIT_CONFIG;
+    const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, backgroundOpacity, previewOpacity } = GATE_CONFIG;
 
     // ========== Logic Functions ==========
 
@@ -79,9 +82,43 @@ export function useCircuitRenderer({
         if (!svgRef.current) return;
 
         const svg = d3.select(svgRef.current);
+
+        // Draw circuit background
+        svg.select('.circuit-background').remove();
+        const background = svg.insert('g', ':first-child')
+            .attr('class', 'circuit-background');
+
+        const contentWidth = maxDepth * gateSpacing;
+        const svgWidth = Math.max(scrollContainerWidth || contentWidth, contentWidth);
+        const svgHeight = numQubits * gateSpacing + footerHeight;
+
+        svg.attr('width', svgWidth).attr('height', svgHeight);
+
+        // Qubit lines
+        for (let i = 0; i < numQubits; i++) {
+            background.append('line')
+                .attr('x1', 0).attr('y1', i * gateSpacing + gateSpacing / 2)
+                .attr('x2', svgWidth).attr('y2', i * gateSpacing + gateSpacing / 2)
+                .attr('class', 'stroke-border circuit-line')
+                .attr('stroke-width', 2);
+        }
+
+        // Depth markers
+        const markersY = numQubits * gateSpacing + footerHeight / 2;
+        for (let i = 1; i <= maxDepth; i++) {
+            background.append('text')
+                .attr('x', (i - 1) * gateSpacing + gateSpacing / 2)
+                .attr('y', markersY)
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'middle')
+                .attr('class', 'fill-muted-foreground text-xs font-mono depth-marker')
+                .text(i);
+        }
+
+        // Draw gates
         svg.selectAll('.gate-element').remove();
 
-        gates.forEach(draggableGate => {
+        gatesToRender.forEach(draggableGate => {
             const { gate, depth, qubit, isPreview, id } = draggableGate;
             const x = depth * gateSpacing + gateSpacing / 2;
             const y = qubit * gateSpacing + gateSpacing / 2;
@@ -212,9 +249,9 @@ export function useCircuitRenderer({
                 });
             }
         });
-    }, [svgRef, gates, numQubits, getGridPosition, isValid,
-        gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity,
-        onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging ]);
+    }, [svgRef, gatesToRender, numQubits, maxDepth, scrollContainerWidth, getGridPosition, isValid,
+        gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
+        onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
     return {
         getGridPosition,

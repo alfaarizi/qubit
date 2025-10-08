@@ -1,6 +1,6 @@
 import type { Gate } from "@/features/gates/types";
 
-export interface CircuitGate {
+export interface DraggableGate {
     id: string;
     gate: Gate;
     depth: number;
