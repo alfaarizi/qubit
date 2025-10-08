@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { dragState } from '@/lib/dragState';
 import { GATES } from '@/features/gates/constants';
-import type { DraggableGate } from '@/features/circuit/types';
+import type { CircuitGate } from '@/features/gates/types';
 
 interface UseDraggableGateProps {
-    placedGates: DraggableGate[];
-    setPlacedGates: React.Dispatch<React.SetStateAction<DraggableGate[]>>;
+    placedGates: CircuitGate[];
+    setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
     getGridPosition: (e: { clientX: number; clientY: number }) => { depth: number; qubit: number; y: number } | null;
     isValid: (depth: number, qubit: number, qubits: number, excludeId?: string) => boolean;
 }
@@ -16,7 +16,7 @@ export function useDraggableGate({
     getGridPosition,
     isValid
 }: UseDraggableGateProps) {
-    const [previewGate, setPreviewGate] = useState<DraggableGate | null>(null);
+    const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
     const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -53,7 +53,6 @@ export function useDraggableGate({
                 gate,
                 depth: pos.depth,
                 qubit: pos.qubit,
-                isPreview: true
             });
         } else {
             setPreviewGate(null);
@@ -78,13 +77,12 @@ export function useDraggableGate({
         setPreviewGate(null);
     }, [findGateById, getGridPosition, isValid, setPlacedGates]);
 
-    const onShowPreview = useCallback((gate: DraggableGate['gate'], depth: number, qubit: number) => {
+    const onShowPreview = useCallback((gate: CircuitGate['gate'], depth: number, qubit: number) => {
         setPreviewGate({
             id: dragGateId || `${gate.name}-preview`,
             gate,
             depth,
             qubit,
-            isPreview: true
         });
     }, [dragGateId]);
 

@@ -10,7 +10,7 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 
-import type { DraggableGate } from '@/features/circuit/types';
+import type { CircuitGate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
 
@@ -113,7 +113,7 @@ export function CircuitCanvas() {
     const [numQubits, setNumQubits] = useState(defaultNumQubits);
     const [maxDepth] = useState(defaultMaxDepth);
     const [measurements, setMeasurements] = useState<boolean[]>(Array(numQubits).fill(true));
-    const [placedGates, setPlacedGates] = useState<DraggableGate[]>([]);
+    const [placedGates, setPlacedGates] = useState<CircuitGate[]>([]);
 
     const svgRef = useRef<SVGSVGElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -167,8 +167,9 @@ export function CircuitCanvas() {
 
     useCircuitRenderer({
         svgRef,
-        gatesToRender,
         placedGates,
+        gatesToRender,
+        previewGate,
         numQubits,
         maxDepth,
         scrollContainerWidth: scrollContainerWidth || 0,

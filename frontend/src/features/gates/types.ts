@@ -6,3 +6,10 @@ export interface Gate {
     description: string;
     qubits: number;
 }
+
+export interface CircuitGate {
+    id: string;
+    gate: Gate;
+    depth: number;
+    qubit: number;
+}

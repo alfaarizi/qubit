@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import type { Gate } from '@/features/gates/types';
 import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
-import {GateIcon} from "@/features/gates/components/GateIcon.tsx";
+import { GateIcon } from "@/features/gates/components/GateIcon";
 
 interface GateItemProps {
     gate: Gate;

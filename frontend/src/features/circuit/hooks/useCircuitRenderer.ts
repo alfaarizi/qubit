@@ -1,19 +1,20 @@
 import React, { useCallback, useEffect } from 'react';
 import * as d3 from 'd3';
-import type { DraggableGate } from '@/features/circuit/types';
+import type { CircuitGate } from '@/features/gates/types';
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    placedGates: DraggableGate[];
+    placedGates: CircuitGate[];
     numQubits: number;
     maxDepth: number;
-    gatesToRender?: DraggableGate[];
+    gatesToRender?: CircuitGate[];
+    previewGate?: CircuitGate | null;
     scrollContainerWidth?: number;
     onUpdateGatePosition?: (gateId: string, depth: number, qubit: number) => void;
     onRemoveGate?: (gateId: string) => void;
-    onShowPreview?: (gate: DraggableGate['gate'], depth: number, qubit: number) => void;
+    onShowPreview?: (gate: CircuitGate['gate'], depth: number, qubit: number) => void;
     onHidePreview?: () => void;
     onStartDragging?: (gateId: string) => void;
     onEndDragging?: () => void;
@@ -21,10 +22,11 @@ interface UseCircuitRendererProps {
 
 export function useCircuitRenderer({
     svgRef,
-    gatesToRender = [],
     placedGates,
     numQubits,
     maxDepth,
+    gatesToRender = [],
+    previewGate = null,
     scrollContainerWidth = 0,
     onStartDragging = () => {},
     onUpdateGatePosition = () => {},
@@ -119,7 +121,9 @@ export function useCircuitRenderer({
         svg.selectAll('.gate-element').remove();
 
         gatesToRender.forEach(draggableGate => {
-            const { gate, depth, qubit, isPreview, id } = draggableGate;
+            const { id, gate, depth, qubit } = draggableGate;
+            const isPreview = id === previewGate?.id;
+
             const x = depth * gateSpacing + gateSpacing / 2;
             const y = qubit * gateSpacing + gateSpacing / 2;
 
@@ -249,7 +253,7 @@ export function useCircuitRenderer({
                 });
             }
         });
-    }, [svgRef, gatesToRender, numQubits, maxDepth, scrollContainerWidth, getGridPosition, isValid,
+    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, isValid,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
