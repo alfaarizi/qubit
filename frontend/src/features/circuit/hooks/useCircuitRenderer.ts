@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect } from 'react';
 import * as d3 from 'd3';
 
-import type { DraggableGate } from '@/features/circuit/types';
+import type { CircuitGate } from '@/features/circuit/types';
 import { GATE_CONFIG } from '@/features/gates/constants';
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    gates: DraggableGate[];
-    placedGates: DraggableGate[];
+    gates: CircuitGate[];
+    placedGates: CircuitGate[];
     numQubits: number;
     maxDepth: number;
     onUpdateGatePosition: (gateId: string, depth: number, qubit: number) => void;
     onRemoveGate: (gateId: string) => void;
-    onShowPreview: (gate: DraggableGate['gate'], depth: number, qubit: number) => void;
+    onShowPreview: (gate: CircuitGate['gate'], depth: number, qubit: number) => void;
     onHidePreview: () => void;
     onStartDragging: (gateId: string) => void;
     onEndDragging: () => void;
@@ -181,6 +181,7 @@ export function useCircuitRenderer({
                 group.on('mousedown', function(event) {
                     event.preventDefault();
                     onStartDragging(id);
+                    onShowPreview(gate, depth, qubit);
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                         const pos = getGridPosition(moveEvent);

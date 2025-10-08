@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 
+import { GateIcon } from "@/features/gates/components/GateIcon";
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -9,7 +10,7 @@ import { CircuitBoard } from "lucide-react";
 import { useResizeObserver } from "@/hooks/useResizeObserver.ts";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 
-import type { DraggableGate } from '@/features/circuit/types';
+import type { CircuitGate } from '@/features/circuit/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
@@ -116,9 +117,10 @@ export function CircuitCanvas() {
         Array(numQubits).fill(true)
     );
 
-    const [placedGates, setPlacedGates] = useState<DraggableGate[]>([]);
-    const [previewGate, setPreviewGate] = useState<DraggableGate | null>(null);
+    const [placedGates, setPlacedGates] = useState<CircuitGate[]>([]);
+    const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
+    const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
     const svgRef = useRef<SVGSVGElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -145,7 +147,7 @@ export function CircuitCanvas() {
     }, []);
 
     const gatesToRender = [
-        ...placedGates.map(g => g.id === dragGateId ? { ...g, isPreview: true } : g),
+        ...placedGates.filter(g => g.id !== dragGateId),  // Hide original
         ...(previewGate ? [previewGate] : [])
     ];
 
@@ -161,7 +163,7 @@ export function CircuitCanvas() {
         onRemoveGate: useCallback((gateId: string) => {
             setPlacedGates(prev => prev.filter(g => g.id !== gateId));
         }, []),
-        onShowPreview: useCallback((gate: DraggableGate['gate'], depth: number, qubit: number) => {
+        onShowPreview: useCallback((gate: CircuitGate['gate'], depth: number, qubit: number) => {
             setPreviewGate({ id: 'preview', gate, depth, qubit, isPreview: true });
         }, []),
         onHidePreview: () => setPreviewGate(null),
@@ -218,6 +220,21 @@ export function CircuitCanvas() {
 
     // Resize observer
     const { width: scrollContainerWidth } = useResizeObserver(scrollContainerRef);
+
+    // Show floating preview at cursor while dragging
+    useEffect(() => {
+        if (!dragGateId) {
+            setCursorPos(null);
+            return;
+        }
+        const moveCursor = (e: MouseEvent) => setCursorPos({ x: e.clientX, y: e.clientY });
+        document.addEventListener('mousemove', moveCursor);
+        document.addEventListener('mousedown', moveCursor, { once: true });
+        return () => {
+            document.removeEventListener('mousemove', moveCursor);
+            document.removeEventListener('mousedown', moveCursor);
+        };
+    }, [dragGateId]);
 
     // Draw circuit lines
     useEffect(() => {
@@ -297,6 +314,21 @@ export function CircuitCanvas() {
             <div className="overflow-hidden mt-2">
                 <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
             </div>
+            {dragGateId && cursorPos && (() => {
+                const gate = placedGates.find(g => g.id === dragGateId)?.gate;
+                if (!gate) return null;
+                return (
+                    <GateIcon
+                        gate={gate}
+                        className="fixed pointer-events-none z-50"
+                        style={{
+                            left: cursorPos.x,
+                            top: cursorPos.y,
+                            transform: 'translate(-50%, -50%)',
+                        }}
+                    />
+                );
+            })()}
         </div>
 
     );

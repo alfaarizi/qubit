@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import type { Gate } from '@/features/gates/types';
 import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
+import {GateIcon} from "@/features/gates/components/GateIcon.tsx";
 
 interface GateItemProps {
     gate: Gate;
@@ -15,9 +16,8 @@ interface GateItemProps {
     onDragEnd: () => void;
 }
 
-function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
-    const [isHovered, setIsHovered] = useState(false)
-    const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity, singleQubit } = GATE_CONFIG
+function DraggableGate({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
+    const [isHovered, setIsHovered] = useState(false);
 
     return (
         <div
@@ -31,21 +31,10 @@ function GateItem({ gate, isDragging, onDragStart, onDragEnd }: GateItemProps) {
             }`}
             title={gate.description}
         >
-            <div
-                className={`flex items-center justify-center border-2 ${singleQubit.textSize} ${isHovered ? 'shadow-md border-yellow-500' : 'shadow-sm'}`}
-                style={{
-                    width: gateSize,
-                    height: gateSize,
-                    backgroundColor: `${gate.color}${backgroundOpacity}`,
-                    borderColor: isHovered ? undefined : gate.color,
-                    borderWidth: singleQubit.borderWidth,
-                    fontFamily,
-                    fontWeight,
-                    fontStyle
-                }}
-            >
-                <span className="select-none text-foreground">{gate.symbol}</span>
-            </div>
+            <GateIcon
+                gate={gate}
+                className={isHovered ? 'shadow-md border-yellow-500' : 'shadow-sm'}
+            />
             {isHovered && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg whitespace-nowrap z-50 border">
                     {gate.description}
@@ -111,7 +100,7 @@ export function GatesPanel() {
                     {isExpanded && <p className="text-sm text-muted-foreground mb-4">Drag gates to the circuit canvas</p> }
                     <div className={`grid gap-2 ${showExpandedGrid ? 'grid-cols-4' : 'grid-cols-2'}`}>
                         {GATES.map((gate) => (
-                            <GateItem
+                            <DraggableGate
                                 key={gate.id}
                                 gate={gate}
                                 isDragging={draggedGate === gate.id}
