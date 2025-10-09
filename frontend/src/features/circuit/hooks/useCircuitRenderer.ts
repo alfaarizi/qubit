@@ -158,6 +158,21 @@ export function useCircuitRenderer({
                 .attr('opacity', isPreview ? previewOpacity : 1)
                 .style('cursor', isPreview ? 'default' : 'grab');
 
+            if (!isPreview) { // Temporary for debugging purposes, this shows the target and control qubits of the gate
+                const labelText = controlQubits.length > 0
+                    ? `C:[${controlQubits}] T:[${targetQubits}]`
+                    : `Q:${targetQubits[0]}`;
+                const labelY = endQubit * gateSpacing + gateSpacing + gateSpacing / 4;
+                group.append('text')
+                    .attr('x', x)
+                    .attr('y', labelY)
+                    .attr('text-anchor', 'middle')
+                    .attr('class', 'text-xs fill-foreground font-mono')
+                    .attr('pointer-events', 'none')
+                    .style('font-size', '10px')
+                    .text(labelText);
+            }
+
             if (gate.numQubits === 1) {
                 const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
                 const qubitY = targetQubits[0] * gateSpacing + gateSpacing / 2;

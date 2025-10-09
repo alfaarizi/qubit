@@ -77,5 +77,13 @@ export const GATES: Gate[] = [
         color: '#6366f1',
         description: 'π/8 gate',
         numQubits: 1,
+    },
+    {
+        id: 'ccx',
+        name: 'CCX Gate',
+        symbol: 'CCX',
+        color: '#6366f1',
+        description: 'π/8 gate',
+        numQubits: 3,
     }
 ];
