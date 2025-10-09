@@ -53,6 +53,26 @@ export function useCircuitRenderer({
         };
     }, [svgRef, gateSpacing, numQubits]);
 
+    const getNextAvailableDepth = useCallback((
+        qubit: number,
+        qubits: number,
+        excludeId?: string
+    ) => {
+        // Find the rightmost gate that overlaps with these qubits
+        let maxDepth = -1;
+        placedGates.forEach(pg => {
+            if (pg.id === excludeId) return;
+            // Check if gates overlap in qubit range
+            const end1 = qubit + qubits - 1;
+            const end2 = pg.qubit + pg.gate.qubits - 1;
+            const overlaps = !(end1 < pg.qubit || end2 < qubit);
+            if (overlaps && pg.depth > maxDepth) {
+                maxDepth = pg.depth;
+            }
+        });
+        return maxDepth + 1; // Next available depth
+    }, [placedGates]);
+
     const hasCollision = useCallback((
         depth: number,
         qubit: number,
@@ -245,22 +265,18 @@ export function useCircuitRenderer({
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                         const pos = getGridPosition(moveEvent, gate.qubits);
                         if (!pos) return;
-                        if (isValid(pos.depth, pos.qubit, gate.qubits, id)) {
-                            onShowPreview(gate, pos.depth, pos.qubit);
-                        } else {
-                            onHidePreview();
-                        }
+                        const depth = getNextAvailableDepth(pos.qubit, gate.qubits, id);
+                        onShowPreview(gate, depth, pos.qubit);
                     };
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
                         const pos = getGridPosition(upEvent, gate.qubits);
-                        if (pos) {
-                            const circuitHeight = numQubits * gateSpacing;
-                            if (pos.y < 0 || pos.y > circuitHeight) {
-                                onRemoveGate(id);
-                            } else if (isValid(pos.depth, pos.qubit, gate.qubits, id)) {
-                                onUpdateGatePosition(id, pos.depth, pos.qubit);
-                            }
+                        if (!pos) return;
+                        if (pos.y < 0 || pos.y > numQubits * gateSpacing) {
+                            onRemoveGate(id);
+                        } else {
+                            const depth = getNextAvailableDepth(pos.qubit, gate.qubits, id);
+                            onUpdateGatePosition(id, depth, pos.qubit);
                         }
                         onEndDragging();
                         document.removeEventListener('mousemove', handleMouseMove);
@@ -271,12 +287,13 @@ export function useCircuitRenderer({
                 });
             }
         });
-    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, isValid,
+    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, getNextAvailableDepth,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
     return {
         getGridPosition,
+        getNextAvailableDepth,
         isValid
     };
 }

@@ -7,14 +7,14 @@ interface UseDraggableGateProps {
     placedGates: CircuitGate[];
     setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
     getGridPosition: (e: { clientX: number; clientY: number }, gateQubits?: number) => { depth: number; qubit: number; y: number } | null;
-    isValid: (depth: number, qubit: number, qubits: number, excludeId?: string) => boolean;
+    getNextAvailableDepth: (qubit: number, qubits: number) => number;
 }
 
 export function useDraggableGate({
     placedGates,
     setPlacedGates,
     getGridPosition,
-    isValid
+    getNextAvailableDepth
 }: UseDraggableGateProps) {
     const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
@@ -48,17 +48,13 @@ export function useDraggableGate({
         if (!gate) return;
         const pos = getGridPosition(e, gate.qubits);
         if (!pos) return;
-        if (isValid(pos.depth, pos.qubit, gate.qubits)) {
-            setPreviewGate({
-                id: `${gate.name}-preview`,
-                gate,
-                depth: pos.depth,
-                qubit: pos.qubit,
-            });
-        } else {
-            setPreviewGate(null);
-        }
-    }, [findGateById, getGridPosition, isValid]);
+        setPreviewGate({
+            id: `${gate.name}-preview`,
+            gate,
+            depth: getNextAvailableDepth(pos.qubit, gate.qubits),
+            qubit: pos.qubit
+        });
+    }, [findGateById, getGridPosition, getNextAvailableDepth]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -66,17 +62,14 @@ export function useDraggableGate({
         if (!gate) return;
         const pos = getGridPosition(e, gate.qubits);
         if (!pos) return;
-        if (isValid(pos.depth, pos.qubit, gate.qubits)) {
-            setPlacedGates(prev => [...prev, {
-                id: `${gate.id}-${crypto.randomUUID()}`,
-                gate,
-                depth: pos.depth,
-                qubit: pos.qubit,
-                isPreview: false
-            }]);
-        }
+        setPlacedGates(prev => [...prev, {
+            id: crypto.randomUUID(),
+            gate,
+            depth: getNextAvailableDepth(pos.qubit, gate.qubits),
+            qubit: pos.qubit
+        }]);
         setPreviewGate(null);
-    }, [findGateById, getGridPosition, isValid, setPlacedGates]);
+    }, [findGateById, getGridPosition, getNextAvailableDepth, setPlacedGates]);
 
     const onShowPreview = useCallback((gate: CircuitGate['gate'], depth: number, qubit: number) => {
         setPreviewGate({

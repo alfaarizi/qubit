@@ -140,7 +140,7 @@ export function CircuitCanvas() {
         });
     }, []);
 
-    const { getGridPosition, isValid } = useCircuitRenderer({
+    const { getGridPosition, getNextAvailableDepth } = useCircuitRenderer({
         svgRef,
         placedGates,
         numQubits,
@@ -159,7 +159,7 @@ export function CircuitCanvas() {
         onHidePreview,
         onStartDragging,
         onEndDragging
-    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, isValid });
+    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, getNextAvailableDepth });
 
     const gatesToRender = [
         ...placedGates.filter(g => g.id !== dragGateId),
