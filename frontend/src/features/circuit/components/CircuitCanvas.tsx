@@ -230,8 +230,8 @@ export function CircuitCanvas() {
                     gate={floatingGate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: cursorPos.x - dragOffset.x,
-                        top: cursorPos.y - dragOffset.y,
+                        left: floatingGate.qubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
+                        top: floatingGate.qubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />

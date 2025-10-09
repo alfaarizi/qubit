@@ -6,7 +6,7 @@ import type { CircuitGate } from '@/features/gates/types';
 interface UseDraggableGateProps {
     placedGates: CircuitGate[];
     setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
-    getGridPosition: (e: { clientX: number; clientY: number }) => { depth: number; qubit: number; y: number } | null;
+    getGridPosition: (e: { clientX: number; clientY: number }, gateQubits?: number) => { depth: number; qubit: number; y: number } | null;
     isValid: (depth: number, qubit: number, qubits: number, excludeId?: string) => boolean;
 }
 
@@ -46,7 +46,7 @@ export function useDraggableGate({
         e.preventDefault();
         const gate = findGateById(dragState.get());
         if (!gate) return;
-        const pos = getGridPosition(e);
+        const pos = getGridPosition(e, gate.qubits);
         if (!pos) return;
         if (isValid(pos.depth, pos.qubit, gate.qubits)) {
             setPreviewGate({
@@ -64,7 +64,7 @@ export function useDraggableGate({
         e.preventDefault();
         const gate = findGateById(dragState.get());
         if (!gate) return;
-        const pos = getGridPosition(e);
+        const pos = getGridPosition(e, gate.qubits);
         if (!pos) return;
         if (isValid(pos.depth, pos.qubit, gate.qubits)) {
             setPlacedGates(prev => [...prev, {

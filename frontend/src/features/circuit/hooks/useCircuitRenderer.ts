@@ -40,17 +40,18 @@ export function useCircuitRenderer({
 
     // ========== Logic Functions ==========
 
-    const getGridPosition = useCallback((e: { clientX: number; clientY: number }) => {
+    const getGridPosition = useCallback((e: { clientX: number; clientY: number }, gateQubits: number = 1) => {
         if (!svgRef.current) return null;
         const rect = svgRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+
         return {
             depth: Math.floor(x / gateSpacing),
-            qubit: Math.floor(y / gateSpacing),
+            qubit: Math.max(0, Math.min(Math.floor(y / gateSpacing), numQubits - gateQubits)),
             y
         };
-    }, [svgRef, gateSpacing]);
+    }, [svgRef, gateSpacing, numQubits]);
 
     const hasCollision = useCallback((
         depth: number,
@@ -219,6 +220,16 @@ export function useCircuitRenderer({
 
             // Add interaction for placed gates
             if (!isPreview) {
+
+                const hitboxHeight = gate.qubits * gateSpacing;
+                group.append('rect')
+                    .attr('x', x - gateSize / 2)
+                    .attr('y', y - gateSize / 2)
+                    .attr('width', gateSize)
+                    .attr('height', hitboxHeight)
+                    .attr('fill', 'transparent')
+                    .attr('cursor', 'grab');
+
                 group.on('mousedown', function(event) {
                     event.preventDefault();
 
@@ -232,7 +243,7 @@ export function useCircuitRenderer({
                     onShowPreview(gate, depth, qubit);
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
-                        const pos = getGridPosition(moveEvent);
+                        const pos = getGridPosition(moveEvent, gate.qubits);
                         if (!pos) return;
                         if (isValid(pos.depth, pos.qubit, gate.qubits, id)) {
                             onShowPreview(gate, pos.depth, pos.qubit);
@@ -242,7 +253,7 @@ export function useCircuitRenderer({
                     };
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
-                        const pos = getGridPosition(upEvent);
+                        const pos = getGridPosition(upEvent, gate.qubits);
                         if (pos) {
                             const circuitHeight = numQubits * gateSpacing;
                             if (pos.y < 0 || pos.y > circuitHeight) {
