@@ -9,7 +9,7 @@ import { CircuitBoard } from "lucide-react";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
-import { createQubitArrays, getInvolvedQubits } from "@/features/gates/utils";
+import { createContiguousQubitArrays, getInvolvedQubits } from "@/features/gates/utils";
 
 import type { CircuitGate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
@@ -181,7 +181,7 @@ export function CircuitCanvas() {
         onUpdateGatePosition: useCallback((gateId: string, depth: number, startQubit: number) => {
             setPlacedGates(prev => prev.map(g => {
                 if (g.id === gateId) {
-                    const { targetQubits, controlQubits } = createQubitArrays(startQubit, g.gate.numQubits);
+                    const { targetQubits, controlQubits } = createContiguousQubitArrays(g.gate, startQubit);
                     return { ...g, depth, targetQubits, controlQubits };
                 }
                 return g;
@@ -240,8 +240,8 @@ export function CircuitCanvas() {
                     gate={floatingGate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: floatingGate.numQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
-                        top: floatingGate.numQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
+                        left: floatingGate.numControlQubits + floatingGate.numTargetQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
+                        top: floatingGate.numControlQubits + floatingGate.numTargetQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />

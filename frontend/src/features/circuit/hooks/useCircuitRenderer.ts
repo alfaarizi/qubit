@@ -46,7 +46,6 @@ export function useCircuitRenderer({
         const rect = svgRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
         return {
             depth: Math.floor(x / gateSpacing),
             qubit: Math.max(0, Math.min(Math.floor(y / gateSpacing), numQubits - gateQubits)),
@@ -55,51 +54,45 @@ export function useCircuitRenderer({
     }, [svgRef, gateSpacing, numQubits]);
 
     const getNextAvailableDepth = useCallback((
-        qubit: number,
-        qubits: number,
+        startQubit: number,
+        endQubit: number,
         excludeId?: string
     ) => {
-        // Find the rightmost gate that overlaps with these qubits
         let maxDepth = -1;
         placedGates.forEach(pg => {
             if (pg.id === excludeId) return;
-            // Check if gates overlap in qubit range
-            const { startQubit } = getQubitSpan(pg);
-            const end1 = qubit + qubits - 1;
-            const end2 = startQubit + pg.gate.numQubits - 1;
-            const overlaps = !(end1 < startQubit || end2 < qubit);
+            const { startQubit: existingStart, endQubit: existingEnd } = getQubitSpan(pg);
+            const overlaps = !(endQubit < existingStart || existingEnd < startQubit);
             if (overlaps && pg.depth > maxDepth) {
                 maxDepth = pg.depth;
             }
         });
-        return maxDepth + 1; // Next available depth
+        return maxDepth + 1;
     }, [placedGates]);
 
     const hasCollision = useCallback((
         depth: number,
-        qubit: number,
-        qubits: number,
+        startQubit: number,
+        endQubit: number,
         excludeId?: string
     ) => {
         return placedGates.some(pg => {
             if (pg.id === excludeId) return false;
             if (pg.depth !== depth) return false;
-            const { startQubit } = getQubitSpan(pg);
-            const end1 = qubit + qubits - 1;
-            const end2 = startQubit + pg.gate.numQubits - 1;
-            return !(end1 < startQubit || end2 < qubit);
+            const { startQubit: existingStart, endQubit: existingEnd } = getQubitSpan(pg);
+            return !(endQubit < existingStart || existingEnd < startQubit);
         });
     }, [placedGates]);
 
     const isValid = useCallback((
         depth: number,
-        qubit: number,
-        qubits: number,
+        startQubit: number,
+        endQubit: number,
         excludeId?: string
     ) => {
         if (depth < 0 || depth >= maxDepth) return false;
-        if (qubit < 0 || qubit + qubits > numQubits) return false;
-        return !hasCollision(depth, qubit, qubits, excludeId);
+        if (startQubit < 0 || endQubit >= numQubits) return false;
+        return !hasCollision(depth, startQubit, endQubit, excludeId);
     }, [numQubits, maxDepth, hasCollision]);
 
     // ========== Rendering Effect ==========
@@ -173,7 +166,8 @@ export function useCircuitRenderer({
                     .text(labelText);
             }
 
-            if (gate.numQubits === 1) {
+            const totalQubits = gate.numTargetQubits + gate.numControlQubits;
+            if (totalQubits === 1) {
                 const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
                 const qubitY = targetQubits[0] * gateSpacing + gateSpacing / 2;
 
@@ -210,7 +204,7 @@ export function useCircuitRenderer({
                     .attr('pointer-events', 'none')
                     .text(gate.symbol);
 
-            } else if (gate.numQubits > 1) {
+            } else if (totalQubits > 1) {
                 const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
                 const yFirst = startQubit * gateSpacing + gateSpacing / 2;
                 const yLast = endQubit * gateSpacing + gateSpacing / 2;
@@ -286,19 +280,21 @@ export function useCircuitRenderer({
                     onShowPreview(gate, depth, startQubit);
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
-                        const pos = getGridPosition(moveEvent, gate.numQubits);
+                        const totalQubits = gate.numControlQubits + gate.numTargetQubits;
+                        const pos = getGridPosition(moveEvent, totalQubits);
                         if (!pos) return;
-                        const depth = getNextAvailableDepth(pos.qubit, gate.numQubits, id);
+                        const depth = getNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
                         onShowPreview(gate, depth, pos.qubit);
                     };
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
-                        const pos = getGridPosition(upEvent, gate.numQubits);
+                        const totalQubits = gate.numControlQubits + gate.numTargetQubits;
+                        const pos = getGridPosition(upEvent, totalQubits);
                         if (!pos) return;
                         if (pos.y < 0 || pos.y > numQubits * gateSpacing) {
                             onRemoveGate(id);
                         } else {
-                            const depth = getNextAvailableDepth(pos.qubit, gate.numQubits, id);
+                            const depth = getNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
                             onUpdateGatePosition(id, depth, pos.qubit);
                         }
                         onEndDragging();

@@ -28,7 +28,8 @@ export const GATES: Gate[] = [
         symbol: 'H',
         color: '#3b82f6',
         description: 'Creates superposition',
-        numQubits: 1,
+        numControlQubits: 0,
+        numTargetQubits: 1,
     },
     {
         id: 'x',
@@ -36,7 +37,8 @@ export const GATES: Gate[] = [
         symbol: 'X',
         color: '#ef4444',
         description: 'Bit flip gate',
-        numQubits: 1,
+        numControlQubits: 0,
+        numTargetQubits: 1,
     },
     {
         id: 'y',
@@ -44,7 +46,8 @@ export const GATES: Gate[] = [
         symbol: 'Y',
         color: '#22c55e',
         description: 'Y rotation gate',
-        numQubits: 1,
+        numControlQubits: 0,
+        numTargetQubits: 1,
     },
     {
         id: 'z',
@@ -52,7 +55,8 @@ export const GATES: Gate[] = [
         symbol: 'Z',
         color: '#a855f7',
         description: 'Phase flip gate',
-        numQubits: 1,
+        numControlQubits: 0,
+        numTargetQubits: 1,
     },
     {
         id: 'cnot',
@@ -60,7 +64,8 @@ export const GATES: Gate[] = [
         symbol: 'CX',
         color: '#f97316',
         description: 'Controlled NOT gate',
-        numQubits: 2,
+        numControlQubits: 1,
+        numTargetQubits: 1,
     },
     {
         id: 's',
@@ -68,7 +73,8 @@ export const GATES: Gate[] = [
         symbol: 'S',
         color: '#ec4899',
         description: 'Phase gate',
-        numQubits: 1,
+        numControlQubits: 0,
+        numTargetQubits: 1,
     },
     {
         id: 't',
@@ -76,14 +82,16 @@ export const GATES: Gate[] = [
         symbol: 'T',
         color: '#6366f1',
         description: 'π/8 gate',
-        numQubits: 1,
+        numControlQubits: 0,
+        numTargetQubits: 1,
     },
     {
         id: 'ccx',
-        name: 'CCX Gate',
+        name: 'Toffoli',
         symbol: 'CCX',
-        color: '#6366f1',
-        description: 'π/8 gate',
-        numQubits: 3,
+        color: '#8b5cf6',
+        description: 'Controlled-Controlled-X gate',
+        numControlQubits: 2,
+        numTargetQubits: 1,
     }
 ];
