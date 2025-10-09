@@ -13,7 +13,7 @@ interface UseCircuitRendererProps {
     gatesToRender?: CircuitGate[];
     previewGate?: CircuitGate | null;
     scrollContainerWidth?: number;
-    onUpdateGatePosition?: (gateId: string, depth: number, qubit: number) => void;
+    onUpdateGatePosition?: (gateId: string, targetDepth: number, qubit: number) => void;
     onRemoveGate?: (gateId: string) => void;
     onShowPreview?: (gate: CircuitGate['gate'], depth: number, qubit: number) => void;
     onHidePreview?: () => void;
@@ -53,23 +53,6 @@ export function useCircuitRenderer({
         };
     }, [svgRef, gateSpacing, numQubits]);
 
-    const getNextAvailableDepth = useCallback((
-        startQubit: number,
-        endQubit: number,
-        excludeId?: string
-    ) => {
-        let maxDepth = -1;
-        placedGates.forEach(pg => {
-            if (pg.id === excludeId) return;
-            const { startQubit: existingStart, endQubit: existingEnd } = getQubitSpan(pg);
-            const overlaps = !(endQubit < existingStart || existingEnd < startQubit);
-            if (overlaps && pg.depth > maxDepth) {
-                maxDepth = pg.depth;
-            }
-        });
-        return maxDepth + 1;
-    }, [placedGates]);
-
     const hasCollision = useCallback((
         depth: number,
         startQubit: number,
@@ -84,16 +67,17 @@ export function useCircuitRenderer({
         });
     }, [placedGates]);
 
-    const isValid = useCallback((
-        depth: number,
+    const findNextAvailableDepth = useCallback((
         startQubit: number,
         endQubit: number,
         excludeId?: string
     ) => {
-        if (depth < 0 || depth >= maxDepth) return false;
-        if (startQubit < 0 || endQubit >= numQubits) return false;
-        return !hasCollision(depth, startQubit, endQubit, excludeId);
-    }, [numQubits, maxDepth, hasCollision]);
+        let depth = 0;
+        while (hasCollision(depth, startQubit, endQubit, excludeId)) {
+            depth++;
+        }
+        return depth;
+    }, [hasCollision]);
 
     // ========== Rendering Effect ==========
 
@@ -283,8 +267,8 @@ export function useCircuitRenderer({
                         const totalQubits = gate.numControlQubits + gate.numTargetQubits;
                         const pos = getGridPosition(moveEvent, totalQubits);
                         if (!pos) return;
-                        const depth = getNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
-                        onShowPreview(gate, depth, pos.qubit);
+                        const nextDepth = findNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
+                        onShowPreview(gate, nextDepth, pos.qubit);
                     };
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
@@ -294,8 +278,8 @@ export function useCircuitRenderer({
                         if (pos.y < 0 || pos.y > numQubits * gateSpacing) {
                             onRemoveGate(id);
                         } else {
-                            const depth = getNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
-                            onUpdateGatePosition(id, depth, pos.qubit);
+                            const nextDepth = findNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
+                            onUpdateGatePosition(id, nextDepth, pos.qubit);
                         }
                         onEndDragging();
                         document.removeEventListener('mousemove', handleMouseMove);
@@ -306,13 +290,12 @@ export function useCircuitRenderer({
                 });
             }
         });
-    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, getNextAvailableDepth,
+    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, findNextAvailableDepth, hasCollision,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
     return {
         getGridPosition,
-        getNextAvailableDepth,
-        isValid
+        findNextAvailableDepth,
     };
 }
