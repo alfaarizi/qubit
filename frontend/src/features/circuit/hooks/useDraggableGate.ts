@@ -18,6 +18,7 @@ export function useDraggableGate({
 }: UseDraggableGateProps) {
     const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
     const findGateById = useCallback((gateId: string | null) => {
@@ -90,13 +91,15 @@ export function useDraggableGate({
         setPreviewGate(null);
     }, []);
 
-    const onStartDragging = useCallback((gateId: string) => {
+    const onStartDragging = useCallback((gateId: string, offset: { x: number; y: number }) => {
         setDragGateId(gateId);
+        setDragOffset(offset);
     }, []);
 
     const onEndDragging = useCallback(() => {
         setPreviewGate(null);
         setDragGateId(null);
+        setDragOffset({ x: 0, y: 0 });
     }, []);
 
     const floatingGate = dragGateId ? placedGates.find(g => g.id === dragGateId)?.gate : null;
@@ -105,6 +108,7 @@ export function useDraggableGate({
         dragGateId,
         previewGate,
         floatingGate,
+        dragOffset,
         cursorPos,
         handleDragOver,
         handleDrop,

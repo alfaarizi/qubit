@@ -16,7 +16,7 @@ interface UseCircuitRendererProps {
     onRemoveGate?: (gateId: string) => void;
     onShowPreview?: (gate: CircuitGate['gate'], depth: number, qubit: number) => void;
     onHidePreview?: () => void;
-    onStartDragging?: (gateId: string) => void;
+    onStartDragging?: (gateId: string, offset: { x: number; y: number }) => void;
     onEndDragging?: () => void;
 }
 
@@ -221,7 +221,14 @@ export function useCircuitRenderer({
             if (!isPreview) {
                 group.on('mousedown', function(event) {
                     event.preventDefault();
-                    onStartDragging(id);
+
+                    const rect = svgRef.current!.getBoundingClientRect();
+                    const offset = {
+                        x: event.clientX - (x + rect.left),
+                        y: event.clientY - (y + rect.top)
+                    };
+
+                    onStartDragging(id, offset);
                     onShowPreview(gate, depth, qubit);
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {

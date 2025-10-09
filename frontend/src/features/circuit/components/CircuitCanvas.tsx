@@ -151,6 +151,7 @@ export function CircuitCanvas() {
         dragGateId,
         previewGate,
         floatingGate,
+        dragOffset,
         cursorPos,
         handleDragOver,
         handleDrop,
@@ -229,8 +230,8 @@ export function CircuitCanvas() {
                     gate={floatingGate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: cursorPos.x,
-                        top: cursorPos.y,
+                        left: cursorPos.x - dragOffset.x,
+                        top: cursorPos.y - dragOffset.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />
