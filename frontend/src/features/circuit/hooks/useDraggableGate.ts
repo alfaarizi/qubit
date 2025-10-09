@@ -7,14 +7,14 @@ interface UseDraggableGateProps {
     placedGates: CircuitGate[];
     setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
     getGridPosition: (e: { clientX: number; clientY: number }, gateQubits?: number) => { depth: number; qubit: number; y: number } | null;
-    getNextAvailableDepth: (qubit: number, qubits: number) => number;
+    packGates: (gates: CircuitGate[]) => CircuitGate[];
 }
 
 export function useDraggableGate({
     placedGates,
     setPlacedGates,
     getGridPosition,
-    getNextAvailableDepth
+    packGates
 }: UseDraggableGateProps) {
     const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
@@ -48,13 +48,13 @@ export function useDraggableGate({
         if (!gate) return;
         const pos = getGridPosition(e, gate.qubits);
         if (!pos) return;
-        setPreviewGate({
-            id: `${gate.name}-preview`,
-            gate,
-            depth: getNextAvailableDepth(pos.qubit, gate.qubits),
-            qubit: pos.qubit
-        });
-    }, [findGateById, getGridPosition, getNextAvailableDepth]);
+
+        const preview = { id: `${gate.id}-preview`, gate, depth: pos.depth, qubit: pos.qubit };
+        const packed = packGates([...placedGates, preview]);
+        const finalPreview = packed.find(g => g.id === 'preview');
+
+        setPreviewGate(finalPreview || preview);
+    }, [findGateById, getGridPosition, packGates, placedGates]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -62,23 +62,31 @@ export function useDraggableGate({
         if (!gate) return;
         const pos = getGridPosition(e, gate.qubits);
         if (!pos) return;
-        setPlacedGates(prev => [...prev, {
-            id: crypto.randomUUID(),
+        setPlacedGates(prev => packGates([...prev, {
+            id: `${gate.id}-${crypto.randomUUID()}`,
             gate,
-            depth: getNextAvailableDepth(pos.qubit, gate.qubits),
+            depth: pos.depth,
             qubit: pos.qubit
-        }]);
+        }]));
         setPreviewGate(null);
-    }, [findGateById, getGridPosition, getNextAvailableDepth, setPlacedGates]);
+    }, [findGateById, getGridPosition, packGates, setPlacedGates]);
 
     const onShowPreview = useCallback((gate: CircuitGate['gate'], depth: number, qubit: number) => {
-        setPreviewGate({
-            id: dragGateId || `${gate.name}-preview`,
+        const preview = {
+            id: dragGateId || `${gate.id}-preview`,
             gate,
             depth,
-            qubit,
-        });
-    }, [dragGateId]);
+            qubit
+        };
+
+        const packed = packGates([
+            ...placedGates.filter(g => g.id !== dragGateId),
+            preview
+        ]);
+        const finalPreview = packed.find(g => g.id === preview.id);
+
+        setPreviewGate(finalPreview || preview);
+    }, [dragGateId, packGates, placedGates]);
 
     const onHidePreview = useCallback(() => {
         setPreviewGate(null);

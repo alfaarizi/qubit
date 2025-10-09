@@ -6,7 +6,6 @@ import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    placedGates: CircuitGate[];
     numQubits: number;
     maxDepth: number;
     gatesToRender?: CircuitGate[];
@@ -22,7 +21,6 @@ interface UseCircuitRendererProps {
 
 export function useCircuitRenderer({
     svgRef,
-    placedGates,
     numQubits,
     maxDepth,
     gatesToRender = [],
@@ -53,51 +51,19 @@ export function useCircuitRenderer({
         };
     }, [svgRef, gateSpacing, numQubits]);
 
-    const getNextAvailableDepth = useCallback((
-        qubit: number,
-        qubits: number,
-        excludeId?: string
-    ) => {
-        // Find the rightmost gate that overlaps with these qubits
-        let maxDepth = -1;
-        placedGates.forEach(pg => {
-            if (pg.id === excludeId) return;
-            // Check if gates overlap in qubit range
-            const end1 = qubit + qubits - 1;
-            const end2 = pg.qubit + pg.gate.qubits - 1;
-            const overlaps = !(end1 < pg.qubit || end2 < qubit);
-            if (overlaps && pg.depth > maxDepth) {
-                maxDepth = pg.depth;
-            }
+    const packGates = useCallback((gates: CircuitGate[]): CircuitGate[] => {
+        const sorted = [...gates].sort((a, b) => a.depth - b.depth);
+        const result: CircuitGate[] = [];
+        sorted.forEach(gate => {
+            let depth = 0;
+            while (result.some(placed =>
+                placed.depth === depth && !(gate.qubit + gate.gate.qubits - 1 < placed.qubit || placed.qubit + placed.gate.qubits - 1 < gate.qubit)
+            )) depth++;
+            result.push({ ...gate, depth });
         });
-        return maxDepth + 1; // Next available depth
-    }, [placedGates]);
+        return result;
+    }, []);
 
-    const hasCollision = useCallback((
-        depth: number,
-        qubit: number,
-        qubits: number,
-        excludeId?: string
-    ) => {
-        return placedGates.some(pg => {
-            if (pg.id === excludeId) return false;
-            if (pg.depth !== depth) return false;
-            const end1 = qubit + qubits - 1;
-            const end2 = pg.qubit + pg.gate.qubits - 1;
-            return !(end1 < pg.qubit || end2 < qubit);
-        });
-    }, [placedGates]);
-
-    const isValid = useCallback((
-        depth: number,
-        qubit: number,
-        qubits: number,
-        excludeId?: string
-    ) => {
-        if (depth < 0 || depth >= maxDepth) return false;
-        if (qubit < 0 || qubit + qubits > numQubits) return false;
-        return !hasCollision(depth, qubit, qubits, excludeId);
-    }, [numQubits, maxDepth, hasCollision]);
 
     // ========== Rendering Effect ==========
 
@@ -265,8 +231,7 @@ export function useCircuitRenderer({
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                         const pos = getGridPosition(moveEvent, gate.qubits);
                         if (!pos) return;
-                        const depth = getNextAvailableDepth(pos.qubit, gate.qubits, id);
-                        onShowPreview(gate, depth, pos.qubit);
+                        onShowPreview(gate, pos.depth, pos.qubit);
                     };
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
@@ -275,8 +240,7 @@ export function useCircuitRenderer({
                         if (pos.y < 0 || pos.y > numQubits * gateSpacing) {
                             onRemoveGate(id);
                         } else {
-                            const depth = getNextAvailableDepth(pos.qubit, gate.qubits, id);
-                            onUpdateGatePosition(id, depth, pos.qubit);
+                            onUpdateGatePosition(id, pos.depth, pos.qubit);
                         }
                         onEndDragging();
                         document.removeEventListener('mousemove', handleMouseMove);
@@ -287,13 +251,12 @@ export function useCircuitRenderer({
                 });
             }
         });
-    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, getNextAvailableDepth,
+    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, packGates,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
     return {
         getGridPosition,
-        getNextAvailableDepth,
-        isValid
+        packGates
     };
 }

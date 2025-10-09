@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import {useState, useRef, useCallback, useMemo} from 'react';
 
 import { GateIcon } from "@/features/gates/components/GateIcon";
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
@@ -140,9 +140,8 @@ export function CircuitCanvas() {
         });
     }, []);
 
-    const { getGridPosition, getNextAvailableDepth } = useCircuitRenderer({
+    const { getGridPosition, packGates } = useCircuitRenderer({
         svgRef,
-        placedGates,
         numQubits,
         maxDepth,
     });
@@ -159,27 +158,29 @@ export function CircuitCanvas() {
         onHidePreview,
         onStartDragging,
         onEndDragging
-    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, getNextAvailableDepth });
+    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, packGates });
 
-    const gatesToRender = [
-        ...placedGates.filter(g => g.id !== dragGateId),
-        ...(previewGate ? [previewGate] : [])
-    ];
+    const gatesToRender = useMemo(() => {
+        const gates = placedGates.filter(g => g.id !== dragGateId);
+        if (!previewGate) return gates;
+        return packGates([...gates, previewGate]);
+    }, [placedGates, previewGate, dragGateId, packGates]);
 
     useCircuitRenderer({
         svgRef,
-        placedGates,
         gatesToRender,
         previewGate,
         numQubits,
         maxDepth,
         scrollContainerWidth: scrollContainerWidth || 0,
         onUpdateGatePosition: useCallback((gateId: string, depth: number, qubit: number) => {
-            setPlacedGates(prev => prev.map(g => g.id === gateId ? { ...g, depth, qubit } : g));
-        }, []),
+            setPlacedGates(prev => packGates(
+                prev.map(g => g.id === gateId ? { ...g, depth, qubit } : g)
+            ));
+        }, [packGates]),
         onRemoveGate: useCallback((gateId: string) => {
-            setPlacedGates(prev => prev.filter(g => g.id !== gateId));
-        }, []),
+            setPlacedGates(prev => packGates(prev.filter(g => g.id !== gateId)));
+        }, [packGates]),
         onShowPreview,
         onHidePreview,
         onStartDragging,
