@@ -4,12 +4,13 @@ export interface Gate {
     symbol: string;
     color: string;
     description: string;
-    qubits: number;
+    numQubits: number;
 }
 
 export interface CircuitGate {
     id: string;
     gate: Gate;
     depth: number;
-    qubit: number;
+    targetQubits: number[];
+    controlQubits: number[];
 }

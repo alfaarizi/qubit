@@ -9,6 +9,7 @@ import { CircuitBoard } from "lucide-react";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
+import { createQubitArrays, getInvolvedQubits } from "@/features/gates/utils";
 
 import type { CircuitGate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
@@ -128,7 +129,10 @@ export function CircuitCanvas() {
         if (numQubits > 1) {
             setNumQubits(prev => prev - 1);
             setMeasurements(prev => prev.slice(0, -1));
-            setPlacedGates(prev => prev.filter(g => g.qubit + g.gate.qubits <= numQubits - 1));
+            setPlacedGates(prev => prev.filter(g => {
+                const involvedQubits = getInvolvedQubits(g);
+                return !involvedQubits.includes(numQubits - 1);
+            }));
         }
     }, [numQubits]);
 
@@ -174,8 +178,14 @@ export function CircuitCanvas() {
         numQubits,
         maxDepth,
         scrollContainerWidth: scrollContainerWidth || 0,
-        onUpdateGatePosition: useCallback((gateId: string, depth: number, qubit: number) => {
-            setPlacedGates(prev => prev.map(g => g.id === gateId ? { ...g, depth, qubit } : g));
+        onUpdateGatePosition: useCallback((gateId: string, depth: number, startQubit: number) => {
+            setPlacedGates(prev => prev.map(g => {
+                if (g.id === gateId) {
+                    const { targetQubits, controlQubits } = createQubitArrays(startQubit, g.gate.numQubits);
+                    return { ...g, depth, targetQubits, controlQubits };
+                }
+                return g;
+            }));
         }, []),
         onRemoveGate: useCallback((gateId: string) => {
             setPlacedGates(prev => prev.filter(g => g.id !== gateId));
@@ -230,8 +240,8 @@ export function CircuitCanvas() {
                     gate={floatingGate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: floatingGate.qubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
-                        top: floatingGate.qubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
+                        left: floatingGate.numQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
+                        top: floatingGate.numQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />

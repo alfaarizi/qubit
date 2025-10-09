@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { dragState } from '@/lib/dragState';
 import { GATES } from '@/features/gates/constants';
 import type { CircuitGate } from '@/features/gates/types';
+import { createQubitArrays } from "@/features/gates/utils";
 
 interface UseDraggableGateProps {
     placedGates: CircuitGate[];
@@ -46,13 +47,15 @@ export function useDraggableGate({
         e.preventDefault();
         const gate = findGateById(dragState.get());
         if (!gate) return;
-        const pos = getGridPosition(e, gate.qubits);
+        const pos = getGridPosition(e, gate.numQubits);
         if (!pos) return;
+        const { targetQubits, controlQubits } = createQubitArrays(pos.qubit, gate.numQubits);
         setPreviewGate({
-            id: `${gate.name}-preview`,
+            id: `${gate.id}-preview`,
             gate,
-            depth: getNextAvailableDepth(pos.qubit, gate.qubits),
-            qubit: pos.qubit
+            depth: getNextAvailableDepth(pos.qubit, gate.numQubits),
+            targetQubits,
+            controlQubits,
         });
     }, [findGateById, getGridPosition, getNextAvailableDepth]);
 
@@ -60,23 +63,27 @@ export function useDraggableGate({
         e.preventDefault();
         const gate = findGateById(dragState.get());
         if (!gate) return;
-        const pos = getGridPosition(e, gate.qubits);
+        const pos = getGridPosition(e, gate.numQubits);
         if (!pos) return;
+        const { targetQubits, controlQubits } = createQubitArrays(pos.qubit, gate.numQubits);
         setPlacedGates(prev => [...prev, {
-            id: crypto.randomUUID(),
+            id: `${gate.id}-${crypto.randomUUID()}`,
             gate,
-            depth: getNextAvailableDepth(pos.qubit, gate.qubits),
-            qubit: pos.qubit
+            depth: getNextAvailableDepth(pos.qubit, gate.numQubits),
+            targetQubits,
+            controlQubits
         }]);
         setPreviewGate(null);
     }, [findGateById, getGridPosition, getNextAvailableDepth, setPlacedGates]);
 
-    const onShowPreview = useCallback((gate: CircuitGate['gate'], depth: number, qubit: number) => {
+    const onShowPreview = useCallback((gate: CircuitGate['gate'], depth: number, startQubit: number) => {
+        const { targetQubits, controlQubits } = createQubitArrays(startQubit, gate.numQubits);
         setPreviewGate({
-            id: dragGateId || `${gate.name}-preview`,
+            id: dragGateId || `${gate.id}-preview`,
             gate,
             depth,
-            qubit,
+            targetQubits,
+            controlQubits
         });
     }, [dragGateId]);
 
