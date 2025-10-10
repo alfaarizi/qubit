@@ -1,8 +1,23 @@
+/**
+ * Gate Template – defines the quantum gate type
+ */
 export interface Gate {
     id: string;
     name: string;
     symbol: string;
     color: string;
     description: string;
-    qubits: number;
+    numTargetQubits: number;
+    numControlQubits: number;
+}
+
+/**
+ * Circuit Gate Instance - a placed gate in the circuit
+ */
+export interface CircuitGate {
+    id: string;
+    gate: Gate;
+    depth: number;
+    targetQubits: number[];
+    controlQubits: number[];
 }

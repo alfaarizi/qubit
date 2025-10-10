@@ -1,15 +1,7 @@
-import type { Gate } from "@/features/gates/types";
-
-export interface DraggableGate {
-    id: string;
-    gate: Gate;
-    depth: number;
-    qubit: number;
-    isPreview?: boolean;
-}
+// import type {CircuitGate} from "@/features/gates/types";
 
 // export interface Circuit {
 //     id: string
-//     gates: DraggableGate[]
+//     gates: CircuitGate[]
 //     numQubits: number
 // }
