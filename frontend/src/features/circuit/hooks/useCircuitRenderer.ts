@@ -3,11 +3,10 @@ import * as d3 from 'd3';
 import type { CircuitGate } from '@/features/gates/types';
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
-import { getQubitSpan } from "@/features/gates/utils";
+import {getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    placedGates: CircuitGate[];
     numQubits: number;
     maxDepth: number;
     gatesToRender?: CircuitGate[];
@@ -15,7 +14,7 @@ interface UseCircuitRendererProps {
     scrollContainerWidth?: number;
     onUpdateGatePosition?: (gateId: string, targetDepth: number, qubit: number) => void;
     onRemoveGate?: (gateId: string) => void;
-    onShowPreview?: (gate: CircuitGate['gate'], depth: number, qubit: number) => void;
+    onShowPreview?: (gate: CircuitGate, depth: number, qubit: number) => void;
     onHidePreview?: () => void;
     onStartDragging?: (gateId: string, offset: { x: number; y: number }) => void;
     onEndDragging?: () => void;
@@ -23,7 +22,6 @@ interface UseCircuitRendererProps {
 
 export function useCircuitRenderer({
     svgRef,
-    placedGates,
     numQubits,
     maxDepth,
     gatesToRender = [],
@@ -53,31 +51,127 @@ export function useCircuitRenderer({
         };
     }, [svgRef, gateSpacing, numQubits]);
 
-    const hasCollision = useCallback((
-        depth: number,
-        startQubit: number,
-        endQubit: number,
-        excludeId?: string
-    ) => {
-        return placedGates.some(pg => {
-            if (pg.id === excludeId) return false;
-            if (pg.depth !== depth) return false;
-            const { startQubit: existingStart, endQubit: existingEnd } = getQubitSpan(pg);
-            return !(endQubit < existingStart || existingEnd < startQubit);
-        });
-    }, [placedGates]);
+    // const hasCollision = useCallback((
+    //     depth: number,
+    //     startQubit: number,
+    //     endQubit: number,
+    //     excludeId?: string
+    // ) => {
+    //     return placedGates.some(pg => {
+    //         if (pg.id === excludeId) return false;
+    //         if (pg.depth !== depth) return false;
+    //         const { startQubit: existingStart, endQubit: existingEnd } = getQubitSpan(pg);
+    //         return !(endQubit < existingStart || existingEnd < startQubit);
+    //     });
+    // }, [placedGates]);
 
-    const findNextAvailableDepth = useCallback((
-        startQubit: number,
-        endQubit: number,
-        excludeId?: string
-    ) => {
-        let depth = 0;
-        while (hasCollision(depth, startQubit, endQubit, excludeId)) {
-            depth++;
-        }
-        return depth;
-    }, [hasCollision]);
+    // const findNextAvailableDepth = useCallback((
+    //     startQubit: number,
+    //     endQubit: number,
+    //     excludeId?: string
+    // ) => {
+    //     let depth = 0;
+    //     while (hasCollision(depth, startQubit, endQubit, excludeId)) {
+    //         depth++;
+    //     }
+    //     return depth;
+    // }, [hasCollision]);
+
+    const recalculateDepth = useCallback((
+        circuitGate: CircuitGate,
+    ): void => {
+        circuitGate.depth = Math.max(-1, ...circuitGate.parents.map(pg => pg.depth)) + 1;
+        circuitGate.shape?.attr('x', circuitGate.depth * gateSpacing + gateSpacing / 2);
+        circuitGate.children.forEach(cg => {
+            recalculateDepth(cg);
+        });
+    }, [gateSpacing]);
+
+    const injectGate = useCallback((
+        circuitGate: CircuitGate,
+        circuitGateArr: CircuitGate[],
+    ): void => {
+        const qubitToChildren: Record<number, CircuitGate> = {};
+        const qubitToParent: Record<number, CircuitGate> = {};
+        circuitGateArr.forEach((gate) => {
+            const allQubits = getInvolvedQubits(gate).filter(x =>
+                getInvolvedQubits(circuitGate).includes(x)
+            );
+            if (gate.depth < circuitGate.depth) {
+                allQubits.forEach((qubit) => {
+                    if (!(qubit in qubitToParent) || gate.depth > qubitToParent[qubit].depth) {
+                        qubitToParent[qubit] = gate;
+                    }
+                });
+            } else {
+                allQubits.forEach((qubit) => {
+                    if (!(qubit in qubitToChildren) || gate.depth < qubitToChildren[qubit].depth) {
+                        qubitToChildren[qubit] = gate;
+                    }
+                });
+            }
+        });
+
+        Object.keys(qubitToParent)
+            .filter(k => k in qubitToChildren)
+            .forEach(key => {
+                const numKey = Number(key);
+                const child = qubitToChildren[numKey];
+                const parent = qubitToParent[numKey];
+                child.parents.splice(child.parents.indexOf(parent), 1);
+                parent.children.splice(parent.children.indexOf(child), 1);
+            });
+
+        Object.keys(qubitToParent).forEach(k => {
+            const numKey = Number(k);
+            const parent = qubitToParent[numKey];
+            parent.children.push(circuitGate);
+            circuitGate.parents.push(parent);
+        });
+
+        Object.keys(qubitToChildren).forEach(k => {
+            const numKey = Number(k);
+            const child = qubitToChildren[numKey];
+            child.parents.push(circuitGate);
+            circuitGate.children.push(child);
+        });
+
+        recalculateDepth(circuitGate);
+
+    }, [recalculateDepth]);
+
+    const removeGate = useCallback((
+        circuitGate: CircuitGate,
+    ): void => {
+        const qubits: Record<number, CircuitGate> = {};
+        circuitGate.parents.forEach(pg => {
+            pg.children.splice(pg.children.indexOf(circuitGate), 1);
+
+            const allQubits = getInvolvedQubits(pg).filter(x =>
+                getInvolvedQubits(circuitGate).includes(x)
+            );
+            allQubits.forEach(qubit => {
+                qubits[qubit] = pg;
+            });
+        });
+        circuitGate.children.forEach(cg => {
+            cg.parents.splice(cg.parents.indexOf(circuitGate), 1);
+
+            const allQubits = getInvolvedQubits(cg).filter(x =>
+                getInvolvedQubits(circuitGate).includes(x)
+            );
+            allQubits.forEach(qubit => {
+                if (qubit in qubits) {
+                    cg.parents.push(qubits[qubit]);
+                    qubits[qubit].children.push(cg);
+                }
+            });
+            recalculateDepth(cg);
+        });
+        circuitGate.parents = [];
+        circuitGate.children = [];
+
+    }, [recalculateDepth]);
 
     // ========== Rendering Effect ==========
 
@@ -121,9 +215,9 @@ export function useCircuitRenderer({
         // Draw gates
         svg.selectAll('.gate-element').remove();
 
-        gatesToRender.forEach(draggableGate => {
-            const { id, gate, depth, targetQubits, controlQubits } = draggableGate;
-            const { startQubit, endQubit } = getQubitSpan(draggableGate);
+        gatesToRender.forEach(circuitGate => {
+            const { id, gate, depth, targetQubits, controlQubits } = circuitGate;
+            const { startQubit, endQubit } = getQubitSpan(circuitGate);
             const isPreview = id === previewGate?.id;
 
             const x = depth * gateSpacing + gateSpacing / 2;
@@ -135,20 +229,20 @@ export function useCircuitRenderer({
                 .attr('opacity', isPreview ? previewOpacity : 1)
                 .style('cursor', isPreview ? 'default' : 'grab');
 
-            if (!isPreview) { // Temporary for debugging purposes, this shows the target and control qubits of the gate
-                const labelText = controlQubits.length > 0
-                    ? `C:[${controlQubits}] T:[${targetQubits}]`
-                    : `Q:${targetQubits[0]}`;
-                const labelY = endQubit * gateSpacing + gateSpacing + gateSpacing / 4;
-                group.append('text')
-                    .attr('x', x)
-                    .attr('y', labelY)
-                    .attr('text-anchor', 'middle')
-                    .attr('class', 'text-xs fill-foreground font-mono')
-                    .attr('pointer-events', 'none')
-                    .style('font-size', '10px')
-                    .text(labelText);
-            }
+            // if (!isPreview) { // Temporary for debugging purposes, this shows the target and control qubits of the gate
+            //     const labelText = controlQubits.length > 0
+            //         ? `C:[${controlQubits}] T:[${targetQubits}]`
+            //         : `Q:${targetQubits[0]}`;
+            //     const labelY = endQubit * gateSpacing + gateSpacing + gateSpacing / 4;
+            //     group.append('text')
+            //         .attr('x', x)
+            //         .attr('y', labelY)
+            //         .attr('text-anchor', 'middle')
+            //         .attr('class', 'text-xs fill-foreground font-mono')
+            //         .attr('pointer-events', 'none')
+            //         .style('font-size', '10px')
+            //         .text(labelText);
+            // }
 
             const totalQubits = gate.numTargetQubits + gate.numControlQubits;
             if (totalQubits === 1) {
@@ -261,14 +355,13 @@ export function useCircuitRenderer({
                     };
 
                     onStartDragging(id, offset);
-                    onShowPreview(gate, depth, startQubit);
+                    onShowPreview(circuitGate, depth, startQubit);
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                         const totalQubits = gate.numControlQubits + gate.numTargetQubits;
                         const pos = getGridPosition(moveEvent, totalQubits);
                         if (!pos) return;
-                        const nextDepth = findNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
-                        onShowPreview(gate, nextDepth, pos.qubit);
+                        onUpdateGatePosition(id, pos.depth, pos.qubit);
                     };
 
                     const handleMouseUp = (upEvent: MouseEvent) => {
@@ -278,8 +371,7 @@ export function useCircuitRenderer({
                         if (pos.y < 0 || pos.y > numQubits * gateSpacing) {
                             onRemoveGate(id);
                         } else {
-                            const nextDepth = findNextAvailableDepth(pos.qubit, pos.qubit + totalQubits - 1, id);
-                            onUpdateGatePosition(id, nextDepth, pos.qubit);
+                            onUpdateGatePosition(id, pos.depth, pos.qubit);
                         }
                         onEndDragging();
                         document.removeEventListener('mousemove', handleMouseMove);
@@ -290,12 +382,15 @@ export function useCircuitRenderer({
                 });
             }
         });
-    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition, findNextAvailableDepth, hasCollision,
+    }, [svgRef, numQubits, maxDepth, gatesToRender, previewGate, scrollContainerWidth, getGridPosition,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         onStartDragging, onUpdateGatePosition, onRemoveGate, onShowPreview, onHidePreview, onEndDragging]);
 
     return {
         getGridPosition,
-        findNextAvailableDepth,
+        onUpdateGatePosition,
+        onRemoveGate,
+        removeGate,
+        injectGate
     };
 }

@@ -9,7 +9,7 @@ import { CircuitBoard } from "lucide-react";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
-import { createContiguousQubitArrays, getInvolvedQubits, doGatesOverlap } from "@/features/gates/utils";
+import { createContiguousQubitArrays, getInvolvedQubits } from "@/features/gates/utils";
 
 import type { CircuitGate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
@@ -144,81 +144,78 @@ export function CircuitCanvas() {
         });
     }, []);
 
-    const { getGridPosition, findNextAvailableDepth } = useCircuitRenderer({
+    const { getGridPosition, onUpdateGatePosition, onRemoveGate, removeGate, injectGate } = useCircuitRenderer({
         svgRef,
-        placedGates,
         numQubits,
         maxDepth,
     });
 
     const {
-        dragGateId,
         previewGate,
         floatingGate,
         dragOffset,
         cursorPos,
+        handleDragEnter,
         handleDragOver,
         handleDrop,
         onShowPreview,
         onHidePreview,
         onStartDragging,
         onEndDragging
-    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, findNextAvailableDepth });
+    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, onUpdateGatePosition, onRemoveGate });
 
-    const gatesToRender = [
-        ...placedGates.filter(g => g.id !== dragGateId),
-        ...(previewGate ? [previewGate] : [])
-    ];
+    const gatesToRender = placedGates;
 
-    const compactGates = useCallback((gates: CircuitGate[]) => {
-        const sorted = [...gates].sort((a, b) => a.depth - b.depth);
-        const compacted: CircuitGate[] = [];
-        for (const gate of sorted) {
-            let depth = 0;
-            while (compacted.some(pg =>
-                pg.depth === depth && doGatesOverlap(pg, gate)
-            )) depth++;
-            compacted.push({ ...gate, depth });
-        }
-        return compacted;
-    }, []);
+    // const compactGates = useCallback((gates: CircuitGate[]) => {
+    //     const sorted = [...gates].sort((a, b) => a.depth - b.depth);
+    //     const compacted: CircuitGate[] = [];
+    //     for (const gate of sorted) {
+    //         let depth = 0;
+    //         while (compacted.some(pg =>
+    //             pg.depth === depth && doGatesOverlap(pg, gate)
+    //         )) depth++;
+    //         compacted.push({ ...gate, depth });
+    //     }
+    //     return compacted;
+    // }, []);
 
     useCircuitRenderer({
         svgRef,
-        placedGates,
         gatesToRender,
         previewGate,
         numQubits,
         maxDepth,
         scrollContainerWidth: scrollContainerWidth || 0,
-        onUpdateGatePosition: useCallback((gateId: string, cursorDepth: number, startQubit: number) => {
+        onUpdateGatePosition: useCallback((gateId: string, targetDepth: number, startQubit: number) => {
+            console.log("onUpdateGatePosition", gateId);
             setPlacedGates(prev => {
                 const gateToMove = prev.find(g => g.id === gateId);
+
+                console.log(gateToMove);
                 if (!gateToMove) return prev;
+
+                removeGate(gateToMove);
+
+                gateToMove.depth = targetDepth;
 
                 const { targetQubits, controlQubits } = createContiguousQubitArrays(gateToMove.gate, startQubit);
                 gateToMove.targetQubits = targetQubits;
                 gateToMove.controlQubits = controlQubits;
 
-                let targetDepth = 0;
-                for (const gate of prev) {
-                    if (gate.id === gateId) continue;
-                    if (gate.depth >= cursorDepth) continue;
-                    if (doGatesOverlap(gate, gateToMove)) {
-                        targetDepth = Math.max(targetDepth, gate.depth + 1);
-                    }
-                }
+                injectGate(gateToMove, prev.filter(g => g.id !== gateToMove.id));
 
-                const updated = prev.map(pg => pg.id === gateId
-                    ? { ...pg, depth: targetDepth, targetQubits, controlQubits }
-                    : pg
-                );
-                return compactGates(updated);
+                return prev;
             });
-        }, [compactGates]),
+        }, [injectGate, removeGate]),
         onRemoveGate: useCallback((gateId: string) => {
-            setPlacedGates(prev => compactGates(prev.filter(g => g.id !== gateId)));
-        }, [compactGates]),
+            setPlacedGates(prev => {
+                const gateToMove = prev.find(g => g.id === gateId);
+                console.log("onRemoveGate", gateToMove);
+                if (!gateToMove) return prev;
+                removeGate(gateToMove);
+                return prev.filter(g => g.id !== gateToMove.id);
+            });
+        }, [removeGate]),
         onShowPreview,
         onHidePreview,
         onStartDragging,
@@ -248,6 +245,7 @@ export function CircuitCanvas() {
                         <ScrollArea className="h-full w-full">
                             <svg ref={svgRef}
                                  style={{ display: 'block', minWidth: maxDepth * gateSpacing + 6}}
+                                 onDragEnter={handleDragEnter}
                                  onDragOver={handleDragOver}
                                  onDragLeave={onHidePreview}
                                  onDrop={handleDrop}
