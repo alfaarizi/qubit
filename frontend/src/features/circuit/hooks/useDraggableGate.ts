@@ -8,6 +8,7 @@ interface UseDraggableGateProps {
     placedGates: CircuitGate[];
     setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
     getGridPosition: (e: { clientX: number; clientY: number }, gateQubits?: number) => { depth: number; qubit: number; y: number } | null;
+    injectGate: (circuitGate: CircuitGate, circuitGateArr: CircuitGate[]) => CircuitGate[];
     onUpdateGatePosition: (gateId: string, targetDepth: number, startQubit: number) => void;
     onRemoveGate: (gateId: string) => void;
 }
@@ -16,6 +17,7 @@ export function useDraggableGate({
     placedGates,
     setPlacedGates,
     getGridPosition,
+    injectGate,
     onUpdateGatePosition,
     onRemoveGate
 }: UseDraggableGateProps) {
@@ -45,6 +47,9 @@ export function useDraggableGate({
     }, [dragGateId]);
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        if (previewGate) return;
+
         const gate = findGateById(dragState.get());
         if (!gate) return;
 
@@ -54,34 +59,26 @@ export function useDraggableGate({
 
         const { targetQubits, controlQubits } = createContiguousQubitArrays(gate, pos.qubit);
 
-        if (!previewGate) {
-            setPreviewGate({
-                id: `${gate.id}-${crypto.randomUUID()}`,
-                gate,
-                depth: pos.depth,
-                targetQubits,
-                controlQubits,
-                parents: [],
-                children: [],
-                shape: null
-            });
-        }
+        const newPreview: CircuitGate = {
+            id: `${gate.id}-${crypto.randomUUID()}`,
+            gate,
+            depth: pos.depth,
+            targetQubits,
+            controlQubits,
+            parents: [],
+            children: [],
+            shape: null
+        };
 
-        console.log('drag enter', previewGate);
-
-        if (!previewGate) return;
-
-        if (!placedGates.includes(previewGate)) {
-            onRemoveGate(previewGate.id);
-            setPlacedGates(prev => [...prev, previewGate]);
-        }
-        onUpdateGatePosition(previewGate.id, pos.depth, pos.qubit);
-    }, [findGateById, getGridPosition, onRemoveGate, onUpdateGatePosition, placedGates, previewGate, setPlacedGates])
+        setPreviewGate(newPreview);
+        setPlacedGates(prev => {
+            return injectGate(newPreview, prev);
+        });
+    }, [findGateById, getGridPosition, injectGate, previewGate, setPlacedGates])
 
     // Drag from GatesPanel
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
-
 
         if (!previewGate) return;
 
@@ -89,43 +86,34 @@ export function useDraggableGate({
         const pos = getGridPosition(e, totalQubits);
         if (!pos) return;
 
-        console.log('drag over', previewGate, placedGates);
         onUpdateGatePosition(previewGate.id, pos.depth, pos.qubit);
-    }, [getGridPosition, onUpdateGatePosition, placedGates, previewGate]);
+    }, [getGridPosition, onUpdateGatePosition, previewGate]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
-        const gate = findGateById(dragState.get());
-        if (!gate) return;
-
-        const totalQubits = gate.numControlQubits + gate.numTargetQubits;
-        const pos = getGridPosition(e, totalQubits);
-        if (!pos) return;
-
-        const { targetQubits, controlQubits } = createContiguousQubitArrays(gate, pos.qubit);
 
         if (!previewGate) return;
 
-        previewGate.depth = pos.depth;
-        previewGate.targetQubits = targetQubits;
-        previewGate.controlQubits = controlQubits;
-
         setPreviewGate(null);
-    }, [findGateById, getGridPosition, previewGate]);
+        dragState.clear();
+    }, [previewGate]);
 
 const onShowPreview = useCallback((gate: CircuitGate, depth: number, startQubit: number) => {
         const { targetQubits, controlQubits } = createContiguousQubitArrays(gate.gate, startQubit);
-        gate.depth = depth;
-        gate.targetQubits = targetQubits;
-        gate.controlQubits = controlQubits;
-        return setPreviewGate(gate);
+        const previewCopy: CircuitGate = {
+            ...gate,
+            depth,
+            targetQubits,
+            controlQubits
+        };
+        return setPreviewGate(previewCopy);
     }, []);
 
 
     const onHidePreview = useCallback(() => {
         if (!previewGate) return;
-        console.log('leaving', previewGate);
         onRemoveGate(previewGate.id);
+        setPreviewGate(null);
     }, [onRemoveGate, previewGate]);
 
     const onStartDragging = useCallback((gateId: string, offset: { x: number; y: number }) => {

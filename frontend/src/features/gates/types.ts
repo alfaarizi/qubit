@@ -22,7 +22,7 @@ export interface CircuitGate {
     depth: number;
     targetQubits: number[];
     controlQubits: number[];
-    parents: CircuitGate[];
-    children: CircuitGate[];
+    parents: string[];
+    children: string[];
     shape: d3.Selection<SVGGElement, unknown, null, undefined> | null;
 }

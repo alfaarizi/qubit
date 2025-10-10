@@ -59,7 +59,7 @@ export function GatesPanel() {
 
     const handleDragEnd = () => {
         setDraggedGate(null);
-        dragState.set(null);
+        dragState.clear();
     };
 
     const toggleExpand = () => {

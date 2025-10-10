@@ -144,11 +144,36 @@ export function CircuitCanvas() {
         });
     }, []);
 
-    const { getGridPosition, onUpdateGatePosition, onRemoveGate, removeGate, injectGate } = useCircuitRenderer({
+    const { getGridPosition, removeGate, injectGate } = useCircuitRenderer({
         svgRef,
         numQubits,
         maxDepth,
     });
+
+    const onUpdateGatePosition = useCallback((gateId: string, targetDepth: number, startQubit: number) => {
+        setPlacedGates(prev => {
+            const gateToMove = prev.find(g => g.id === gateId);
+            if (!gateToMove) return prev;
+
+            const gatesWithoutMoved = removeGate(gateToMove, prev);
+
+            const movedGate = {
+                ...gateToMove,
+                depth: targetDepth,
+                ...createContiguousQubitArrays(gateToMove.gate, startQubit)
+            }
+
+            return injectGate(movedGate, gatesWithoutMoved);
+        });
+    }, [injectGate, removeGate]);
+
+    const onRemoveGate = useCallback((gateId: string) => {
+        setPlacedGates(prev => {
+            const gateToRemove = prev.find(g => g.id === gateId);
+            if (!gateToRemove) return prev;
+            return removeGate(gateToRemove, prev);
+        });
+    }, [removeGate]);
 
     const {
         previewGate,
@@ -162,22 +187,9 @@ export function CircuitCanvas() {
         onHidePreview,
         onStartDragging,
         onEndDragging
-    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, onUpdateGatePosition, onRemoveGate });
+    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, injectGate, onUpdateGatePosition, onRemoveGate });
 
     const gatesToRender = placedGates;
-
-    // const compactGates = useCallback((gates: CircuitGate[]) => {
-    //     const sorted = [...gates].sort((a, b) => a.depth - b.depth);
-    //     const compacted: CircuitGate[] = [];
-    //     for (const gate of sorted) {
-    //         let depth = 0;
-    //         while (compacted.some(pg =>
-    //             pg.depth === depth && doGatesOverlap(pg, gate)
-    //         )) depth++;
-    //         compacted.push({ ...gate, depth });
-    //     }
-    //     return compacted;
-    // }, []);
 
     useCircuitRenderer({
         svgRef,
@@ -186,36 +198,8 @@ export function CircuitCanvas() {
         numQubits,
         maxDepth,
         scrollContainerWidth: scrollContainerWidth || 0,
-        onUpdateGatePosition: useCallback((gateId: string, targetDepth: number, startQubit: number) => {
-            console.log("onUpdateGatePosition", gateId);
-            setPlacedGates(prev => {
-                const gateToMove = prev.find(g => g.id === gateId);
-
-                console.log(gateToMove);
-                if (!gateToMove) return prev;
-
-                removeGate(gateToMove);
-
-                gateToMove.depth = targetDepth;
-
-                const { targetQubits, controlQubits } = createContiguousQubitArrays(gateToMove.gate, startQubit);
-                gateToMove.targetQubits = targetQubits;
-                gateToMove.controlQubits = controlQubits;
-
-                injectGate(gateToMove, prev.filter(g => g.id !== gateToMove.id));
-
-                return prev;
-            });
-        }, [injectGate, removeGate]),
-        onRemoveGate: useCallback((gateId: string) => {
-            setPlacedGates(prev => {
-                const gateToMove = prev.find(g => g.id === gateId);
-                console.log("onRemoveGate", gateToMove);
-                if (!gateToMove) return prev;
-                removeGate(gateToMove);
-                return prev.filter(g => g.id !== gateToMove.id);
-            });
-        }, [removeGate]),
+        onUpdateGatePosition: onUpdateGatePosition,
+        onRemoveGate: onRemoveGate,
         onShowPreview,
         onHidePreview,
         onStartDragging,
@@ -247,7 +231,6 @@ export function CircuitCanvas() {
                                  style={{ display: 'block', minWidth: maxDepth * gateSpacing + 6}}
                                  onDragEnter={handleDragEnter}
                                  onDragOver={handleDragOver}
-                                 onDragLeave={onHidePreview}
                                  onDrop={handleDrop}
                             />
                             <ScrollBar orientation="horizontal" />

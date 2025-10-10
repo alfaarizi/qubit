@@ -51,126 +51,132 @@ export function useCircuitRenderer({
         };
     }, [svgRef, gateSpacing, numQubits]);
 
-    // const hasCollision = useCallback((
-    //     depth: number,
-    //     startQubit: number,
-    //     endQubit: number,
-    //     excludeId?: string
-    // ) => {
-    //     return placedGates.some(pg => {
-    //         if (pg.id === excludeId) return false;
-    //         if (pg.depth !== depth) return false;
-    //         const { startQubit: existingStart, endQubit: existingEnd } = getQubitSpan(pg);
-    //         return !(endQubit < existingStart || existingEnd < startQubit);
-    //     });
-    // }, [placedGates]);
-
-    // const findNextAvailableDepth = useCallback((
-    //     startQubit: number,
-    //     endQubit: number,
-    //     excludeId?: string
-    // ) => {
-    //     let depth = 0;
-    //     while (hasCollision(depth, startQubit, endQubit, excludeId)) {
-    //         depth++;
-    //     }
-    //     return depth;
-    // }, [hasCollision]);
-
     const recalculateDepth = useCallback((
-        circuitGate: CircuitGate,
+        gateId: string,
+        gatesMap: Map<string, CircuitGate>
     ): void => {
-        circuitGate.depth = Math.max(-1, ...circuitGate.parents.map(pg => pg.depth)) + 1;
-        circuitGate.shape?.attr('x', circuitGate.depth * gateSpacing + gateSpacing / 2);
-        circuitGate.children.forEach(cg => {
-            recalculateDepth(cg);
+        const gate = gatesMap.get(gateId);
+        if (!gate) return;
+        const parentDepths = gate.parents.map(parentId => gatesMap.get(parentId)?.depth ?? -1);
+        gate.depth = Math.max(-1, ...parentDepths) + 1;
+        gate.children.forEach(childId => {
+            recalculateDepth(childId, gatesMap);
         });
-    }, [gateSpacing]);
+    }, []);
 
     const injectGate = useCallback((
         circuitGate: CircuitGate,
         circuitGateArr: CircuitGate[],
-    ): void => {
-        const qubitToChildren: Record<number, CircuitGate> = {};
-        const qubitToParent: Record<number, CircuitGate> = {};
-        circuitGateArr.forEach((gate) => {
-            const allQubits = getInvolvedQubits(gate).filter(x =>
-                getInvolvedQubits(circuitGate).includes(x)
-            );
-            if (gate.depth < circuitGate.depth) {
-                allQubits.forEach((qubit) => {
-                    if (!(qubit in qubitToParent) || gate.depth > qubitToParent[qubit].depth) {
-                        qubitToParent[qubit] = gate;
+    ): CircuitGate[] => {
+        const gatesMap = new Map(circuitGateArr.map(g => [g.id, { ...g, parents: [...g.parents], children: [...g.children] }]));
+        const qubitToParent = new Map<number, CircuitGate>();
+        const qubitToChild = new Map<number, CircuitGate>();
+
+        const newCircuitGate: CircuitGate = {
+            ...circuitGate,
+            parents: [],
+            children: [],
+        };
+
+        const circuitGateQubits = new Set(getInvolvedQubits(newCircuitGate));
+        gatesMap.forEach((gate) => {
+            const gateQubits = getInvolvedQubits(gate);
+            const overlappingQubits = gateQubits.filter(q => circuitGateQubits.has(q));
+
+            if (overlappingQubits.length === 0) return;
+
+            if (gate.depth < newCircuitGate.depth) {
+                overlappingQubits.forEach(qubit => {
+                    const parent = qubitToParent.get(qubit);
+                    if (!parent || gate.depth > parent.depth) {
+                        qubitToParent.set(qubit, gate);
                     }
                 });
             } else {
-                allQubits.forEach((qubit) => {
-                    if (!(qubit in qubitToChildren) || gate.depth < qubitToChildren[qubit].depth) {
-                        qubitToChildren[qubit] = gate;
+                overlappingQubits.forEach(qubit => {
+                    const child = qubitToChild.get(qubit);
+                    if (!child || gate.depth < child.depth) {
+                        qubitToChild.set(qubit, gate);
                     }
                 });
             }
         });
 
-        Object.keys(qubitToParent)
-            .filter(k => k in qubitToChildren)
-            .forEach(key => {
-                const numKey = Number(key);
-                const child = qubitToChildren[numKey];
-                const parent = qubitToParent[numKey];
-                child.parents.splice(child.parents.indexOf(parent), 1);
-                parent.children.splice(parent.children.indexOf(child), 1);
-            });
+        for (const [qubit, parent] of qubitToParent) {
+            const child = qubitToChild.get(qubit);
+            if (child) {
+                child.parents = child.parents.filter(id => id !== parent.id);
+                parent.children = parent.children.filter(id => id !== child.id);
+            }
+        }
 
-        Object.keys(qubitToParent).forEach(k => {
-            const numKey = Number(k);
-            const parent = qubitToParent[numKey];
-            parent.children.push(circuitGate);
-            circuitGate.parents.push(parent);
+        // Connect to parents
+        const parentSet = new Set(qubitToParent.values());
+        newCircuitGate.parents = Array.from(parentSet, g => g.id); // <html>TS2322: Type 'string[]' is not assignable to type 'never[]'.<br/>Type 'string' is not assignable to type 'never'.
+        parentSet.forEach(parent => {
+            if (!parent.children.includes(newCircuitGate.id)) {
+                parent.children.push(newCircuitGate.id);
+            }
         });
 
-        Object.keys(qubitToChildren).forEach(k => {
-            const numKey = Number(k);
-            const child = qubitToChildren[numKey];
-            child.parents.push(circuitGate);
-            circuitGate.children.push(child);
+        // Connect to children
+        const childSet = new Set(qubitToChild.values());
+        newCircuitGate.children = Array.from(childSet, g => g.id); // <html>TS2322: Type 'string[]' is not assignable to type 'never[]'.<br/>Type 'string' is not assignable to type 'never'.
+        childSet.forEach((child) => {
+            if (!child.parents.includes(newCircuitGate.id)) {
+                child.parents.push(newCircuitGate.id);
+            }
         });
 
-        recalculateDepth(circuitGate);
+        gatesMap.set(newCircuitGate.id, newCircuitGate);
+        recalculateDepth(newCircuitGate.id, gatesMap);
 
+        return Array.from(gatesMap.values());
     }, [recalculateDepth]);
 
     const removeGate = useCallback((
         circuitGate: CircuitGate,
-    ): void => {
-        const qubits: Record<number, CircuitGate> = {};
-        circuitGate.parents.forEach(pg => {
-            pg.children.splice(pg.children.indexOf(circuitGate), 1);
+        circuitGateArr: CircuitGate[],
+    ): CircuitGate[] => {
+        const gatesMap = new Map(circuitGateArr.map(g => [g.id, { ...g, parents: [...g.parents], children: [...g.children] }]));
+        const qubitToParent = new Map<number, CircuitGate>();
 
-            const allQubits = getInvolvedQubits(pg).filter(x =>
-                getInvolvedQubits(circuitGate).includes(x)
-            );
-            allQubits.forEach(qubit => {
-                qubits[qubit] = pg;
+        const circuitGateQubits = new Set(getInvolvedQubits(circuitGate));
+        circuitGate.parents.forEach(parentId => {
+            const parent = gatesMap.get(parentId);
+            if (!parent) return;
+
+            parent.children = parent.children.filter(id => id !== circuitGate.id);
+
+            const parentQubits = getInvolvedQubits(parent);
+            const overlappingQubits = parentQubits.filter(q => circuitGateQubits.has(q));
+            overlappingQubits.forEach(qubit => {
+                qubitToParent.set(qubit, parent);
             });
         });
-        circuitGate.children.forEach(cg => {
-            cg.parents.splice(cg.parents.indexOf(circuitGate), 1);
+        circuitGate.children.forEach(childId => {
+            const child = gatesMap.get(childId);
+            if (!child) return;
 
-            const allQubits = getInvolvedQubits(cg).filter(x =>
-                getInvolvedQubits(circuitGate).includes(x)
-            );
-            allQubits.forEach(qubit => {
-                if (qubit in qubits) {
-                    cg.parents.push(qubits[qubit]);
-                    qubits[qubit].children.push(cg);
+            child.parents = child.parents.filter(id => id !== circuitGate.id);
+
+            const childQubits = getInvolvedQubits(child);
+            const overlappingQubits = childQubits.filter(q => circuitGateQubits.has(q));
+            overlappingQubits.forEach(qubit => {
+                const parent = qubitToParent.get(qubit);
+                if (!parent) return;
+                if (!child.parents.includes(parent.id)) {
+                    child.parents.push(parent.id);
+                    parent.children.push(child.id);
                 }
             });
-            recalculateDepth(cg);
-        });
-        circuitGate.parents = [];
-        circuitGate.children = [];
 
+            recalculateDepth(childId, gatesMap);
+        });
+
+        gatesMap.delete(circuitGate.id);
+
+        return Array.from(gatesMap.values());
     }, [recalculateDepth]);
 
     // ========== Rendering Effect ==========
@@ -388,8 +394,6 @@ export function useCircuitRenderer({
 
     return {
         getGridPosition,
-        onUpdateGatePosition,
-        onRemoveGate,
         removeGate,
         injectGate
     };
