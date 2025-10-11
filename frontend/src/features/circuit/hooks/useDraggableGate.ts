@@ -8,6 +8,7 @@ import {createContiguousQubitArrays, getQubitSpan} from "@/features/gates/utils"
 interface UseDraggableGateProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
+    maxDepth: number;
     placedGates: CircuitGate[];
     setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
     previewGate: CircuitGate | null;
@@ -20,6 +21,7 @@ interface UseDraggableGateProps {
 export function useDraggableGate({
     svgRef,
     numQubits,
+    maxDepth,
     placedGates,
     setPlacedGates,
     previewGate,
@@ -42,9 +44,17 @@ export function useDraggableGate({
         return {
             depth: Math.floor(x / gateSpacing),
             qubit: Math.max(0, Math.min(Math.floor(y / gateSpacing), numQubits - gateQubits)),
+            x,
             y
         };
     }, [svgRef, gateSpacing, numQubits]);
+
+    const isValidGridPosition = useCallback((e: { clientX: number; clientY: number }, gateQubits: number): boolean => {
+        const pos = getGridPosition(e, gateQubits);
+        const maxX = maxDepth * gateSpacing;
+        const maxY = numQubits * gateSpacing;
+        return pos !== null && pos.y >= 0 && pos.y <= maxY && pos.x >= 0 && pos.x <= maxX;
+    }, [getGridPosition, gateSpacing, numQubits, maxDepth]);
 
     // Show floating preview at cursor while dragging
     useEffect(() => {
@@ -54,15 +64,12 @@ export function useDraggableGate({
         }
         const moveCursor = (e: MouseEvent) => setCursorPos({ x: e.clientX, y: e.clientY });
         document.addEventListener('mousemove', moveCursor);
-        document.addEventListener('mousedown', moveCursor, { once: true });
         return () => {
             document.removeEventListener('mousemove', moveCursor);
-            document.removeEventListener('mousedown', moveCursor);
         };
     }, [dragGateId]);
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
         if (previewGate) return;
 
         const gateId = dragState.get();
@@ -100,13 +107,11 @@ export function useDraggableGate({
     const handleDragLeave = useCallback((e: React.DragEvent) => {
         if (!previewGate) return;
         const totalQubits = previewGate.gate.numTargetQubits + previewGate.gate.numControlQubits;
-        const pos = getGridPosition(e, totalQubits);
-        const maxY = numQubits * GATE_CONFIG.gateSpacing;
-        if (!pos || pos.y < 0 || pos.y > maxY) {
+        if (!isValidGridPosition(e, totalQubits)) {
             setPreviewGate(null);
             removeGate(previewGate.id)
         }
-    }, [getGridPosition, numQubits, previewGate, removeGate, setPreviewGate]);
+    }, [isValidGridPosition, previewGate, removeGate, setPreviewGate]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -132,6 +137,7 @@ export function useDraggableGate({
             ...gate,
             ...createContiguousQubitArrays(gate.gate, startQubit)
         };
+        setPreviewGate(previewGate);
 
         const totalQubits = previewGate.gate.numControlQubits + previewGate.gate.numTargetQubits;
 
@@ -142,23 +148,18 @@ export function useDraggableGate({
         };
 
         const handleMouseUp = (upEvent: MouseEvent) => {
-            const pos = getGridPosition(upEvent, totalQubits);
-            const maxY = numQubits * GATE_CONFIG.gateSpacing;
-
-            if (!pos || pos.y < 0 || pos.y > maxY) {
+            if (!isValidGridPosition(upEvent, totalQubits)) {
                 removeGate(previewGate.id);
             }
-
             setPreviewGate(null);
             setDragGateId(null);
             setDragOffset({ x: 0, y: 0 });
-
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         };
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, [gateSpacing, svgRef, setPreviewGate, getGridPosition, moveGate, numQubits, removeGate]);
+    }, [svgRef, gateSpacing, getGridPosition, moveGate, isValidGridPosition, setPreviewGate, removeGate]);
 
     const dragGate = dragGateId ? placedGates.find(g => g.id === dragGateId)?.gate : null;
 

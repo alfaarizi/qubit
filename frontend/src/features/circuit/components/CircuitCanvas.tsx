@@ -165,6 +165,7 @@ export function CircuitCanvas() {
     } = useDraggableGate({
         svgRef,
         numQubits,
+        maxDepth,
         placedGates,
         setPlacedGates,
         previewGate,
