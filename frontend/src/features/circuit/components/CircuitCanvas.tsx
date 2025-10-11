@@ -159,6 +159,7 @@ export function CircuitCanvas() {
         cursorPos,
         handleDragEnter,
         handleDragOver,
+        handleDragLeave,
         handleDrop,
         handleMouseDown,
     } = useDraggableGate({
@@ -208,6 +209,7 @@ export function CircuitCanvas() {
                                  style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
                                  onDragEnter={handleDragEnter}
                                  onDragOver={handleDragOver}
+                                 onDragLeave={handleDragLeave}
                                  onDrop={handleDrop}
                             />
                             <ScrollBar orientation="horizontal" />
