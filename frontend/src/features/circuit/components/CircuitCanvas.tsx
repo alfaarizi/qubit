@@ -9,11 +9,12 @@ import { CircuitBoard } from "lucide-react";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
-import { createContiguousQubitArrays, getInvolvedQubits } from "@/features/gates/utils";
+import { getInvolvedQubits } from "@/features/gates/utils";
 
 import type { CircuitGate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
+import {useCircuitDAG} from "@/features/circuit/hooks/useCircuitDAG.ts";
 
 interface QubitLabelsProps {
     numQubits: number;
@@ -108,13 +109,11 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
 }
 
 export function CircuitCanvas() {
-    const { gateSpacing } = GATE_CONFIG;
-    const { defaultNumQubits, defaultMaxDepth } = CIRCUIT_CONFIG;
-
-    const [numQubits, setNumQubits] = useState(defaultNumQubits);
-    const [maxDepth] = useState(defaultMaxDepth);
+    const [numQubits, setNumQubits] = useState(CIRCUIT_CONFIG.defaultNumQubits);
+    const [maxDepth] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
     const [measurements, setMeasurements] = useState<boolean[]>(Array(numQubits).fill(true));
     const [placedGates, setPlacedGates] = useState<CircuitGate[]>([]);
+    const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
 
     const svgRef = useRef<SVGSVGElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -144,66 +143,44 @@ export function CircuitCanvas() {
         });
     }, []);
 
-    const { getGridPosition, removeGate, injectGate } = useCircuitRenderer({
-        svgRef,
-        numQubits,
-        maxDepth,
-    });
+    const { moveGate, removeGate, injectGate } = useCircuitDAG();
 
-    const onUpdateGatePosition = useCallback((gateId: string, targetDepth: number, startQubit: number) => {
-        setPlacedGates(prev => {
-            const gateToMove = prev.find(g => g.id === gateId);
-            if (!gateToMove) return prev;
+    const moveGateById = useCallback((gateId: string, targetDepth: number, targetQubit: number) => {
+        setPlacedGates(prev => moveGate(gateId, prev, targetDepth, targetQubit));
+    }, [moveGate]);
 
-            const gatesWithoutMoved = removeGate(gateToMove, prev);
-
-            const movedGate = {
-                ...gateToMove,
-                depth: targetDepth,
-                ...createContiguousQubitArrays(gateToMove.gate, startQubit)
-            }
-
-            return injectGate(movedGate, gatesWithoutMoved);
-        });
-    }, [injectGate, removeGate]);
-
-    const onRemoveGate = useCallback((gateId: string) => {
-        setPlacedGates(prev => {
-            const gateToRemove = prev.find(g => g.id === gateId);
-            if (!gateToRemove) return prev;
-            return removeGate(gateToRemove, prev);
-        });
+    const removeGateById = useCallback((gateId: string) => {
+        setPlacedGates(prev => removeGate(gateId, prev));
     }, [removeGate]);
 
     const {
-        previewGate,
-        floatingGate,
+        dragGate,
         dragOffset,
         cursorPos,
         handleDragEnter,
         handleDragOver,
         handleDrop,
-        onShowPreview,
-        onHidePreview,
-        onStartDragging,
-        onEndDragging
-    } = useDraggableGate({ placedGates, setPlacedGates, getGridPosition, injectGate, onUpdateGatePosition, onRemoveGate });
-
-    const gatesToRender = placedGates;
+        handleMouseDown,
+    } = useDraggableGate({
+        svgRef,
+        numQubits,
+        placedGates,
+        setPlacedGates,
+        previewGate,
+        setPreviewGate,
+        injectGate,
+        moveGate: moveGateById,
+        removeGate: removeGateById
+    });
 
     useCircuitRenderer({
         svgRef,
-        gatesToRender,
-        previewGate,
         numQubits,
         maxDepth,
-        scrollContainerWidth: scrollContainerWidth || 0,
-        onUpdateGatePosition: onUpdateGatePosition,
-        onRemoveGate: onRemoveGate,
-        onShowPreview,
-        onHidePreview,
-        onStartDragging,
-        onEndDragging
+        placedGates,
+        previewGate,
+        scrollContainerWidth,
+        handleMouseDown,
     });
 
     return (
@@ -224,11 +201,11 @@ export function CircuitCanvas() {
                     <div
                         ref={scrollContainerRef}
                         className="flex-1"
-                        style={{ minWidth: gateSpacing }}
+                        style={{ minWidth: GATE_CONFIG.gateSpacing }}
                     >
                         <ScrollArea className="h-full w-full">
                             <svg ref={svgRef}
-                                 style={{ display: 'block', minWidth: maxDepth * gateSpacing + 6}}
+                                 style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
                                  onDragEnter={handleDragEnter}
                                  onDragOver={handleDragOver}
                                  onDrop={handleDrop}
@@ -245,13 +222,13 @@ export function CircuitCanvas() {
             <div className="overflow-hidden mt-2">
                 <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
             </div>
-            {floatingGate && cursorPos && (
+            {dragGate && cursorPos && (
                 <GateIcon
-                    gate={floatingGate}
+                    gate={dragGate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: floatingGate.numControlQubits + floatingGate.numTargetQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
-                        top: floatingGate.numControlQubits + floatingGate.numTargetQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
+                        left: dragGate.numControlQubits + dragGate.numTargetQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
+                        top: dragGate.numControlQubits + dragGate.numTargetQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />

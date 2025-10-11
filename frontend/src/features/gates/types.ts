@@ -1,5 +1,3 @@
-import * as d3 from 'd3';
-
 /**
  * Gate Template – defines the quantum gate type
  */
@@ -24,5 +22,4 @@ export interface CircuitGate {
     controlQubits: number[];
     parents: string[];
     children: string[];
-    shape: d3.Selection<SVGGElement, unknown, null, undefined> | null;
 }
