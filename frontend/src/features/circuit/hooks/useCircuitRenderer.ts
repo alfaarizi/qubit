@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect} from 'react';
 import * as d3 from 'd3';
 
 import { GATE_CONFIG } from '@/features/gates/constants';
@@ -11,8 +11,8 @@ interface UseCircuitRendererProps {
     numQubits: number;
     maxDepth: number;
     placedGates: CircuitGate[];
-    previewGate: CircuitGate | null;
-    scrollContainerWidth: number;
+    draggableGate: CircuitGate | null;
+    scrollContainerWidth?: number | null;
     handleMouseDown: (gate: CircuitGate, event: MouseEvent) => void;
 }
 
@@ -21,7 +21,7 @@ export function useCircuitRenderer({
     numQubits,
     maxDepth,
     placedGates,
-    previewGate,
+    draggableGate,
     scrollContainerWidth,
     handleMouseDown,
 }: UseCircuitRendererProps) {
@@ -71,7 +71,7 @@ export function useCircuitRenderer({
         placedGates.forEach(circuitGate => {
             const { id, gate, depth, targetQubits, controlQubits } = circuitGate;
             const { startQubit, endQubit } = getQubitSpan(circuitGate);
-            const isPreview = id === previewGate?.id;
+            const isPreview = id === draggableGate?.id;
 
             const x = depth * gateSpacing + gateSpacing / 2;
             const y = startQubit * gateSpacing + gateSpacing / 2;
@@ -190,7 +190,7 @@ export function useCircuitRenderer({
             }
         });
     }, [
-        svgRef, numQubits, maxDepth, placedGates, previewGate, scrollContainerWidth,
+        svgRef, numQubits, maxDepth, placedGates, draggableGate, scrollContainerWidth,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         handleMouseDown
     ]);

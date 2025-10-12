@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 
 import { GateIcon } from "@/features/gates/components/GateIcon";
-import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CircuitBoard } from "lucide-react";
@@ -11,10 +10,10 @@ import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 import { getInvolvedQubits } from "@/features/gates/utils";
 
-import type { CircuitGate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
-import {useCircuitDAG} from "@/features/circuit/hooks/useCircuitDAG.ts";
+import { useCircuit } from "@/features/circuit/context/CircuitContext";
+import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 
 interface QubitLabelsProps {
     numQubits: number;
@@ -109,20 +108,23 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
 }
 
 export function CircuitCanvas() {
-    const [numQubits, setNumQubits] = useState(CIRCUIT_CONFIG.defaultNumQubits);
-    const [maxDepth] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
-    const [measurements, setMeasurements] = useState<boolean[]>(Array(numQubits).fill(true));
-    const [placedGates, setPlacedGates] = useState<CircuitGate[]>([]);
-    const [previewGate, setPreviewGate] = useState<CircuitGate | null>(null);
+    const {
+        svgRef,
+        numQubits,
+        setNumQubits,
+        placedGates,
+        setPlacedGates,
+        measurements,
+        setMeasurements,
+    } = useCircuit();
 
-    const svgRef = useRef<SVGSVGElement>(null);
+    const [maxDepth] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const { width: scrollContainerWidth } = useResizeObserver(scrollContainerRef);
 
     const addQubit = useCallback(() => {
         setNumQubits(prev => prev + 1);
         setMeasurements(prev => [...prev, true]);
-    }, []);
+    }, [setMeasurements, setNumQubits]);
 
     const removeQubit = useCallback(() => {
         if (numQubits > 1) {
@@ -133,7 +135,7 @@ export function CircuitCanvas() {
                 return !involvedQubits.includes(numQubits - 1);
             }));
         }
-    }, [numQubits]);
+    }, [numQubits, setMeasurements, setNumQubits, setPlacedGates]);
 
     const toggleMeasurement = useCallback((index: number) => {
         setMeasurements(prev => {
@@ -141,20 +143,22 @@ export function CircuitCanvas() {
             newMeas[index] = !newMeas[index];
             return newMeas;
         });
-    }, []);
+    }, [setMeasurements]);
+
+    const { width: scrollContainerWidth } = useResizeObserver(scrollContainerRef);
 
     const { moveGate, removeGate, injectGate } = useCircuitDAG();
 
     const moveGateById = useCallback((gateId: string, targetDepth: number, targetQubit: number) => {
         setPlacedGates(prev => moveGate(gateId, prev, targetDepth, targetQubit));
-    }, [moveGate]);
+    }, [moveGate, setPlacedGates]);
 
     const removeGateById = useCallback((gateId: string) => {
         setPlacedGates(prev => removeGate(gateId, prev));
-    }, [removeGate]);
+    }, [removeGate, setPlacedGates]);
 
     const {
-        dragGate,
+        draggableGate,
         dragOffset,
         cursorPos,
         handleDragEnter,
@@ -166,10 +170,7 @@ export function CircuitCanvas() {
         svgRef,
         numQubits,
         maxDepth,
-        placedGates,
         setPlacedGates,
-        previewGate,
-        setPreviewGate,
         injectGate,
         moveGate: moveGateById,
         removeGate: removeGateById
@@ -180,7 +181,7 @@ export function CircuitCanvas() {
         numQubits,
         maxDepth,
         placedGates,
-        previewGate,
+        draggableGate,
         scrollContainerWidth,
         handleMouseDown,
     });
@@ -191,7 +192,7 @@ export function CircuitCanvas() {
                 <CardHeader className="flex flex-row items-center space-y-0 min-h-[2rem]">
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                         <CircuitBoard className="h-4 w-4 shrink-0" />
-                        <CardTitle className="truncate">Circuit Builder</CardTitle>
+                        <CardTitle className="truncate">Quantum Circuit</CardTitle>
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 flex overflow-hidden">
@@ -222,16 +223,13 @@ export function CircuitCanvas() {
                     />
                 </CardContent>
             </Card>
-            <div className="overflow-hidden mt-2">
-                <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
-            </div>
-            {dragGate && cursorPos && (
+            {draggableGate && cursorPos && (
                 <GateIcon
-                    gate={dragGate}
+                    gate={draggableGate.gate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: dragGate.numControlQubits + dragGate.numTargetQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
-                        top: dragGate.numControlQubits + dragGate.numTargetQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
+                        left: draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
+                        top: draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />

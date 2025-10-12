@@ -9,10 +9,7 @@ interface UseDraggableGateProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     maxDepth: number;
-    placedGates: CircuitGate[];
     setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
-    previewGate: CircuitGate | null;
-    setPreviewGate: React.Dispatch<React.SetStateAction<CircuitGate | null>>;
     injectGate: (circuitGate: CircuitGate, gates: CircuitGate[]) => CircuitGate[];
     moveGate: (gateId: string, targetDepth: number, startQubit: number) => void;
     removeGate: (gateId: string) => void;
@@ -22,14 +19,12 @@ export function useDraggableGate({
     svgRef,
     numQubits,
     maxDepth,
-    placedGates,
     setPlacedGates,
-    previewGate,
-    setPreviewGate,
     injectGate,
     moveGate,
     removeGate,
 }: UseDraggableGateProps) {
+    const [draggableGate, setDraggableGate] = useState<CircuitGate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
@@ -56,6 +51,14 @@ export function useDraggableGate({
         return pos !== null && pos.y >= 0 && pos.y <= maxY && pos.x >= 0 && pos.x <= maxX;
     }, [getGridPosition, gateSpacing, numQubits, maxDepth]);
 
+    useEffect(() => {
+        const cleanup = () => {
+            setDraggableGate(null);
+        };
+        document.addEventListener('dragend', cleanup);
+        return () => document.removeEventListener('dragend', cleanup);
+    }, []);
+
     // Show floating preview at cursor while dragging
     useEffect(() => {
         if (!dragGateId) {
@@ -70,7 +73,7 @@ export function useDraggableGate({
     }, [dragGateId]);
 
     const handleDragEnter = useCallback((e: React.DragEvent) => {
-        if (previewGate) return;
+        if (draggableGate) return;
 
         const gateId = dragState.get();
         const gate = GATES.find(g => g.id === gateId) || null;
@@ -89,34 +92,34 @@ export function useDraggableGate({
             children: [],
         };
 
-        setPreviewGate(newPreview);
+        setDraggableGate(newPreview);
         setPlacedGates(prev => injectGate(newPreview, prev));
-    }, [getGridPosition, injectGate, previewGate, setPlacedGates, setPreviewGate])
+    }, [getGridPosition, injectGate, draggableGate, setPlacedGates, setDraggableGate])
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
-        if (!previewGate) return;
+        if (!draggableGate) return;
 
-        const totalQubits = previewGate.gate.numTargetQubits + previewGate.gate.numControlQubits;
+        const totalQubits = draggableGate.gate.numTargetQubits + draggableGate.gate.numControlQubits;
         const pos = getGridPosition(e, totalQubits);
         if (!pos) return;
 
-        moveGate(previewGate.id, pos.depth, pos.qubit);
-    }, [getGridPosition, moveGate, previewGate]);
+        moveGate(draggableGate.id, pos.depth, pos.qubit);
+    }, [getGridPosition, moveGate, draggableGate]);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
-        if (!previewGate) return;
-        const totalQubits = previewGate.gate.numTargetQubits + previewGate.gate.numControlQubits;
+        if (!draggableGate) return;
+        const totalQubits = draggableGate.gate.numTargetQubits + draggableGate.gate.numControlQubits;
         if (!isValidGridPosition(e, totalQubits)) {
-            setPreviewGate(null);
-            removeGate(previewGate.id)
+            setDraggableGate(null);
+            removeGate(draggableGate.id)
         }
-    }, [isValidGridPosition, previewGate, removeGate, setPreviewGate]);
+    }, [isValidGridPosition, draggableGate, removeGate, setDraggableGate]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
-        setPreviewGate(null);
-    }, [setPreviewGate]);
+        setDraggableGate(null);
+    }, [setDraggableGate]);
 
     const handleMouseDown = useCallback((gate: CircuitGate, event: MouseEvent) => {
         if (!svgRef.current) return;
@@ -137,7 +140,7 @@ export function useDraggableGate({
             ...gate,
             ...createContiguousQubitArrays(gate.gate, startQubit)
         };
-        setPreviewGate(previewGate);
+        setDraggableGate(previewGate);
 
         const totalQubits = previewGate.gate.numControlQubits + previewGate.gate.numTargetQubits;
 
@@ -151,7 +154,7 @@ export function useDraggableGate({
             if (!isValidGridPosition(upEvent, totalQubits)) {
                 removeGate(previewGate.id);
             }
-            setPreviewGate(null);
+            setDraggableGate(null);
             setDragGateId(null);
             setDragOffset({ x: 0, y: 0 });
             document.removeEventListener('mousemove', handleMouseMove);
@@ -159,12 +162,10 @@ export function useDraggableGate({
         };
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, [svgRef, gateSpacing, getGridPosition, moveGate, isValidGridPosition, setPreviewGate, removeGate]);
-
-    const dragGate = dragGateId ? placedGates.find(g => g.id === dragGateId)?.gate : null;
+    }, [svgRef, gateSpacing, getGridPosition, moveGate, isValidGridPosition, setDraggableGate, removeGate]);
 
     return {
-        dragGate,
+        draggableGate,
         dragOffset,
         cursorPos,
         handleDragEnter,
