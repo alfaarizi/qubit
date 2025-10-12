@@ -12,7 +12,7 @@ import { getInvolvedQubits } from "@/features/gates/utils";
 
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
-import { useCircuit } from "@/features/circuit/context/CircuitContext";
+import { useCircuitStore, useCircuitSvgRef } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 
 interface QubitLabelsProps {
@@ -108,14 +108,13 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
 }
 
 export function CircuitCanvas() {
-    const {
-        svgRef,
-        numQubits,
-        placedGates,
-        measurements,
-        setPlacedGates,
-        updateCircuit,
-    } = useCircuit();
+    const svgRef = useCircuitSvgRef();
+
+    const numQubits = useCircuitStore((state) => state.numQubits);
+    const placedGates = useCircuitStore((state) => state.placedGates);
+    const measurements = useCircuitStore((state) => state.measurements);
+    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
+    const updateCircuit = useCircuitStore((state) => state.updateCircuit);
 
     const [maxDepth] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
     const scrollContainerRef = useRef<HTMLDivElement>(null);

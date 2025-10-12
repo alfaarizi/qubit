@@ -15,23 +15,20 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton.tsx";
 
-import { useCircuit } from "@/features/circuit/context/CircuitContext";
-import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts.ts";
+import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
+import { useCircuitStore, useCircuitSvgRef, useCircuitHistory } from "@/features/circuit/store/CircuitStoreContext";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export function CircuitToolbar() {
-    const {
-        svgRef,
-        numQubits,
-        measurements,
-        placedGates,
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        reset,
-    } = useCircuit();
+    const svgRef = useCircuitSvgRef();
+
+    const numQubits = useCircuitStore((state) => state.numQubits);
+    const measurements = useCircuitStore((state) => state.measurements);
+    const placedGates = useCircuitStore((state) => state.placedGates);
+    const reset = useCircuitStore((state) => state.reset);
+
+    const { undo, redo, canUndo, canRedo } = useCircuitHistory();
 
     useKeyboardShortcuts([
         {
@@ -90,7 +87,7 @@ export function CircuitToolbar() {
             <Button
                 variant="ghost"
                 size="icon"
-                onClick={undo}
+                onClick={() => undo()}
                 disabled={!canUndo}
             >
                 <Undo2 className="h-4 w-4" />
@@ -98,7 +95,7 @@ export function CircuitToolbar() {
             <Button
                 variant="ghost"
                 size="icon"
-                onClick={redo}
+                onClick={() => redo()}
                 disabled={!canRedo}
             >
                 <Redo2 className="h-4 w-4" />
