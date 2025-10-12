@@ -1,7 +1,7 @@
 /**
  * Gate Template – defines the quantum gate type
  */
-export interface Gate {
+export interface GateInfo {
     id: string;
     name: string;
     symbol: string;
@@ -14,9 +14,9 @@ export interface Gate {
 /**
  * Circuit Gate Instance - a placed gate in the circuit
  */
-export interface CircuitGate {
+export interface Gate {
     id: string;
-    gate: Gate;
+    gate: GateInfo;
     depth: number;
     targetQubits: number[];
     controlQubits: number[];

@@ -1,9 +1,9 @@
-import type { Gate } from "@/features/gates/types.ts";
+import type { GateInfo } from "@/features/gates/types.ts";
 import { GATE_CONFIG } from "@/features/gates/constants.ts";
 import type React from "react";
 
 interface GateIconProps extends React.ComponentPropsWithoutRef<'div'> {
-    gate: Gate;
+    gate: GateInfo;
 }
 
 export function GateIcon({ gate, className, style, ...props }: GateIconProps) {

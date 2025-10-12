@@ -1,16 +1,16 @@
-import type { CircuitGate, Gate } from '@/features/gates/types';
+import type { Gate, GateInfo } from '@/features/gates/types';
 
 /**
  * Get all qubits involved in a gate (sorted ascending)
  */
-export function getInvolvedQubits(gate: CircuitGate): number[] {
+export function getInvolvedQubits(gate: Gate): number[] {
     return [...gate.controlQubits, ...gate.targetQubits].sort((a, b) => a - b);
 }
 
 /**
  * Get the range of qubits a gate spans
  */
-export function getQubitSpan(gate: CircuitGate): {
+export function getQubitSpan(gate: Gate): {
     startQubit: number;
     endQubit: number;
     span: number;
@@ -29,7 +29,7 @@ export function getQubitSpan(gate: CircuitGate): {
  * Helper for contiguous gate placement (for initial drag-and-drop)
  * Assigns control qubits first, then target qubits, starting from startQubit
  */
-export function createContiguousQubitArrays(gate: Gate, startQubit: number) {
+export function createContiguousQubitArrays(gate: GateInfo, startQubit: number) {
     const targetQubits = Array.from(
         { length: gate.numTargetQubits },
         (_, i) => startQubit + gate.numControlQubits + i

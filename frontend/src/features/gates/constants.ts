@@ -1,4 +1,4 @@
-import type { Gate } from "@/features/gates/types";
+import type { GateInfo } from "@/features/gates/types";
 
 export const GATE_CONFIG = {
     gateSize: 42,
@@ -21,7 +21,7 @@ export const GATE_CONFIG = {
     }
 } as const;
 
-export const GATES: Gate[] = [
+export const GATES: GateInfo[] = [
     {
         id: 'h',
         name: 'Hadamard',

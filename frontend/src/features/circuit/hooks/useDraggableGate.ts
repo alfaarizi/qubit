@@ -2,15 +2,15 @@ import React, {useState, useEffect, useCallback } from 'react';
 
 import { dragState } from '@/lib/dragState';
 import {GATE_CONFIG, GATES} from '@/features/gates/constants';
-import type { CircuitGate } from '@/features/gates/types';
+import type { Gate } from '@/features/gates/types';
 import {createContiguousQubitArrays, getQubitSpan} from "@/features/gates/utils";
 
 interface UseDraggableGateProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     maxDepth: number;
-    setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
-    injectGate: (circuitGate: CircuitGate, gates: CircuitGate[]) => CircuitGate[];
+    setPlacedGates: React.Dispatch<React.SetStateAction<Gate[]>>;
+    injectGate: (gate: Gate, gates: Gate[]) => Gate[];
     moveGate: (gateId: string, targetDepth: number, startQubit: number) => void;
     removeGate: (gateId: string) => void;
 }
@@ -24,7 +24,7 @@ export function useDraggableGate({
     moveGate,
     removeGate,
 }: UseDraggableGateProps) {
-    const [draggableGate, setDraggableGate] = useState<CircuitGate | null>(null);
+    const [draggableGate, setDraggableGate] = useState<Gate | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
@@ -83,7 +83,7 @@ export function useDraggableGate({
         const pos = getGridPosition(e, totalQubits);
         if (!pos) return;
 
-        const newPreview: CircuitGate = {
+        const newPreview: Gate = {
             id: `${gate.id}-${crypto.randomUUID()}`,
             gate,
             depth: pos.depth,
@@ -121,7 +121,7 @@ export function useDraggableGate({
         setDraggableGate(null);
     }, [setDraggableGate]);
 
-    const handleMouseDown = useCallback((gate: CircuitGate, event: MouseEvent) => {
+    const handleMouseDown = useCallback((gate: Gate, event: MouseEvent) => {
         if (!svgRef.current) return;
 
         const { startQubit } = getQubitSpan(gate);

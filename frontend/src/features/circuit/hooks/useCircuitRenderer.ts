@@ -3,17 +3,17 @@ import * as d3 from 'd3';
 
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
-import type { CircuitGate } from '@/features/gates/types';
+import type { Gate } from '@/features/gates/types';
 import { getQubitSpan} from "@/features/gates/utils";
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     maxDepth: number;
-    placedGates: CircuitGate[];
-    draggableGate: CircuitGate | null;
+    placedGates: Gate[];
+    draggableGate: Gate | null;
     scrollContainerWidth?: number | null;
-    handleMouseDown: (gate: CircuitGate, event: MouseEvent) => void;
+    handleMouseDown: (gate: Gate, event: MouseEvent) => void;
 }
 
 export function useCircuitRenderer({
@@ -68,9 +68,9 @@ export function useCircuitRenderer({
         // Draw gates
         svg.selectAll('.gate-element').remove();
 
-        placedGates.forEach(circuitGate => {
-            const { id, gate, depth, targetQubits, controlQubits } = circuitGate;
-            const { startQubit, endQubit } = getQubitSpan(circuitGate);
+        placedGates.forEach(placedGate => {
+            const { id, gate, depth, targetQubits, controlQubits } = placedGate;
+            const { startQubit, endQubit } = getQubitSpan(placedGate);
             const isPreview = id === draggableGate?.id;
 
             const x = depth * gateSpacing + gateSpacing / 2;
@@ -185,7 +185,7 @@ export function useCircuitRenderer({
 
                 group.on('mousedown', function(event) {
                     event.preventDefault();
-                    handleMouseDown(circuitGate, event);
+                    handleMouseDown(placedGate, event);
                 });
             }
         });

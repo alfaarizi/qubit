@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useRef, useState, type ReactNode } from 'react';
-import type { CircuitGate } from '@/features/gates/types';
+import type { Gate } from '@/features/gates/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 
 interface CircuitContextValue {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     setNumQubits: React.Dispatch<React.SetStateAction<number>>;
-    placedGates: CircuitGate[];
-    setPlacedGates: React.Dispatch<React.SetStateAction<CircuitGate[]>>;
+    placedGates: Gate[];
+    setPlacedGates: React.Dispatch<React.SetStateAction<Gate[]>>;
     measurements: boolean[];
     setMeasurements: React.Dispatch<React.SetStateAction<boolean[]>>;
 }
@@ -17,7 +17,7 @@ const CircuitContext = createContext<CircuitContextValue | null>(null);
 export function CircuitProvider({ children }: { children: ReactNode }) {
     const svgRef = useRef<SVGSVGElement>(null);
     const [numQubits, setNumQubits] = useState(CIRCUIT_CONFIG.defaultNumQubits);
-    const [placedGates, setPlacedGates] = useState<CircuitGate[]>([]);
+    const [placedGates, setPlacedGates] = useState<Gate[]>([]);
     const [measurements, setMeasurements] = useState<boolean[]>(
         Array(CIRCUIT_CONFIG.defaultNumQubits).fill(true)
     );

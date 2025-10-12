@@ -4,15 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 
-import type { Gate } from '@/features/gates/types';
+import type { GateInfo } from '@/features/gates/types';
 import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
 import { GateIcon } from "@/features/gates/components/GateIcon";
 
 interface GateItemProps {
-    gate: Gate;
+    gate: GateInfo;
     isDragging: boolean;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, gate: Gate) => void;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, gate: GateInfo) => void;
     onDragEnd: () => void;
 }
 
@@ -50,7 +50,7 @@ export function GatesPanel() {
     const [draggedGate, setDraggedGate] = useState<string | null>(null);
     const { gateSize } = GATE_CONFIG;
 
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, gate: Gate) => {
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, gate: GateInfo) => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('application/json', JSON.stringify(gate));
         setDraggedGate(gate.id);

@@ -19,18 +19,18 @@ import { CircuitExportButton } from "@/features/circuit/components/CircuitExport
 
 import { useCircuit } from "@/features/circuit/context/CircuitContext";
 import { useState } from "react";
-import type { CircuitGate } from "@/features/gates/types";
+import type { Gate } from "@/features/gates/types";
 
 export function CircuitToolbar() {
     const { svgRef, numQubits, placedGates, setPlacedGates, setMeasurements } = useCircuit();
 
-    const [history, setHistory] = useState<CircuitGate[][]>([[]]);
+    const [history, setHistory] = useState<Gate[][]>([[]]);
     const [historyIndex, setHistoryIndex] = useState(0);
 
     const canUndo = historyIndex > 0;
     const canRedo = historyIndex < history.length - 1;
 
-    const saveToHistory = (gates: CircuitGate[]) => {
+    const saveToHistory = (gates: Gate[]) => {
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(gates);
         setHistory(newHistory);
