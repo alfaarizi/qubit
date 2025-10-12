@@ -69,7 +69,7 @@ export function useCircuitDAG() {
 
         // Connect to parents
         const parentSet = new Set(qubitToParent.values());
-        newCircuitGate.parents = Array.from(parentSet, g => g.id); // <html>TS2322: Type 'string[]' is not assignable to type 'never[]'.<br/>Type 'string' is not assignable to type 'never'.
+        newCircuitGate.parents = Array.from(parentSet, g => g.id);
         parentSet.forEach(parent => {
             if (!parent.children.includes(newCircuitGate.id)) {
                 parent.children.push(newCircuitGate.id);
@@ -78,7 +78,7 @@ export function useCircuitDAG() {
 
         // Connect to children
         const childSet = new Set(qubitToChild.values());
-        newCircuitGate.children = Array.from(childSet, g => g.id); // <html>TS2322: Type 'string[]' is not assignable to type 'never[]'.<br/>Type 'string' is not assignable to type 'never'.
+        newCircuitGate.children = Array.from(childSet, g => g.id);
         childSet.forEach((child) => {
             if (!child.parents.includes(newCircuitGate.id)) {
                 child.parents.push(newCircuitGate.id);
