@@ -149,14 +149,6 @@ export function CircuitCanvas() {
 
     const { moveGate, removeGate, injectGate } = useCircuitDAG();
 
-    const moveGateById = useCallback((gateId: string, targetDepth: number, targetQubit: number) => {
-        setPlacedGates(prev => moveGate(gateId, prev, targetDepth, targetQubit));
-    }, [moveGate, setPlacedGates]);
-
-    const removeGateById = useCallback((gateId: string) => {
-        setPlacedGates(prev => removeGate(gateId, prev));
-    }, [removeGate, setPlacedGates]);
-
     const {
         draggableGate,
         dragOffset,
@@ -171,9 +163,10 @@ export function CircuitCanvas() {
         numQubits,
         maxDepth,
         setPlacedGates,
+        scrollContainerWidth,
         injectGate,
-        moveGate: moveGateById,
-        removeGate: removeGateById
+        moveGate,
+        removeGate
     });
 
     useCircuitRenderer({
