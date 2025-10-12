@@ -111,39 +111,41 @@ export function CircuitCanvas() {
     const {
         svgRef,
         numQubits,
-        setNumQubits,
         placedGates,
-        setPlacedGates,
         measurements,
-        setMeasurements,
+        setPlacedGates,
+        updateCircuit,
     } = useCircuit();
 
     const [maxDepth] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const addQubit = useCallback(() => {
-        setNumQubits(prev => prev + 1);
-        setMeasurements(prev => [...prev, true]);
-    }, [setMeasurements, setNumQubits]);
+        updateCircuit(prev => ({
+            numQubits: prev.numQubits + 1,
+            measurements: [...prev.measurements, true],
+        }));
+    }, [updateCircuit])
 
     const removeQubit = useCallback(() => {
         if (numQubits > 1) {
-            setNumQubits(prev => prev - 1);
-            setMeasurements(prev => prev.slice(0, -1));
-            setPlacedGates(prev => prev.filter(g => {
-                const involvedQubits = getInvolvedQubits(g);
-                return !involvedQubits.includes(numQubits - 1);
+            updateCircuit(prev => ({
+                numQubits: prev.numQubits - 1,
+                measurements: prev.measurements.slice(0, -1),
+                placedGates: prev.placedGates.filter(g => {
+                    return !getInvolvedQubits(g).includes(prev.numQubits - 1);
+                }),
             }));
         }
-    }, [numQubits, setMeasurements, setNumQubits, setPlacedGates]);
+    }, [numQubits, updateCircuit]);
 
     const toggleMeasurement = useCallback((index: number) => {
-        setMeasurements(prev => {
-            const newMeas = [...prev];
+        updateCircuit(prev => {
+            const newMeas = [...prev.measurements];
             newMeas[index] = !newMeas[index];
-            return newMeas;
+            return { measurements: newMeas };
         });
-    }, [setMeasurements]);
+    }, [updateCircuit]);
 
     const { width: scrollContainerWidth } = useResizeObserver(scrollContainerRef);
 

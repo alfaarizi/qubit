@@ -18,47 +18,46 @@ import {
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton.tsx";
 
 import { useCircuit } from "@/features/circuit/context/CircuitContext";
-import { useState } from "react";
-import type { Gate } from "@/features/gates/types";
+import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts.ts";
 
 export function CircuitToolbar() {
-    const { svgRef, numQubits, placedGates, setPlacedGates, setMeasurements } = useCircuit();
+    const {
+        svgRef,
+        numQubits,
+        measurements,
+        placedGates,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
+        reset,
+    } = useCircuit();
 
-    const [history, setHistory] = useState<Gate[][]>([[]]);
-    const [historyIndex, setHistoryIndex] = useState(0);
-
-    const canUndo = historyIndex > 0;
-    const canRedo = historyIndex < history.length - 1;
-
-    const saveToHistory = (gates: Gate[]) => {
-        const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push(gates);
-        setHistory(newHistory);
-        setHistoryIndex(newHistory.length - 1);
-    };
-
-    const handleUndo = () => {
-        console.log('undo', canUndo);
-        if (canUndo) {
-            const newIndex = historyIndex - 1;
-            setHistoryIndex(newIndex);
-            setPlacedGates(history[newIndex]);
-        }
-    };
-
-    const handleRedo = () => {
-        console.log('redo', canRedo);
-        if (canRedo) {
-            const newIndex = historyIndex + 1;
-            setHistoryIndex(newIndex);
-            setPlacedGates(history[newIndex]);
-        }
-    };
+    useKeyboardShortcuts([
+        {
+            key: 'z',
+            ctrl: true,
+            handler: () => canUndo && undo()
+        },
+        {
+            key: 'y',
+            ctrl: true,
+            handler: () => canRedo && redo()
+        },
+        {
+            key: 'z',
+            ctrl: true,
+            shift: true,
+            handler: () => canRedo && redo()
+        },
+    ]);
 
     const handleClear = () => {
-        setPlacedGates([]);
-        setMeasurements(prev => prev.map(() => true));
-        saveToHistory([]);
+        reset({
+            placedGates: [],
+            numQubits: numQubits,
+            measurements: measurements.map(() => true),
+        });
     };
 
     const handleRun = () => {
@@ -91,7 +90,7 @@ export function CircuitToolbar() {
             <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleUndo}
+                onClick={undo}
                 disabled={!canUndo}
             >
                 <Undo2 className="h-4 w-4" />
@@ -99,7 +98,7 @@ export function CircuitToolbar() {
             <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleRedo}
+                onClick={redo}
                 disabled={!canRedo}
             >
                 <Redo2 className="h-4 w-4" />
