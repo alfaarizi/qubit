@@ -136,23 +136,19 @@ export function useDraggableGate({
         });
 
         // Show preview
-        const previewGate: CircuitGate = {
-            ...gate,
-            ...createContiguousQubitArrays(gate.gate, startQubit)
-        };
-        setDraggableGate(previewGate);
+        setDraggableGate(gate);
 
-        const totalQubits = previewGate.gate.numControlQubits + previewGate.gate.numTargetQubits;
+        const totalQubits = gate.gate.numControlQubits + gate.gate.numTargetQubits;
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const pos = getGridPosition(moveEvent, totalQubits);
             if (!pos) return;
-            moveGate(previewGate.id, pos.depth, pos.qubit);
+            moveGate(gate.id, pos.depth, pos.qubit);
         };
 
         const handleMouseUp = (upEvent: MouseEvent) => {
             if (!isValidGridPosition(upEvent, totalQubits)) {
-                removeGate(previewGate.id);
+                removeGate(gate.id);
             }
             setDraggableGate(null);
             setDragGateId(null);
