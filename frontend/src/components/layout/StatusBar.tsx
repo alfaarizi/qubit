@@ -1,26 +1,24 @@
 import { Separator } from '@/components/ui/separator'
+import { useProject } from "@/features/project/ProjectContext";
+import { useCircuitStateById } from "@/features/circuit/store/CircuitStoreContext";
 
 export function StatusBar() {
-    // TODO: These will come from your circuit state later
-    const qubits = 3
-    const gates = 5
-    const depth = 3
-    const zoom = 100
-
+    const { activeCircuitId } = useProject();
+    const circuitState = useCircuitStateById(activeCircuitId);
     return (
         <div className="flex items-center justify-between h-6 px-4 bg-muted/50 border-t text-xs text-muted-foreground">
-            {/* Left side stats */}
-            <div className="flex items-center gap-3">
-                <span>{qubits} qubits</span>
-                <Separator orientation="vertical" className="h-3" />
-                <span>{gates} gates</span>
-                <Separator orientation="vertical" className="h-3" />
-                <span>Depth: {depth}</span>
-            </div>
-            {/* Right side */}
-            <div>
-                <span>Zoom: {zoom}%</span>
-            </div>
+            { circuitState && (
+                <>
+                    <div className="flex items-center gap-3">
+                        <span>{circuitState.numQubits} qubits</span>
+                        <Separator orientation="vertical" className="h-3" />
+                        <span>{circuitState.placedGates.length} gates</span>
+                        <Separator orientation="vertical" className="h-3" />
+                        <span>Depth: {Math.max(-1, ...circuitState.placedGates.map(g => g.depth) ?? []) + 1}</span>
+                    </div>
+                    <span>Zoom: {100}%</span>
+                </>
+            )}
         </div>
     )
 }

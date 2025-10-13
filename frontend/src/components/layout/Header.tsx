@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import {Cloud, HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
+import { HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -10,10 +10,11 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ModeToggle } from "@/components/common/ModeToggle"
+import {SaveIndicator} from "@/components/common/SaveIndicator";
+import {useProject} from "@/features/project/ProjectContext";
 
 interface HeaderProps {
     projectName?: string
-    isSaved?: boolean
     onShareClick?: () => void
     onHelpClick?: () => void
     userInitials?: string
@@ -23,23 +24,19 @@ interface HeaderProps {
 
 export function Header({
    projectName = "Untitled Project",
-   isSaved = true,
    onShareClick,
    onHelpClick,
    userInitials = "JD",
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
+    const { activeCircuitId } = useProject();
+
     return (
         <header className="h-12 w-full border-b bg-muted/50 flex items-center px-4 text-xs text-muted-foreground">
             {/* Column 1: Logo and Name */}
             <div className="flex items-center gap-2 w-52">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5"
-                    asChild
-                >
+                <Button variant="ghost" size="icon" className="h-5 w-5" asChild>
                     <Link to="/">
                         <Home className="w-3.5 h-3.5" />
                         <span className="sr-only">Home</span>
@@ -49,38 +46,18 @@ export function Header({
             </div>
 
             {/* Column 2: Breadcrumb + Cloud Status */}
-            <div className="flex-1 flex items-center min-w-0">
-                {/* Breadcrumb - Left aligned */}
-                <nav className="flex items-center gap-1 flex-1 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+                <nav className="flex items-center gap-1 min-w-0 truncate">
                     <span className="shrink-0">Workspace</span>
                     <span className="shrink-0">/</span>
                     <span className="font-medium text-foreground truncate">{projectName}</span>
                 </nav>
-
-                {/* Cloud Saved - Center */}
-                <div className="flex items-center justify-center flex-1 shrink-0">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 cursor-default">
-                                    <Cloud className="w-3.5 h-3.5" />
-                                    <span>{isSaved ? "Saved" : "Saving..."}</span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>All changes saved to cloud</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
-
-                {/* Empty spacer for balance */}
-                <div className="flex-1" />
+                <SaveIndicator circuitId={activeCircuitId} />
             </div>
 
             {/* Column 3: Actions */}
-            <div className="flex items-center gap-2 justify-end w-72">
-                {/* Share Button */}
+            <div className="flex items-center gap-2 shrink-0">
+            {/* Share Button */}
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>

@@ -4,6 +4,7 @@ import { FileCode, ChevronRight, ChevronLeft } from 'lucide-react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button'
 import { Header } from "@/components/layout/Header"
 import { Layout } from "@/components/layout/Layout"
@@ -16,12 +17,15 @@ import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
+import { ProjectProvider, useProject } from "@/features/project/ProjectContext";
 
 const DEFAULT_INSPECTOR_SIZE = 30;
 const EXPANDED_INSPECTOR_SIZE = 50;
 const COLLAPSED_INSPECTOR_SIZE = 0;
 
-function WorkspacePage() {
+function WorkspaceContent() {
+    const { circuits, activeCircuitId, setActiveCircuitId } = useProject()
+
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
@@ -65,10 +69,23 @@ function WorkspacePage() {
                         <ResizablePanel defaultSize={70} minSize={30} className="relative">
                             <div className="flex-1 overflow-auto p-6 space-y-6">
                                 <div className="h-[45%]">
-                                    <CircuitProvider>
-                                        <CircuitToolbar/>
-                                        <CircuitCanvas />
-                                    </CircuitProvider>
+                                    <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId}>
+                                        <TabsList>
+                                            {circuits.map(circuit => (
+                                                <TabsTrigger key={circuit.id} value={circuit.id}>
+                                                    {circuit.name}
+                                                </TabsTrigger>
+                                            ))}
+                                        </TabsList>
+                                        {circuits.map(circuit => (
+                                            <TabsContent key={circuit.id} value={circuit.id}>
+                                                <CircuitProvider circuitId={circuit.id}>
+                                                <CircuitToolbar />
+                                                    <CircuitCanvas />
+                                                </CircuitProvider>
+                                            </TabsContent>
+                                        ))}
+                                    </Tabs>
                                 </div>
                                 <div className="h-[53%]">
                                     <ResultsPanel
@@ -124,4 +141,10 @@ function WorkspacePage() {
     )
 }
 
-export default WorkspacePage
+export default function WorkspacePage() {
+    return (
+        <ProjectProvider>
+            <WorkspaceContent />
+        </ProjectProvider>
+    )
+}
