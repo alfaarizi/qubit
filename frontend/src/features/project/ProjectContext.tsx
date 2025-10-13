@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import {createContext, useContext, useState, useCallback, type ReactNode, useEffect} from 'react';
 import type { Circuit } from '@/features/circuit/types';
 
 interface ProjectContextValue {
@@ -20,7 +20,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             gates: [],
         }))
     );
-    const [activeCircuitId, setActiveCircuitId] = useState('circuit-0');
+    const [activeCircuitId, setActiveCircuitId] = useState(() => {
+        return localStorage.getItem('activeCircuitId') || 'circuit-0';
+    });
 
     const addCircuit = useCallback((circuit: Circuit) => {
         setCircuits(prev => [...prev, circuit]);
@@ -40,6 +42,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const updateCircuit = useCallback((id: string, updates: Partial<Circuit>) => {
         setCircuits(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     }, []);
+
+    useEffect(() => {
+        localStorage.setItem('activeCircuitId', activeCircuitId);
+    }, [activeCircuitId]);
 
     return (
         <ProjectContext.Provider value={{
