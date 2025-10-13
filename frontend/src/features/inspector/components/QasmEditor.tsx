@@ -25,7 +25,7 @@ measure q -> c;`
     }
 
     return (
-        <div className="flex flex-col h-full gap-3">
+        <div className="flex flex-col flex-1 min-h-0 gap-3">
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">QASM Code</h3>
                 <Button variant="outline" size="sm" onClick={handleCopy}>
@@ -36,7 +36,7 @@ measure q -> c;`
 
             <ScrollArea className="flex-1 min-h-0">
                 <pre className="text-xs font-mono bg-muted/50 p-4 rounded-md">
-                    <code>{qasm}</code>
+                  <code>{qasm}</code>
                 </pre>
             </ScrollArea>
 

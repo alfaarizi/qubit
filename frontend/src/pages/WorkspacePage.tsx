@@ -15,6 +15,7 @@ import { GatesPanel } from "@/features/gates/components/GatesPanel"
 import { CircuitProvider } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
+import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectContext";
@@ -127,6 +128,7 @@ function WorkspaceContent() {
                             style={{ minWidth: "14px" }}
                         >
                             <Panel title="Inspector" icon={FileCode}>
+                                <GateProperties />
                                 <QasmEditor />
                             </Panel>
                         </ResizablePanel>
