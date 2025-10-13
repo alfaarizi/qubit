@@ -89,7 +89,7 @@ export function useDraggableGate({
 
         const totalQubits = gate.numTargetQubits + gate.numControlQubits;
         const pos = getGridPosition(e, totalQubits);
-        if (!pos) return;
+        if (!pos || totalQubits > numQubits) return;
 
         const newGate: Gate = {
             id: `${gate.id}-${crypto.randomUUID()}`,
@@ -103,7 +103,7 @@ export function useDraggableGate({
         dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
         setDraggableGate(newGate);
         setPlacedGates(prev => injectGate(newGate, prev), { skipHistory: false });
-    }, [draggableGate, getGridPosition, setPlacedGates, injectGate])
+    }, [draggableGate, getGridPosition, numQubits, setPlacedGates, injectGate])
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
