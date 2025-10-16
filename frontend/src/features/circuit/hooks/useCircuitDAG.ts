@@ -96,7 +96,12 @@ export function useCircuitDAG() {
         const gatesMap = createGatesMap(gates);
         const qubitToParent = new Map<number, Gate>();
         const gateQubits = new Set(getInvolvedQubits(gate));
-        gate.parents.forEach(parentId => {
+        gate.parents.sort((a, b) => {
+            const x = gatesMap.get(a)!.depth;
+            const y = gatesMap.get(b)!.depth;
+            if (x === y) return 0;
+            return x > y ? 1 : -1;
+        }).forEach(parentId => {
             const parent = gatesMap.get(parentId);
             if (!parent) return;
             parent.children = parent.children.filter(id => id !== gate.id);
