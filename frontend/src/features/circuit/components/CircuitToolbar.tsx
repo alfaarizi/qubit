@@ -59,7 +59,8 @@ export function CircuitToolbar() {
 
     const handleRun = () => {
         // TODO: Implement circuit execution
-        console.log('Running circuit with', placedGates.length, 'gates');
+        // console.log('Running circuit with', placedGates.length, 'gates');
+        console.log(placedGates);
     };
 
     return (
