@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
+import { SELECTION_STYLES } from '@/features/circuit/hooks/useGateSelection';
 import type { Gate } from '@/features/gates/types';
 import { getQubitSpan} from "@/features/gates/utils";
 
@@ -14,6 +15,7 @@ interface UseCircuitRendererProps {
     draggableGate: Gate | null;
     scrollContainerWidth?: number | null;
     handleMouseDown: (gate: Gate, event: MouseEvent) => void;
+    selectedGateIds?: Set<string>;
 }
 
 export function useCircuitRenderer({
@@ -24,6 +26,7 @@ export function useCircuitRenderer({
     draggableGate,
     scrollContainerWidth,
     handleMouseDown,
+    selectedGateIds = new Set(),
 }: UseCircuitRendererProps) {
     const { footerHeight } = CIRCUIT_CONFIG;
     const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, backgroundOpacity, previewOpacity } = GATE_CONFIG;
@@ -72,6 +75,7 @@ export function useCircuitRenderer({
             const { id, gate, depth, targetQubits, controlQubits } = placedGate;
             const { startQubit, endQubit } = getQubitSpan(placedGate);
             const isPreview = id === draggableGate?.id;
+            const isSelected = selectedGateIds.has(id);
 
             const x = depth * gateSpacing + gateSpacing / 2;
             const y = startQubit * gateSpacing + gateSpacing / 2;
@@ -103,8 +107,8 @@ export function useCircuitRenderer({
                     .attr('width', gateSize)
                     .attr('height', gateSize)
                     .attr('fill', `${gate.color}${backgroundOpacity}`)
-                    .attr('stroke', gate.color)
-                    .attr('stroke-width', borderWidth)
+                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : gate.color)
+                    .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : borderWidth)
                     .attr('rx', borderRadius)
                     .attr('pointer-events', isPreview ? 'none' : 'auto');
 
@@ -125,6 +129,9 @@ export function useCircuitRenderer({
                 const yFirst = startQubit * gateSpacing + gateSpacing / 2;
                 const yLast = endQubit * gateSpacing + gateSpacing / 2;
 
+                const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.color;
+                const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
+
                 const drawCircle = (cy: number, radius: number) => {
                     group.append('circle')
                         .attr('cx', x).attr('cy', cy)
@@ -135,16 +142,16 @@ export function useCircuitRenderer({
                         .attr('cx', x).attr('cy', cy)
                         .attr('r', radius)
                         .attr('fill', `${gate.color}${backgroundOpacity}`)
-                        .attr('stroke', gate.color)
-                        .attr('stroke-width', lineWidth);
+                        .attr('stroke', strokeColor)
+                        .attr('stroke-width', strokeWidth);
                 };
 
                 // Draw line spanning all qubits
                 group.append('line')
                     .attr('x1', x).attr('y1', yFirst)
                     .attr('x2', x).attr('y2', yLast)
-                    .attr('stroke', gate.color)
-                    .attr('stroke-width', lineWidth);
+                    .attr('stroke', strokeColor)
+                    .attr('stroke-width', strokeWidth);
 
                 // Draw control dots
                 controlQubits.forEach(controlQubit => {
@@ -192,6 +199,6 @@ export function useCircuitRenderer({
     }, [
         svgRef, numQubits, maxDepth, placedGates, draggableGate, scrollContainerWidth,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
-        handleMouseDown
+        handleMouseDown, selectedGateIds
     ]);
 }

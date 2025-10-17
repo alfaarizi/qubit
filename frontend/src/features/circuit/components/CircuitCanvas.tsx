@@ -8,6 +8,7 @@ import { CircuitBoard } from "lucide-react";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
+import { useGateSelection } from '@/features/circuit/hooks/useGateSelection';
 import { getInvolvedQubits } from "@/features/gates/utils";
 
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
@@ -170,6 +171,12 @@ export function CircuitCanvas() {
         removeGate
     });
 
+    const { selectedGateIds } = useGateSelection({
+        svgRef,
+        placedGates,
+        isEnabled: !draggableGate,
+    });
+
     useCircuitRenderer({
         svgRef,
         numQubits,
@@ -178,6 +185,7 @@ export function CircuitCanvas() {
         draggableGate,
         scrollContainerWidth,
         handleMouseDown,
+        selectedGateIds,
     });
 
     return (
