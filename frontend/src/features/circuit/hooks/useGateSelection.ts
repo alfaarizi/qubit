@@ -18,8 +18,15 @@ interface UseGateSelectionProps {
 }
 
 export const SELECTION_STYLES = {
+    // selected gate border styles
     strokeColor: '#eab308',
     strokeWidth: 2.0,
+    // selection rectangle styles
+    rectFillLight: 'rgba(59, 130, 246, 0.1)',
+    rectStrokeLight: 'rgba(59, 130, 246, 0.5)',
+    rectFillDark: 'rgba(255, 255, 255, 0.1)',
+    rectStrokeDark: 'rgba(255, 255, 255, 0.5)',
+    rectStrokeWidth: 1,
 } as const;
 
 export function useGateSelection({
@@ -61,20 +68,25 @@ export function useGateSelection({
     const handleMouseDown = useCallback((event: MouseEvent) => {
         if (!isEnabled || !svgRef.current) return;
 
-        // start selection on left click and not on a gate
         const target = event.target as SVGElement;
-        if (event.button !== 0 || target.closest('.gate-element')) return;
+        const isSelectingGate = target.closest('.gate-element');
+        
+        // clear selection if clicking outside SVG or on empty space
+        if (!svgRef.current.contains(target) || (!isSelectingGate && selectedGateIds.size > 0)) {
+            clearSelection();
+        }
+        
+        // start selection only on left click within SVG and not on a gate
+        if (event.button === 0 && !isSelectingGate && svgRef.current.contains(target)) {
+            const rect = svgRef.current.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
 
-        const svg = svgRef.current;
-        const rect = svg.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        startPointRef.current = { x, y };
-        setIsSelecting(true);
-        setSelectionRect({ startX: x, startY: y, width: 0, height: 0 });
-        clearSelection();
-    }, [isEnabled, svgRef, clearSelection]);
+            startPointRef.current = { x, y };
+            setIsSelecting(true);
+            setSelectionRect({ startX: x, startY: y, width: 0, height: 0 });
+        }
+    }, [isEnabled, svgRef, clearSelection, selectedGateIds.size]);
 
     const handleMouseMove = useCallback((event: MouseEvent) => {
         if (!isSelecting || !startPointRef.current || !svgRef.current) return;
@@ -125,21 +137,20 @@ export function useGateSelection({
         }
     }, [isEnabled, clearSelection]);
 
-    // hande mouse events
+    // handle mouse events
     useEffect(() => {
-        if (!isEnabled || !svgRef.current) return;
+        if (!isEnabled) return;
 
-        const svg = svgRef.current;
-        svg.addEventListener('mousedown', handleMouseDown);
+        window.addEventListener('mousedown', handleMouseDown);
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
 
         return () => {
-            svg.removeEventListener('mousedown', handleMouseDown);
+            window.removeEventListener('mousedown', handleMouseDown);
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isEnabled, svgRef, handleMouseDown, handleMouseMove, handleMouseUp]);
+    }, [isEnabled, handleMouseDown, handleMouseMove, handleMouseUp]);
 
     // Rrnder selection rectangle
     useEffect(() => {
@@ -167,9 +178,9 @@ export function useGateSelection({
                 .attr('y', height >= 0 ? startY : startY + height)
                 .attr('width', Math.abs(width))
                 .attr('height', Math.abs(height))
-                .attr('fill', isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(59, 130, 246, 0.1)')
-                .attr('stroke', isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(59, 130, 246, 0.5)')
-                .attr('stroke-width', 1)
+                .attr('fill', isDarkMode ? SELECTION_STYLES.rectFillDark : SELECTION_STYLES.rectFillLight)
+                .attr('stroke', isDarkMode ? SELECTION_STYLES.rectStrokeDark : SELECTION_STYLES.rectStrokeLight)
+                .attr('stroke-width', SELECTION_STYLES.rectStrokeWidth)
                 .attr('stroke-dasharray', '4,4');
         } else {
             rect.style('display', 'none');
