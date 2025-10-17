@@ -175,6 +175,7 @@ export function CircuitCanvas() {
         svgRef,
         placedGates,
         isEnabled: !draggableGate,
+        scrollContainerRef,
     });
 
     useCircuitRenderer({

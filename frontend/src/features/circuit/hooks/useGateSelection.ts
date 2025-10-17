@@ -15,7 +15,11 @@ interface UseGateSelectionProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     placedGates: Gate[];
     isEnabled?: boolean;
+    scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
+
+const SCROLL_EDGE_THRESHOLD = 50;
+const SCROLL_SPEED = 10;
 
 export const SELECTION_STYLES = {
     // selected gate border styles
@@ -33,12 +37,14 @@ export function useGateSelection({
     svgRef,
     placedGates,
     isEnabled = true,
+    scrollContainerRef,
 }: UseGateSelectionProps) {
     const [selectedGateIds, setSelectedGateIds] = useState<Set<string>>(new Set());
     const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
-    const startPointRef = useRef<{ x: number; y: number } | null>(null);
     const selectionRectRef = useRef<d3.Selection<SVGRectElement, unknown, null, undefined> | null>(null);
+    const selectionStartPosRef = useRef<{ x: number; y: number } | null>(null);
+    const selectionPosRef = useRef({ x: 0, y: 0 });
 
     const clearSelection = useCallback(() => {
         setSelectedGateIds(new Set());
@@ -82,33 +88,31 @@ export function useGateSelection({
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
 
-            startPointRef.current = { x, y };
+            selectionStartPosRef.current = { x, y };
             setIsSelecting(true);
             setSelectionRect({ startX: x, startY: y, width: 0, height: 0 });
         }
     }, [isEnabled, svgRef, clearSelection, selectedGateIds.size]);
 
     const handleMouseMove = useCallback((event: MouseEvent) => {
-        if (!isSelecting || !startPointRef.current || !svgRef.current) return;
+        if (!isSelecting || !selectionStartPosRef.current || !svgRef.current) return;
+
+        selectionPosRef.current = { x: event.clientX, y: event.clientY };
 
         const svg = svgRef.current;
         const rect = svg.getBoundingClientRect();
         const currentX = event.clientX - rect.left;
         const currentY = event.clientY - rect.top;
 
-        const width = currentX - startPointRef.current.x;
-        const height = currentY - startPointRef.current.y;
-
         const newRect = {
-            startX: startPointRef.current.x,
-            startY: startPointRef.current.y,
-            width,
-            height,
+            startX: selectionStartPosRef.current.x,
+            startY: selectionStartPosRef.current.y,
+            width: currentX - selectionStartPosRef.current.x,
+            height: currentY - selectionStartPosRef.current.y,
         };
 
         setSelectionRect(newRect);
 
-        // Check which gates are in selection
         const selected = new Set<string>();
         placedGates.forEach(gate => {
             if (checkGateIntersection(gate, newRect)) {
@@ -121,7 +125,7 @@ export function useGateSelection({
     const handleMouseUp = useCallback(() => {
         setIsSelecting(false);
         setSelectionRect(null);
-        startPointRef.current = null;
+        selectionStartPosRef.current = null;
     }, []);
 
     // handle keyboard events
@@ -136,6 +140,58 @@ export function useGateSelection({
             return () => window.removeEventListener('keydown', handleKeyDown);
         }
     }, [isEnabled, clearSelection]);
+
+    // Auto-scroll during selection
+    useEffect(() => {
+        if (!isSelecting || !scrollContainerRef?.current || !svgRef.current || !selectionStartPosRef.current) return;
+
+        const scroll = scrollContainerRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+        if (!scroll) return;
+
+        let frameId: number;
+        const autoScroll = () => {
+            const rect = scrollContainerRef.current!.getBoundingClientRect();
+            const { x, y } = selectionPosRef.current;
+            
+            let dx = 0, dy = 0;
+            if (x < rect.left + SCROLL_EDGE_THRESHOLD) dx = -SCROLL_SPEED;
+            else if (x > rect.right - SCROLL_EDGE_THRESHOLD) dx = SCROLL_SPEED;
+            if (y < rect.top + SCROLL_EDGE_THRESHOLD) dy = -SCROLL_SPEED;
+            else if (y > rect.bottom - SCROLL_EDGE_THRESHOLD) dy = SCROLL_SPEED;
+
+            if (dx || dy) {
+                scroll.scrollLeft += dx;
+                scroll.scrollTop += dy;
+
+                // Update selection rect while scrolling
+                const svgRect = svgRef.current!.getBoundingClientRect();
+                const currentX = x - svgRect.left;
+                const currentY = y - svgRect.top;
+
+                const newRect = {
+                    startX: selectionStartPosRef.current!.x,
+                    startY: selectionStartPosRef.current!.y,
+                    width: currentX - selectionStartPosRef.current!.x,
+                    height: currentY - selectionStartPosRef.current!.y,
+                };
+
+                setSelectionRect(newRect);
+
+                const selected = new Set<string>();
+                placedGates.forEach(gate => {
+                    if (checkGateIntersection(gate, newRect)) {
+                        selected.add(gate.id);
+                    }
+                });
+                setSelectedGateIds(selected);
+            }
+
+            frameId = requestAnimationFrame(autoScroll);
+        };
+
+        frameId = requestAnimationFrame(autoScroll);
+        return () => cancelAnimationFrame(frameId);
+    }, [isSelecting, scrollContainerRef, svgRef, placedGates, checkGateIntersection]);
 
     // handle mouse events
     useEffect(() => {
