@@ -9,6 +9,9 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 import { useGateSelection } from '@/features/circuit/hooks/useGateSelection';
+import { useCircuitContextMenu } from '@/features/circuit/hooks/useCircuitContextMenu';
+import { SelectionContextMenu } from '@/features/circuit/components/SelectionContextMenu';
+import { GateContextMenu } from '@/features/circuit/components/GateContextMenu';
 import { getInvolvedQubits } from "@/features/gates/utils";
 
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
@@ -178,6 +181,8 @@ export function CircuitCanvas() {
         scrollContainerRef,
     });
 
+    const { handleEditGate, handleCreateCircuit } = useCircuitContextMenu();
+
     // clear selection when dragging starts
     useEffect(() => {
         if (draggableGate && selectedGateIds.size > 0) {
@@ -216,16 +221,25 @@ export function CircuitCanvas() {
                         className="flex-1"
                         style={{ minWidth: GATE_CONFIG.gateSpacing }}
                     >
-                        <ScrollArea className="h-full w-full">
-                            <svg ref={svgRef}
-                                 style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
-                                 onDragEnter={handleDragEnter}
-                                 onDragOver={handleDragOver}
-                                 onDragLeave={handleDragLeave}
-                                 onDrop={handleDrop}
-                            />
-                            <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
+                        <SelectionContextMenu
+                            selectedGateIds={selectedGateIds}
+                            onCreateCircuit={handleCreateCircuit}
+                        >
+                            <ScrollArea className="h-full w-full">
+                                <svg ref={svgRef}
+                                     style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
+                                     onDragEnter={handleDragEnter}
+                                     onDragOver={handleDragOver}
+                                     onDragLeave={handleDragLeave}
+                                     onDrop={handleDrop}
+                                />
+                                <ScrollBar orientation="horizontal" />
+                            </ScrollArea>
+                        </SelectionContextMenu>
+                        <GateContextMenu
+                            svgRef={svgRef}
+                            onEdit={handleEditGate}
+                        />
                     </div>
                     <MeasurementToggles
                         measurements={measurements}

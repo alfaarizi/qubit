@@ -134,7 +134,7 @@ export function useDraggableGate({
     }, [dragPosRef]);
 
     const handleMouseDown = useCallback((gate: Gate, event: MouseEvent) => {
-        if (!svgRef.current) return;
+        if (event.button !== 0 || !svgRef.current) return;
 
         const { startQubit } = getQubitSpan(gate);
         const rect = svgRef.current.getBoundingClientRect();
@@ -149,6 +149,12 @@ export function useDraggableGate({
         });
 
         const totalQubits = gate.gate.numControlQubits + gate.gate.numTargetQubits;
+
+        const cleanup = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('contextmenu', handleContextMenu);
+        };
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const pos = getGridPosition(moveEvent, totalQubits);
@@ -165,11 +171,21 @@ export function useDraggableGate({
             setDraggableGate(null);
             setDragGateId(null);
             setDragOffset({ x: 0, y: 0 });
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            cleanup();
         };
+
+        const handleContextMenu = () => {
+            // Cancel drag without removing the gate
+            dragPosRef.current = null;
+            setDraggableGate(null);
+            setDragGateId(null);
+            setDragOffset({ x: 0, y: 0 });
+            cleanup();
+        };
+
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('contextmenu', handleContextMenu, { once: true });
     }, [svgRef, gateSpacing, getGridPosition, setPlacedGates, moveGate, isValidGridPosition, removeGate]);
 
     return {

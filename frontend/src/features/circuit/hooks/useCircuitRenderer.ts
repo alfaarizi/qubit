@@ -81,6 +81,7 @@ export function useCircuitRenderer({
             const y = startQubit * gateSpacing + gateSpacing / 2;
 
             const group = svg.append('g')
+                .datum(placedGate)
                 .attr('class', 'gate-element')
                 .attr('data-gate-id', id)
                 .attr('opacity', isPreview ? previewOpacity : 1)
