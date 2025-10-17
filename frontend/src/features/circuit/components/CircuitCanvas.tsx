@@ -221,6 +221,11 @@ export function CircuitCanvas() {
                         className="flex-1"
                         style={{ minWidth: GATE_CONFIG.gateSpacing }}
                     >
+                        <GateContextMenu
+                            svgRef={svgRef}
+                            onEdit={handleEditGate}
+                            isEnabled={selectedGateIds.size <= 0}
+                        />
                         <SelectionContextMenu
                             selectedGateIds={selectedGateIds}
                             onCreateCircuit={handleCreateCircuit}
@@ -236,10 +241,6 @@ export function CircuitCanvas() {
                                 <ScrollBar orientation="horizontal" />
                             </ScrollArea>
                         </SelectionContextMenu>
-                        <GateContextMenu
-                            svgRef={svgRef}
-                            onEdit={handleEditGate}
-                        />
                     </div>
                     <MeasurementToggles
                         measurements={measurements}

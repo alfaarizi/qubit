@@ -17,7 +17,9 @@ export function SelectionContextMenu({
     selectedGateIds, 
     onCreateCircuit
 }: SelectionContextMenuProps) {
-    return (
+    return selectedGateIds.size === 0 ? (
+        <>{children}</>
+    ) : (
         <ContextMenu modal={false}>
             <ContextMenuTrigger asChild>
                 {children}

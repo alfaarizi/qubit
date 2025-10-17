@@ -5,9 +5,14 @@ import type { Gate } from "@/features/gates/types";
 interface GateContextMenuProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     onEdit: (gate: Gate) => void;
+    isEnabled?: boolean;
 }
 
-export function GateContextMenu({ svgRef, onEdit }: GateContextMenuProps) {
+export function GateContextMenu({ 
+    svgRef, 
+    onEdit, 
+    isEnabled = true 
+}: GateContextMenuProps) {
     const [contextMenu, setContectMenu] = useState<{
         gate: Gate;
         position: { x: number; y: number };
@@ -19,10 +24,12 @@ export function GateContextMenu({ svgRef, onEdit }: GateContextMenuProps) {
         if (!svg) return;
 
         const handleContextMenu = (event: Event) => {
+            if (!isEnabled) return;
+
             const target = event.target as SVGElement;
             const gateElement = target.closest('[data-gate-id]') as SVGElement & { __data__?: Gate };
             if (!gateElement || !gateElement.__data__) return;
-
+            
             event.preventDefault();
             const mouseEvent = event as MouseEvent;
             setContectMenu({
@@ -32,7 +39,7 @@ export function GateContextMenu({ svgRef, onEdit }: GateContextMenuProps) {
         };
         svg.addEventListener('contextmenu', handleContextMenu);
         return () => svg.removeEventListener('contextmenu', handleContextMenu);
-    }, [svgRef]);
+    }, [svgRef, isEnabled]);
 
     useEffect(() => {
         if (!contextMenu) return;

@@ -100,7 +100,7 @@ export function useGateSelection({
     }, [svgRef, placedGates, isGateInSelectionRect]);
 
     const handleMouseDown = useCallback((event: MouseEvent) => {
-        if (!isEnabled || !svgRef.current) return;
+        if (!isEnabled || !svgRef.current || event.button === 2) return; // don't clear selection on right-click
 
         const target = event.target as SVGElement;
         const isSelectingGate = target.closest('.gate-element');
