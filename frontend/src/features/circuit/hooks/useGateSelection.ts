@@ -16,6 +16,7 @@ interface UseGateSelectionProps {
     placedGates: Gate[];
     isEnabled?: boolean;
     scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+    preventClearSelection?: boolean;
 }
 
 const SCROLL_EDGE_THRESHOLD = 50;
@@ -38,6 +39,7 @@ export function useGateSelection({
     placedGates,
     isEnabled = true,
     scrollContainerRef,
+    preventClearSelection = false,
 }: UseGateSelectionProps) {
     const [selectedGateIds, setSelectedGateIds] = useState<Set<string>>(new Set());
     const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
@@ -100,18 +102,21 @@ export function useGateSelection({
     }, [svgRef, placedGates, isGateInSelectionRect]);
 
     const handleMouseDown = useCallback((event: MouseEvent) => {
-        if (!isEnabled || !svgRef.current || event.button === 2) return; // don't clear selection on right-click
+        if (!isEnabled || !svgRef.current || event.button !== 0) return;
 
-        const target = event.target as SVGElement;
+        const target = event.target as HTMLElement;
         const isSelectingGate = target.closest('.gate-element');
-        
+        const isInsideSvg = svgRef.current.contains(target);
+
+        if (preventClearSelection) return;
+
         // clear selection if clicking outside SVG or on empty space
-        if (!svgRef.current.contains(target) || (!isSelectingGate && selectedGateIds.size > 0)) {
+        if (!isInsideSvg || (!isSelectingGate && selectedGateIds.size > 0)) {
             clearSelection();
         }
-        
-        // start selection only on left click within SVG and not on a gate
-        if (event.button === 0 && !isSelectingGate && svgRef.current.contains(target)) {
+
+        // Start selection rectangle on empty space within SVG
+        if (isInsideSvg && !isSelectingGate) {
             const rect = svgRef.current.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -121,7 +126,7 @@ export function useGateSelection({
             setIsSelecting(true);
             setSelectionRect({ startX: x, startY: y, width: 0, height: 0 });
         }
-    }, [isEnabled, svgRef, clearSelection, selectedGateIds.size]);
+    }, [isEnabled, svgRef, clearSelection, selectedGateIds.size, preventClearSelection]);
 
     const handleMouseMove = useCallback((event: MouseEvent) => {
         if (!isSelecting) return;

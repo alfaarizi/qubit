@@ -173,11 +173,13 @@ export function CircuitCanvas() {
         removeGate
     });
 
+    const [preventClearSelection, setPreventClearSelection] = useState(false);
     const { selectedGateIds, clearSelection } = useGateSelection({
         svgRef,
         placedGates,
         isEnabled: !draggableGate,
         scrollContainerRef,
+        preventClearSelection,
     });
 
     // clear selection when dragging starts
@@ -222,7 +224,11 @@ export function CircuitCanvas() {
                             svgRef={svgRef}
                             isEnabled={selectedGateIds.size <= 0}
                         />
-                        <SelectionContextMenu selectedGateIds={selectedGateIds}>
+                        <SelectionContextMenu 
+                            selectedGateIds={selectedGateIds}
+                            onPreventClearSelection={setPreventClearSelection}
+                            onClearSelection={clearSelection}
+                        >
                             <ScrollArea className="h-full w-full">
                                 <svg ref={svgRef}
                                     style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
