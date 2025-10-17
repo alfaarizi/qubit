@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 import { GateIcon } from "@/features/gates/components/GateIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,22 +171,29 @@ export function CircuitCanvas() {
         removeGate
     });
 
-    const { selectedGateIds } = useGateSelection({
+    const { selectedGateIds, clearSelection } = useGateSelection({
         svgRef,
         placedGates,
         isEnabled: !draggableGate,
         scrollContainerRef,
     });
 
+    // clear selection when dragging starts
+    useEffect(() => {
+        if (draggableGate && selectedGateIds.size > 0) {
+            clearSelection();
+        }
+    }, [draggableGate, selectedGateIds.size, clearSelection]);
+
     useCircuitRenderer({
         svgRef,
         numQubits,
         maxDepth,
         placedGates,
-        draggableGate,
+        draggableGateId: draggableGate?.id,
+        selectedGateIds,
         scrollContainerWidth,
         handleMouseDown,
-        selectedGateIds,
     });
 
     return (

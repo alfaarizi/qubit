@@ -12,10 +12,10 @@ interface UseCircuitRendererProps {
     numQubits: number;
     maxDepth: number;
     placedGates: Gate[];
-    draggableGate: Gate | null;
+    draggableGateId?: string | null;
+    selectedGateIds?: Set<string>;
     scrollContainerWidth?: number | null;
     handleMouseDown: (gate: Gate, event: MouseEvent) => void;
-    selectedGateIds?: Set<string>;
 }
 
 export function useCircuitRenderer({
@@ -23,10 +23,10 @@ export function useCircuitRenderer({
     numQubits,
     maxDepth,
     placedGates,
-    draggableGate,
+    draggableGateId = '',
+    selectedGateIds = new Set(),
     scrollContainerWidth,
     handleMouseDown,
-    selectedGateIds = new Set(),
 }: UseCircuitRendererProps) {
     const { footerHeight } = CIRCUIT_CONFIG;
     const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, backgroundOpacity, previewOpacity } = GATE_CONFIG;
@@ -74,7 +74,7 @@ export function useCircuitRenderer({
         placedGates.forEach(placedGate => {
             const { id, gate, depth, targetQubits, controlQubits } = placedGate;
             const { startQubit, endQubit } = getQubitSpan(placedGate);
-            const isPreview = id === draggableGate?.id;
+            const isPreview = draggableGateId === id;
             const isSelected = selectedGateIds.has(id);
 
             const x = depth * gateSpacing + gateSpacing / 2;
@@ -197,7 +197,7 @@ export function useCircuitRenderer({
             }
         });
     }, [
-        svgRef, numQubits, maxDepth, placedGates, draggableGate, scrollContainerWidth,
+        svgRef, numQubits, maxDepth, placedGates, draggableGateId, scrollContainerWidth,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, backgroundOpacity, previewOpacity, footerHeight,
         handleMouseDown, selectedGateIds
     ]);
