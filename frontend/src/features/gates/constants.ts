@@ -1,5 +1,11 @@
 import type { GateInfo } from "@/features/gates/types";
 
+export const GATE_CATEGORIES = {
+    SINGLE_QUBIT: 'Single-Qubit Gates',
+    TWO_QUBIT: 'Two-Qubit Gates',
+    MULTI_QUBIT: 'Multi-Qubit Gates',
+} as const;
+
 export const GATE_CONFIG = {
     gateSize: 42,
     gateSpacing: 50,
@@ -22,6 +28,7 @@ export const GATE_CONFIG = {
 } as const;
 
 export const GATES: GateInfo[] = [
+    // Single-Qubit Gates
     {
         id: 'h',
         name: 'Hadamard',
@@ -30,6 +37,7 @@ export const GATES: GateInfo[] = [
         description: 'Creates superposition',
         numControlQubits: 0,
         numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
     },
     {
         id: 'x',
@@ -39,6 +47,7 @@ export const GATES: GateInfo[] = [
         description: 'Bit flip gate',
         numControlQubits: 0,
         numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
     },
     {
         id: 'y',
@@ -48,6 +57,7 @@ export const GATES: GateInfo[] = [
         description: 'Y rotation gate',
         numControlQubits: 0,
         numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
     },
     {
         id: 'z',
@@ -57,15 +67,7 @@ export const GATES: GateInfo[] = [
         description: 'Phase flip gate',
         numControlQubits: 0,
         numTargetQubits: 1,
-    },
-    {
-        id: 'cnot',
-        name: 'CNOT',
-        symbol: 'CX',
-        color: '#f97316',
-        description: 'Controlled NOT gate',
-        numControlQubits: 1,
-        numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
     },
     {
         id: 's',
@@ -75,6 +77,7 @@ export const GATES: GateInfo[] = [
         description: 'Phase gate',
         numControlQubits: 0,
         numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
     },
     {
         id: 't',
@@ -84,7 +87,20 @@ export const GATES: GateInfo[] = [
         description: 'π/8 gate',
         numControlQubits: 0,
         numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
     },
+    // Two-Qubit Gates
+    {
+        id: 'cnot',
+        name: 'CNOT',
+        symbol: 'CX',
+        color: '#f97316',
+        description: 'Controlled NOT gate',
+        numControlQubits: 1,
+        numTargetQubits: 1,
+        category: GATE_CATEGORIES.TWO_QUBIT,
+    },
+    // Multi-Qubit Gates
     {
         id: 'ccx',
         name: 'Toffoli',
@@ -93,5 +109,6 @@ export const GATES: GateInfo[] = [
         description: 'Controlled-Controlled-X gate',
         numControlQubits: 2,
         numTargetQubits: 1,
+        category: GATE_CATEGORIES.MULTI_QUBIT,
     }
 ];

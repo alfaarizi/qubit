@@ -6,6 +6,7 @@ export interface GateInfo {
     name: string;
     symbol: string;
     color: string;
+    category: string;
     description: string;
     numTargetQubits: number;
     numControlQubits: number;
