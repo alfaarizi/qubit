@@ -46,11 +46,7 @@ export function useGateSelection({
     const selectionStartPosRef = useRef<{ x: number; y: number } | null>(null);
     const selectionPosRef = useRef({ x: 0, y: 0 });
 
-    const clearSelection = useCallback(() => {
-        setSelectedGateIds(new Set());
-    }, []);
-
-    const checkGateIntersection = useCallback((gate: Gate, rect: SelectionRect) => {
+    const isGateInSelectionRect = useCallback((gate: Gate, rect: SelectionRect) => {
         const { gateSize, gateSpacing } = GATE_CONFIG;
         const { startQubit, endQubit } = getQubitSpan(gate);
 
@@ -58,18 +54,50 @@ export function useGateSelection({
         const gateY = startQubit * gateSpacing + gateSpacing / 2;
         const gateHeight = (endQubit - startQubit + 1) * gateSpacing;
 
-        const gateLeft = gateX - gateSize / 2;
-        const gateRight = gateX + gateSize / 2;
-        const gateTop = gateY - gateSize / 2;
-        const gateBottom = gateTop + gateHeight;
+        const [gateLeft, gateRight, gateTop, gateBottom] = [
+            gateX - gateSize / 2,
+            gateX + gateSize / 2,
+            gateY - gateSize / 2,
+            gateY + gateHeight
+        ];
 
-        const rectLeft = Math.min(rect.startX, rect.startX + rect.width);
-        const rectRight = Math.max(rect.startX, rect.startX + rect.width);
-        const rectTop = Math.min(rect.startY, rect.startY + rect.height);
-        const rectBottom = Math.max(rect.startY, rect.startY + rect.height);
+        const [rectLeft, rectRight, rectTop, rectBottom] = [
+            Math.min(rect.startX, rect.startX + rect.width),
+            Math.max(rect.startX, rect.startX + rect.width),
+            Math.min(rect.startY, rect.startY + rect.height),
+            Math.max(rect.startY, rect.startY + rect.height)
+        ];
 
         return gateRight >= rectLeft && gateLeft <= rectRight && gateBottom >= rectTop && gateTop <= rectBottom;
     }, []);
+
+    const clearSelection = useCallback(() => {
+        setSelectedGateIds(new Set());
+    }, []);
+
+    const updateSelection = useCallback(() => {
+        if (!selectionStartPosRef.current || !svgRef.current) return;
+
+        const svgRect = svgRef.current.getBoundingClientRect();
+        const { x, y } = selectionPosRef.current;
+
+        const newRect = {
+            startX: selectionStartPosRef.current.x,
+            startY: selectionStartPosRef.current.y,
+            width: (x - svgRect.left) - selectionStartPosRef.current.x,
+            height: (y - svgRect.top) - selectionStartPosRef.current.y,
+        };
+
+        setSelectionRect(newRect);
+
+        const selected = new Set<string>();
+        placedGates.forEach(gate => {
+            if (isGateInSelectionRect(gate, newRect)) {
+                selected.add(gate.id);
+            }
+        });
+        setSelectedGateIds(selected);
+    }, [svgRef, placedGates, isGateInSelectionRect]);
 
     const handleMouseDown = useCallback((event: MouseEvent) => {
         if (!isEnabled || !svgRef.current) return;
@@ -95,32 +123,10 @@ export function useGateSelection({
     }, [isEnabled, svgRef, clearSelection, selectedGateIds.size]);
 
     const handleMouseMove = useCallback((event: MouseEvent) => {
-        if (!isSelecting || !selectionStartPosRef.current || !svgRef.current) return;
-
+        if (!isSelecting) return;
         selectionPosRef.current = { x: event.clientX, y: event.clientY };
-
-        const svg = svgRef.current;
-        const rect = svg.getBoundingClientRect();
-        const currentX = event.clientX - rect.left;
-        const currentY = event.clientY - rect.top;
-
-        const newRect = {
-            startX: selectionStartPosRef.current.x,
-            startY: selectionStartPosRef.current.y,
-            width: currentX - selectionStartPosRef.current.x,
-            height: currentY - selectionStartPosRef.current.y,
-        };
-
-        setSelectionRect(newRect);
-
-        const selected = new Set<string>();
-        placedGates.forEach(gate => {
-            if (checkGateIntersection(gate, newRect)) {
-                selected.add(gate.id);
-            }
-        });
-        setSelectedGateIds(selected);
-    }, [isSelecting, svgRef, placedGates, checkGateIntersection]);
+        updateSelection();
+    }, [isSelecting, updateSelection]);
 
     const handleMouseUp = useCallback(() => {
         setIsSelecting(false);
@@ -141,9 +147,9 @@ export function useGateSelection({
         }
     }, [isEnabled, clearSelection]);
 
-    // Auto-scroll during selection
+    // auto-scroll during selection
     useEffect(() => {
-        if (!isSelecting || !scrollContainerRef?.current || !svgRef.current || !selectionStartPosRef.current) return;
+        if (!isSelecting || !scrollContainerRef?.current) return;
 
         const scroll = scrollContainerRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
         if (!scroll) return;
@@ -162,28 +168,7 @@ export function useGateSelection({
             if (dx || dy) {
                 scroll.scrollLeft += dx;
                 scroll.scrollTop += dy;
-
-                // Update selection rect while scrolling
-                const svgRect = svgRef.current!.getBoundingClientRect();
-                const currentX = x - svgRect.left;
-                const currentY = y - svgRect.top;
-
-                const newRect = {
-                    startX: selectionStartPosRef.current!.x,
-                    startY: selectionStartPosRef.current!.y,
-                    width: currentX - selectionStartPosRef.current!.x,
-                    height: currentY - selectionStartPosRef.current!.y,
-                };
-
-                setSelectionRect(newRect);
-
-                const selected = new Set<string>();
-                placedGates.forEach(gate => {
-                    if (checkGateIntersection(gate, newRect)) {
-                        selected.add(gate.id);
-                    }
-                });
-                setSelectedGateIds(selected);
+                updateSelection();
             }
 
             frameId = requestAnimationFrame(autoScroll);
@@ -191,7 +176,7 @@ export function useGateSelection({
 
         frameId = requestAnimationFrame(autoScroll);
         return () => cancelAnimationFrame(frameId);
-    }, [isSelecting, scrollContainerRef, svgRef, placedGates, checkGateIntersection]);
+    }, [isSelecting, scrollContainerRef, updateSelection]);
 
     // handle mouse events
     useEffect(() => {
