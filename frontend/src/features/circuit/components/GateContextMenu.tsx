@@ -1,23 +1,33 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Edit } from "lucide-react";
+import { InputDialog } from "@/components/common/InputDialog";
+import { useContextMenu } from "@/hooks/useContextMenu";
 import type { Gate } from "@/features/gates/types";
 
 interface GateContextMenuProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    onEdit: (gate: Gate) => void;
     isEnabled?: boolean;
 }
 
 export function GateContextMenu({ 
     svgRef, 
-    onEdit, 
     isEnabled = true 
 }: GateContextMenuProps) {
-    const [contextMenu, setContectMenu] = useState<{
-        gate: Gate;
-        position: { x: number; y: number };
-    } | null>(null);
-    const contextMenuRef = useRef<HTMLDivElement>(null);
+    const {
+        contextMenu,
+        contextMenuRef,
+        showContextMenu,
+        dialogState,
+        showDialog,
+        hideDialog,
+        handleConfirm,
+    } = useContextMenu<Gate>({
+        onConfirm: (gate, newName) => {
+            console.log('Editing gate:', gate.id, 'New name:', newName);
+            // TODO: Implement gate editing logic
+            // Example: updateGate(gate.id, { name: newName })
+        },
+    });
 
     useEffect(() => {
         const svg = svgRef.current;
@@ -32,59 +42,41 @@ export function GateContextMenu({
             
             event.preventDefault();
             const mouseEvent = event as MouseEvent;
-            setContectMenu({
-                gate: gateElement.__data__,
-                position: { x: mouseEvent.clientX, y: mouseEvent.clientY },
+            showContextMenu(gateElement.__data__, {
+                x: mouseEvent.clientX,
+                y: mouseEvent.clientY,
             });
         };
         svg.addEventListener('contextmenu', handleContextMenu);
         return () => svg.removeEventListener('contextmenu', handleContextMenu);
-    }, [svgRef, isEnabled]);
-
-    useEffect(() => {
-        if (!contextMenu) return;
-        const handleClickOutside = (e: MouseEvent) => {
-            if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-                setContectMenu(null);
-            }
-        };
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setContectMenu(null);
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('keydown', handleEscape);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('keydown', handleEscape);
-        };
-    }, [contextMenu]);
-
-    if (!contextMenu) return null;
+    }, [svgRef, isEnabled, showContextMenu]);
 
     return (
-        <div
-            ref={contextMenuRef}
-            className={`
-                fixed z-50 min-w-[8rem] overflow-hidden rounded-md border 
-                bg-popover p-1 text-popover-foreground shadow-md 
-                animate-in fade-in-2 slide-in-from-left-2 duration-200
-            `}
-            style={{ left: contextMenu.position.x, top: contextMenu.position.y }}
-        >
-            <button
-                onClick={() => {
-                    onEdit(contextMenu.gate);
-                    setContectMenu(null);
-                }}
-                className={`
-                    relative flex w-full cursor-default select-none items-center gap-2 rounded-sm 
-                    px-2 py-1.5 text-sm outline-none transition-colors 
-                    hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground
-                `}
-            >
-                <Edit className="h-4 w-4" />
-                <span>Edit Gate</span>
-            </button>
-        </div>
+        <>
+            {contextMenu && (
+                <div
+                    ref={contextMenuRef}
+                    className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-2 slide-in-from-left-2 duration-200"
+                    style={{ left: contextMenu.position.x, top: contextMenu.position.y }}
+                >
+                    <button
+                        onClick={showDialog}
+                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    >
+                        <Edit className="h-4 w-4" />
+                        <span>Edit Gate</span>
+                    </button>
+                </div>
+            )}
+            <InputDialog
+                open={!!dialogState}
+                position={dialogState?.position || null}
+                onClose={hideDialog}
+                onConfirm={handleConfirm}
+                title="Edit Gate Name"
+                placeholder="Enter gate name..."
+                defaultValue={dialogState?.data.gate.name || ''}
+            />
+        </>
     );
 }

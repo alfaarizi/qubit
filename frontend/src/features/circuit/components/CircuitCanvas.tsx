@@ -9,7 +9,6 @@ import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 import { useGateSelection } from '@/features/circuit/hooks/useGateSelection';
-import { useCircuitContextMenu } from '@/features/circuit/hooks/useCircuitContextMenu';
 import { SelectionContextMenu } from '@/features/circuit/components/SelectionContextMenu';
 import { GateContextMenu } from '@/features/circuit/components/GateContextMenu';
 import { getInvolvedQubits } from "@/features/gates/utils";
@@ -181,8 +180,6 @@ export function CircuitCanvas() {
         scrollContainerRef,
     });
 
-    const { handleEditGate, handleCreateCircuit } = useCircuitContextMenu();
-
     // clear selection when dragging starts
     useEffect(() => {
         if (draggableGate && selectedGateIds.size > 0) {
@@ -223,20 +220,16 @@ export function CircuitCanvas() {
                     >
                         <GateContextMenu
                             svgRef={svgRef}
-                            onEdit={handleEditGate}
                             isEnabled={selectedGateIds.size <= 0}
                         />
-                        <SelectionContextMenu
-                            selectedGateIds={selectedGateIds}
-                            onCreateCircuit={handleCreateCircuit}
-                        >
+                        <SelectionContextMenu selectedGateIds={selectedGateIds}>
                             <ScrollArea className="h-full w-full">
                                 <svg ref={svgRef}
-                                     style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
-                                     onDragEnter={handleDragEnter}
-                                     onDragOver={handleDragOver}
-                                     onDragLeave={handleDragLeave}
-                                     onDrop={handleDrop}
+                                    style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
+                                    onDragEnter={handleDragEnter}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
                                 />
                                 <ScrollBar orientation="horizontal" />
                             </ScrollArea>
