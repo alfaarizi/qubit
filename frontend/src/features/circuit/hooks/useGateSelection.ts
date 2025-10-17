@@ -117,6 +117,7 @@ export function useGateSelection({
             const y = event.clientY - rect.top;
 
             selectionStartPosRef.current = { x, y };
+            selectionPosRef.current = { x: event.clientX, y: event.clientY };
             setIsSelecting(true);
             setSelectionRect({ startX: x, startY: y, width: 0, height: 0 });
         }
@@ -221,8 +222,7 @@ export function useGateSelection({
                 .attr('height', Math.abs(height))
                 .attr('fill', isDarkMode ? SELECTION_STYLES.rectFillDark : SELECTION_STYLES.rectFillLight)
                 .attr('stroke', isDarkMode ? SELECTION_STYLES.rectStrokeDark : SELECTION_STYLES.rectStrokeLight)
-                .attr('stroke-width', SELECTION_STYLES.rectStrokeWidth)
-                .attr('stroke-dasharray', '4,4');
+                .attr('stroke-width', SELECTION_STYLES.rectStrokeWidth);
         } else {
             rect.style('display', 'none');
         }

@@ -124,17 +124,3 @@
     background-color: rgb(17 17 17);
   }
 }
-
-@layer utilities {
-  /* Selection rectangle animation */
-  .selection-rect {
-    pointer-events: none;
-    animation: selection-dash 0.5s linear infinite;
-  }
-
-  @keyframes selection-dash {
-    to {
-      stroke-dashoffset: -8;
-    }
-  }
-}
