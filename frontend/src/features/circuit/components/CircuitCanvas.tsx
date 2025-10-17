@@ -202,7 +202,7 @@ export function CircuitCanvas() {
     });
 
     return (
-        <div>
+        <div onContextMenu={e => e.preventDefault()}>
             <Card className="flex flex-col rounded-none border-border/50 bg-card/95 p-4">
                 <CardHeader className="flex flex-row items-center space-y-0 min-h-[2rem]">
                     <div className="flex items-center gap-2 min-w-0 overflow-hidden">
