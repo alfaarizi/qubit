@@ -7,9 +7,30 @@ interface InspectorContextValue {
 }
 
 const InspectorContext = createContext<InspectorContextValue | null>(null);
+const STORAGE_KEY = 'inspector-hovered-gate';
 
 export function InspectorProvider({ children }: { children: ReactNode }) {
-    const [hoveredGate, setHoveredGate] = useState<GateInfo | null>(null);
+    const [hoveredGate, setHoveredGateState] = useState<GateInfo | null>(() => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    });
+
+    const setHoveredGate = (gate: GateInfo | null) => {
+        setHoveredGateState(gate);
+        try {
+            if (gate) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(gate));
+            } else {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        } catch (error) {
+            console.error('Failed to save hovered gate to localStorage:', error);
+        }
+    };
 
     return (
         <InspectorContext.Provider value={{ hoveredGate, setHoveredGate }}>
