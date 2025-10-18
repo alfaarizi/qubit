@@ -68,9 +68,9 @@ function WorkspaceContent() {
                 <div className="grid grid-cols-[auto_1fr] h-full overflow-hidden">
                     <GatesPanel />
                     <ResizablePanelGroup direction="horizontal">
-                        <ResizablePanel defaultSize={70} minSize={30} className="relative">
-                            <div className="flex-1 overflow-auto p-6 space-y-6">
-                                <div className="h-[45%]">
+                        <ResizablePanel defaultSize={70} minSize={30} className="relative overflow-hidden">
+                            <div className="h-full overflow-y-auto p-6 flex flex-col gap-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                <div className="min-h-[45vh] flex-shrink-0 -mb-4">
                                     <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId}>
                                         <TabsList>
                                             {circuits.map(circuit => (
@@ -89,7 +89,7 @@ function WorkspaceContent() {
                                         ))}
                                     </Tabs>
                                 </div>
-                                <div className="h-[53%]">
+                                <div className="min-h-[53vh] flex-shrink-0">
                                     <ResultsPanel
                                         results={mockResults}
                                         totalShots={1024}
