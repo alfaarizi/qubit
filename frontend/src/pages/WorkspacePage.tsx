@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-import { FileCode, ChevronRight, ChevronLeft } from 'lucide-react'
+import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 
@@ -19,6 +19,7 @@ import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectContext";
+import { InspectorProvider } from "@/features/inspector/InspectorContext";
 
 const DEFAULT_INSPECTOR_SIZE = 30;
 const EXPANDED_INSPECTOR_SIZE = 50;
@@ -127,7 +128,7 @@ function WorkspaceContent() {
                             className={`overflow-hidden ${isAnimDelayed ? 'transition-all duration-300 ease-in-out' : ''}`}
                             style={{ minWidth: "14px" }}
                         >
-                            <Panel title="Inspector" icon={FileCode}>
+                            <Panel>
                                 <GateProperties />
                                 <QasmEditor />
                             </Panel>
@@ -146,7 +147,9 @@ function WorkspaceContent() {
 export default function WorkspacePage() {
     return (
         <ProjectProvider>
-            <WorkspaceContent />
+            <InspectorProvider>
+                <WorkspaceContent />
+            </InspectorProvider>
         </ProjectProvider>
     )
 }

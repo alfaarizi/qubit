@@ -10,6 +10,7 @@ import type { GateInfo } from '@/features/gates/types';
 import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
 import { GateIcon } from "@/features/gates/components/GateIcon";
+import { useInspector } from '@/features/inspector/InspectorContext';
 
 interface DraggableGateProps {
     gate: GateInfo;
@@ -25,14 +26,25 @@ function DraggableGate({
     onDragEnd 
 }: DraggableGateProps) {
     const [isHovered, setIsHovered] = useState(false);
+    const { setHoveredGate } = useInspector();
+
+    const handleMouseEnter = () => {
+        setIsHovered(true);
+        setHoveredGate(gate);
+    };
+
+    const handleMouseLeave = () => {
+        setIsHovered(false);
+        // Don't clear hoveredGate - persist the last hovered gate
+    };
 
     return (
         <div
             draggable
             onDragStart={(e) => onDragStart(e, gate)}
             onDragEnd={onDragEnd}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className={`relative mx-auto cursor-grab active:cursor-grabbing transition-all ${
                 isDragging ? 'opacity-50 scale-95' : ''
             }`}
@@ -42,11 +54,6 @@ function DraggableGate({
                 gate={gate}
                 className={isHovered ? 'shadow-md border-yellow-500' : 'shadow-sm'}
             />
-            {isHovered && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg whitespace-nowrap z-50 border">
-                    {gate.description}
-                </div>
-            )}
         </div>
     );
 }

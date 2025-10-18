@@ -7,9 +7,16 @@ export interface GateInfo {
     symbol: string;
     color: string;
     category: string;
+    /** Short description shown under the gate name */
     description: string;
+    /** Detailed description shown above transformations */
+    longDescription?: string;
     numTargetQubits: number;
     numControlQubits: number;
+    /** LaTeX representation of the gate's matrix */
+    matrix?: string;
+    /** LaTeX formulas describing gate transformations */
+    formulas?: string[];
 }
 
 /**
