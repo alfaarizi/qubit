@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import Fuse from 'fuse.js';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,16 +127,33 @@ export function GatesPanel() {
         }
     };
 
+const fuse = useMemo(() => {
+    return new Fuse(GATES, {
+        keys: [
+            { name: 'symbol', weight: 0.4 },
+            { name: 'name', weight: 0.35 },
+            { name: 'category', weight: 0.15 },
+            { name: 'description', weight: 0.1 }
+        ],
+        threshold: 0.4, // search sensitivity (0.0 = exact, 1.0 = match anything)
+        ignoreLocation: true, // match location flexibility
+        minMatchCharLength: 1, // minimum match requirements
+        includeScore: true,// sorting by relevance
+        shouldSort: true, // auto-sort by best match
+        findAllMatches: false, // stop at first good match
+        useExtendedSearch: false, // keep it simple (no special operators needed)
+        distance: 100, // How far to look for pattern match
+    });
+}, []);
+
     // filter gates based on search query
     const filteredGates = useMemo(() => {
-        const query = searchQuery.toLowerCase().trim();
+        const query = searchQuery.trim();
         if (!query) return GATES;
-        return GATES.filter(gate => 
-            gate.name.toLowerCase().includes(query) ||
-            gate.symbol.toLowerCase().includes(query) ||
-            gate.description.toLowerCase().includes(query)
-        );
-    }, [searchQuery]);
+        // fuzzy search
+        const results = fuse.search(query);
+        return results.map(result => result.item);
+    }, [searchQuery, fuse]);
 
     // group gates by category
     const groupedGates = useMemo(() => {

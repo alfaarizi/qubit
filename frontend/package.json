@@ -26,6 +26,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
+    "fuse.js": "^7.1.0",
     "katex": "^0.16.25",
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
