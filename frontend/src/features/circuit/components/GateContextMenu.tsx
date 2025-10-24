@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Edit, Info } from "lucide-react";
-import { InputDialog } from "@/components/common/InputDialog";
+import { EditGateDialog } from "@/components/common/EditGateDialog";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useInspector } from "@/features/inspector/InspectorContext";
+import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import type { Gate } from "@/features/gates/types";
 
 interface GateContextMenuProps {
@@ -15,21 +16,21 @@ export function GateContextMenu({
     isEnabled = true 
 }: GateContextMenuProps) {
     const { setHoveredGate } = useInspector();
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editDialogPosition, setEditDialogPosition] = useState<{ x: number; y: number } | null>(null);
+    const [gateToEdit, setGateToEdit] = useState<Gate | null>(null);
+    
+    const numQubits = useCircuitStore(state => state.numQubits);
+    const placedGates = useCircuitStore(state => state.placedGates);
+    const setPlacedGates = useCircuitStore(state => state.setPlacedGates);
+    
     const {
         contextMenu,
         contextMenuRef,
         showContextMenu,
         hideContextMenu,
-        dialogState,
-        showDialog,
-        hideDialog,
-        handleConfirm,
     } = useContextMenu<Gate>({
-        onConfirm: (gate, newName) => {
-            console.log('Editing gate:', gate.id, 'New name:', newName);
-            // TODO: Implement gate editing logic
-            // Example: updateGate(gate.id, { name: newName })
-        },
+        onConfirm: () => {},
     });
 
     const handleViewInfo = () => {
@@ -37,6 +38,35 @@ export function GateContextMenu({
             setHoveredGate(contextMenu.data.gate);
             hideContextMenu();
         }
+    };
+
+    const handleEditGate = () => {
+        if (contextMenu?.data) {
+            setGateToEdit(contextMenu.data);
+            setEditDialogPosition(contextMenu.position);
+            setEditDialogOpen(true);
+            hideContextMenu();
+        }
+    };
+
+    const handleEditConfirm = (controlQubits: number[], targetQubits: number[]) => {
+        if (!gateToEdit) return;
+
+        // Update the gate with new qubit assignments
+        const updatedGate: Gate = {
+            ...gateToEdit,
+            controlQubits,
+            targetQubits,
+        };
+
+        // Update the gates array with the modified gate
+        const updatedGates = placedGates.map(g => 
+            g.id === gateToEdit.id ? updatedGate : g
+        );
+
+        setPlacedGates(updatedGates);
+        setEditDialogOpen(false);
+        setGateToEdit(null);
     };
 
     useEffect(() => {
@@ -77,7 +107,7 @@ export function GateContextMenu({
                         <span>View Info</span>
                     </button>
                     <button
-                        onClick={showDialog}
+                        onClick={handleEditGate}
                         className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                     >
                         <Edit className="h-4 w-4" />
@@ -85,14 +115,16 @@ export function GateContextMenu({
                     </button>
                 </div>
             )}
-            <InputDialog
-                open={!!dialogState}
-                position={dialogState?.position || null}
-                onClose={hideDialog}
-                onConfirm={handleConfirm}
-                title="Edit Gate Name"
-                placeholder="Enter gate name..."
-                defaultValue={dialogState?.data.gate.name || ''}
+            <EditGateDialog
+                open={editDialogOpen}
+                position={editDialogPosition}
+                gate={gateToEdit}
+                numQubits={numQubits}
+                onClose={() => {
+                    setEditDialogOpen(false);
+                    setGateToEdit(null);
+                }}
+                onConfirm={handleEditConfirm}
             />
         </>
     );
