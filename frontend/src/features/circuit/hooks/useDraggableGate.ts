@@ -34,25 +34,28 @@ export function useDraggableGate({
 
     const { gateSpacing } = GATE_CONFIG;
 
-    const getGridPosition = useCallback((e: { clientX: number; clientY: number }, gateQubits: number = 1) => {
+    const getGridPosition = useCallback((e: { clientX: number; clientY: number }, gateSpan: number = 1) => {
         if (!svgRef.current) return null;
         const rect = svgRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         return {
             depth: Math.floor(x / gateSpacing),
-            qubit: Math.max(0, Math.min(Math.floor(y / gateSpacing), numQubits - gateQubits)),
+            qubit: Math.max(0, Math.min(Math.round(y / gateSpacing - 0.5), numQubits - gateSpan)),
             x,
             y
         };
     }, [svgRef, gateSpacing, numQubits]);
 
-    const isValidGridPosition = useCallback((e: { clientX: number; clientY: number }, gateQubits: number): boolean => {
-        const pos = getGridPosition(e, gateQubits);
+    const isValidGridPosition = useCallback((e: { clientX: number; clientY: number }, gate: Gate): boolean => {
+        const { span } = getQubitSpan(gate);
+        const pos = getGridPosition(e, span);
+        if (!pos) return false;
+        // Check bounds
         const contentWidth = maxDepth * gateSpacing;
         const maxWidth = Math.min(scrollContainerWidth || contentWidth, contentWidth);
         const maxHeight = numQubits * gateSpacing;
-        return pos !== null && pos.y >= 0 && pos.y <= maxHeight && pos.x >= 0 && pos.x <= maxWidth;
+        return pos.x >= 0 && pos.x <= maxWidth && pos.y >= 0 && pos.y <= maxHeight;
     }, [getGridPosition, maxDepth, gateSpacing, scrollContainerWidth, numQubits]);
 
     const hasDragPositionChanged = (pos: { depth: number; qubit: number }) => {
@@ -109,18 +112,19 @@ export function useDraggableGate({
         e.preventDefault();
         if (!draggableGate) return;
 
-        const totalQubits = draggableGate.gate.numTargetQubits + draggableGate.gate.numControlQubits;
-        const pos = getGridPosition(e, totalQubits);
+        const { span } = getQubitSpan(draggableGate);
+        const pos = getGridPosition(e, span);
         if (!pos || !hasDragPositionChanged(pos)) return;
 
-        dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
-        setPlacedGates(prev => moveGate(draggableGate.id, prev, pos.depth, pos.qubit), { skipHistory: true });
-    }, [draggableGate, getGridPosition, setPlacedGates, moveGate]);
+        if (isValidGridPosition(e, draggableGate)) {
+            dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
+            setPlacedGates(prev => moveGate(draggableGate.id, prev, pos.depth, pos.qubit), { skipHistory: true });
+        }
+    }, [draggableGate, getGridPosition, isValidGridPosition, setPlacedGates, moveGate]);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
         if (!draggableGate) return;
-        const totalQubits = draggableGate.gate.numTargetQubits + draggableGate.gate.numControlQubits;
-        if (!isValidGridPosition(e, totalQubits)) {
+        if (!isValidGridPosition(e, draggableGate)) {
             dragPosRef.current = null;
             setDraggableGate(null);
             setPlacedGates(prev => removeGate(draggableGate.id, prev), { skipHistory: true });
@@ -136,10 +140,10 @@ export function useDraggableGate({
     const handleMouseDown = useCallback((gate: Gate, event: MouseEvent) => {
         if (event.button !== 0 || !svgRef.current) return;
 
-        const { startQubit } = getQubitSpan(gate);
+        const { minQubit, span } = getQubitSpan(gate);
         const rect = svgRef.current.getBoundingClientRect();
         const x = gate.depth * gateSpacing + gateSpacing / 2;
-        const y = startQubit * gateSpacing + gateSpacing / 2;
+        const y = minQubit * gateSpacing + gateSpacing / 2;
 
         setDraggableGate(gate);
         setDragGateId(gate.id);
@@ -148,8 +152,6 @@ export function useDraggableGate({
             y: event.clientY - (y + rect.top)
         });
 
-        const totalQubits = gate.gate.numControlQubits + gate.gate.numTargetQubits;
-
         const cleanup = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
@@ -157,15 +159,18 @@ export function useDraggableGate({
         };
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
-            const pos = getGridPosition(moveEvent, totalQubits);
+            const pos = getGridPosition(moveEvent, span);
             if (!pos || !hasDragPositionChanged(pos)) return;
-            dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
-            setPlacedGates(prev => moveGate(gate.id, prev, pos.depth, pos.qubit), { skipHistory: false });
+            // move gate if position is valid
+            if (isValidGridPosition(moveEvent, gate)) {
+                dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
+                setPlacedGates(prev => moveGate(gate.id, prev, pos.depth, pos.qubit), { skipHistory: false });
+            }
         };
 
         const handleMouseUp = (upEvent: MouseEvent) => {
             dragPosRef.current = null;
-            if (!isValidGridPosition(upEvent, totalQubits)) {
+            if (!isValidGridPosition(upEvent, gate)) {
                 setPlacedGates(prev => removeGate(gate.id, prev), { skipHistory: false });
             }
             setDraggableGate(null);

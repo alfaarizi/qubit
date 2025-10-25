@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { Gate } from "@/features/gates/types";
-import { createContiguousQubitArrays, getInvolvedQubits } from "@/features/gates/utils";
+import { getInvolvedQubits } from "@/features/gates/utils";
 
 export function useCircuitDAG() {
 
@@ -139,10 +139,17 @@ export function useCircuitDAG() {
         if (!gateToMove) return gates;
 
         const gatesWithoutMoved = ejectGate(gateToMove, gates);
+        
+        // For moved gates, we need to adjust qubit positions based on the new target qubit
+        // we calculate the offset from the original position to maintain relative qubit assignments
+        const qubitStart = Math.min(...getInvolvedQubits(gateToMove));
+        const qubitOffset = targetQubit - qubitStart;
+        
         const movedGate: Gate = {
             ...gateToMove,
             depth: targetDepth,
-            ...createContiguousQubitArrays(gateToMove.gate, targetQubit)
+            targetQubits: gateToMove.targetQubits.map(q => q + qubitOffset),
+            controlQubits: gateToMove.controlQubits.map(q => q + qubitOffset)
         };
 
         return injectGate(movedGate, gatesWithoutMoved);

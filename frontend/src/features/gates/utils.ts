@@ -11,17 +11,17 @@ export function getInvolvedQubits(gate: Gate): number[] {
  * Get the range of qubits a gate spans
  */
 export function getQubitSpan(gate: Gate): {
-    startQubit: number;
-    endQubit: number;
+    minQubit: number;
+    maxQubit: number;
     span: number;
 } {
-    const qubits = getInvolvedQubits(gate);
-    const startQubit = Math.min(...qubits);
-    const endQubit = Math.max(...qubits);
+    const involvedQubits = getInvolvedQubits(gate);
+    const minQubit = Math.min(...involvedQubits);
+    const maxQubit = Math.max(...involvedQubits);
     return {
-        startQubit,
-        endQubit,
-        span: endQubit - startQubit + 1
+        minQubit,
+        maxQubit,
+        span: maxQubit - minQubit + 1
     };
 }
 

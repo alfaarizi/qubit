@@ -50,11 +50,11 @@ export function useGateSelection({
 
     const isGateInSelectionRect = useCallback((gate: Gate, rect: SelectionRect) => {
         const { gateSize, gateSpacing } = GATE_CONFIG;
-        const { startQubit, endQubit } = getQubitSpan(gate);
+        const { minQubit, maxQubit } = getQubitSpan(gate);
 
         const gateX = gate.depth * gateSpacing + gateSpacing / 2;
-        const gateY = startQubit * gateSpacing + gateSpacing / 2;
-        const gateHeight = (endQubit - startQubit + 1) * gateSpacing;
+        const gateY = minQubit * gateSpacing + gateSpacing / 2;
+        const gateHeight = (maxQubit - minQubit + 1) * gateSpacing;
 
         const [gateLeft, gateRight, gateTop, gateBottom] = [
             gateX - gateSize / 2,

@@ -5,7 +5,7 @@ import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { SELECTION_STYLES } from '@/features/circuit/hooks/useGateSelection';
 import type { Gate } from '@/features/gates/types';
-import { getQubitSpan} from "@/features/gates/utils";
+import { getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -73,12 +73,12 @@ export function useCircuitRenderer({
 
         placedGates.forEach(placedGate => {
             const { id, gate, depth, targetQubits, controlQubits } = placedGate;
-            const { startQubit, endQubit } = getQubitSpan(placedGate);
+            const { minQubit } = getQubitSpan(placedGate);
             const isPreview = draggableGateId === id;
             const isSelected = selectedGateIds.has(id);
 
             const x = depth * gateSpacing + gateSpacing / 2;
-            const y = startQubit * gateSpacing + gateSpacing / 2;
+            const y = minQubit * gateSpacing + gateSpacing / 2;
 
             const group = svg.append('g')
                 .datum(placedGate)
@@ -127,8 +127,11 @@ export function useCircuitRenderer({
 
             } else if (totalQubits > 1) {
                 const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
-                const yFirst = startQubit * gateSpacing + gateSpacing / 2;
-                const yLast = endQubit * gateSpacing + gateSpacing / 2;
+                
+                // Get all involved qubits (both control and target) for proper rendering
+                const involvedQubits = getInvolvedQubits(placedGate);
+                const yFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
+                const yLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
 
                 const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.color;
                 const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
@@ -147,28 +150,31 @@ export function useCircuitRenderer({
                         .attr('stroke-width', strokeWidth);
                 };
 
-                // Draw line spanning all qubits
+                // Draw vertical line spanning all involved qubits
                 group.append('line')
                     .attr('x1', x).attr('y1', yFirst)
                     .attr('x2', x).attr('y2', yLast)
                     .attr('stroke', strokeColor)
                     .attr('stroke-width', strokeWidth);
 
-                // Draw control dots
+                // Draw control dots on their specific qubits
                 controlQubits.forEach(controlQubit => {
                     const yControl = controlQubit * gateSpacing + gateSpacing / 2;
                     drawCircle(yControl, controlDotRadius);
                 });
 
-                // Draw target on last qubit
+                // Draw target circles on their specific qubits
                 targetQubits.forEach(targetQubit => {
                     const yTarget = targetQubit * gateSpacing + gateSpacing / 2;
                     drawCircle(yTarget, targetRadius);
                 });
 
+                // Position text at the last target qubit
+                const textY = targetQubits[targetQubits.length - 1] * gateSpacing + gateSpacing / 2;
+                
                 group.append('text')
                     .attr('x', x)
-                    .attr('y', yLast)
+                    .attr('y', textY)
                     .attr('text-anchor', 'middle')
                     .attr('dominant-baseline', 'middle')
                     .attr('font-family', fontFamily)
@@ -181,11 +187,15 @@ export function useCircuitRenderer({
 
             // Add interaction for placed gates
             if (!isPreview) {
+                // Calculate hitbox based on all involved qubits for non-contiguous gates
+                const involvedQubits = getInvolvedQubits(placedGate);
+                const hitboxYFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
+                const hitboxYLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
+                const hitboxHeight = hitboxYLast - hitboxYFirst + gateSize;
 
-                const hitboxHeight = (endQubit - startQubit + 1) * gateSpacing;
                 group.append('rect')
                     .attr('x', x - gateSize / 2)
-                    .attr('y', y - gateSize / 2)
+                    .attr('y', hitboxYFirst - gateSize / 2)
                     .attr('width', gateSize)
                     .attr('height', hitboxHeight)
                     .attr('fill', 'transparent')
