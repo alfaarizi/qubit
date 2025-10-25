@@ -5,43 +5,45 @@ import { useContextMenu } from "@/hooks/useContextMenu";
 import { useInspector } from "@/features/inspector/InspectorContext";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import type { Gate } from "@/features/gates/types";
+import type { Circuit } from "@/features/circuit/types";
 
 interface GateContextMenuProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     isEnabled?: boolean;
 }
 
-export function GateContextMenu({ 
-    svgRef, 
-    isEnabled = true 
+export function GateContextMenu({
+    svgRef,
+    isEnabled = true
 }: GateContextMenuProps) {
     const { setHoveredGate } = useInspector();
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editDialogPosition, setEditDialogPosition] = useState<{ x: number; y: number } | null>(null);
     const [gateToEdit, setGateToEdit] = useState<Gate | null>(null);
-    
+
     const numQubits = useCircuitStore(state => state.numQubits);
-    const placedGates = useCircuitStore(state => state.placedGates);
-    const setPlacedGates = useCircuitStore(state => state.setPlacedGates);
     
     const {
         contextMenu,
         contextMenuRef,
         showContextMenu,
         hideContextMenu,
-    } = useContextMenu<Gate>({
+    } = useContextMenu<Gate | Circuit>({
         onConfirm: () => {},
     });
-
+    
     const handleViewInfo = () => {
         if (contextMenu?.data) {
-            setHoveredGate(contextMenu.data.gate);
+            const gateInfo = 'gate' in contextMenu.data ? contextMenu.data.gate : null;
+            if (gateInfo) {
+                setHoveredGate(gateInfo);
+            }
             hideContextMenu();
         }
     };
 
     const handleEditGate = () => {
-        if (contextMenu?.data) {
+        if (contextMenu?.data && 'gate' in contextMenu.data) {
             setGateToEdit(contextMenu.data);
             setEditDialogPosition(contextMenu.position);
             setEditDialogOpen(true);
@@ -49,25 +51,6 @@ export function GateContextMenu({
         }
     };
 
-    const handleEditConfirm = (controlQubits: number[], targetQubits: number[]) => {
-        if (!gateToEdit) return;
-
-        // Update the gate with new qubit assignments
-        const updatedGate: Gate = {
-            ...gateToEdit,
-            controlQubits,
-            targetQubits,
-        };
-
-        // Update the gates array with the modified gate
-        const updatedGates = placedGates.map(g => 
-            g.id === gateToEdit.id ? updatedGate : g
-        );
-
-        setPlacedGates(updatedGates);
-        setEditDialogOpen(false);
-        setGateToEdit(null);
-    };
 
     useEffect(() => {
         const svg = svgRef.current;
@@ -77,12 +60,12 @@ export function GateContextMenu({
             if (!isEnabled) return;
 
             const target = event.target as SVGElement;
-            const gateElement = target.closest('[data-gate-id]') as SVGElement & { __data__?: Gate };
-            if (!gateElement || !gateElement.__data__) return;
-            
+            const element = target.closest('[data-gate-id]') as SVGElement & { __data__?: Gate | Circuit };
+            if (!element || !element.__data__) return;
+
             event.preventDefault();
             const mouseEvent = event as MouseEvent;
-            showContextMenu(gateElement.__data__, {
+            showContextMenu(element.__data__, {
                 x: mouseEvent.clientX,
                 y: mouseEvent.clientY,
             });
@@ -106,13 +89,15 @@ export function GateContextMenu({
                         <Info className="h-4 w-4" />
                         <span>View Info</span>
                     </button>
-                    <button
-                        onClick={handleEditGate}
-                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    >
-                        <Edit className="h-4 w-4" />
-                        <span>Edit Gate</span>
-                    </button>
+                    {contextMenu?.data && 'gate' in contextMenu.data && (
+                        <button
+                            onClick={handleEditGate}
+                            className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                            <Edit className="h-4 w-4" />
+                            <span>Edit Gate</span>
+                        </button>
+                    )}
                 </div>
             )}
             <EditGateDialog
@@ -124,7 +109,6 @@ export function GateContextMenu({
                     setEditDialogOpen(false);
                     setGateToEdit(null);
                 }}
-                onConfirm={handleEditConfirm}
             />
         </>
     );

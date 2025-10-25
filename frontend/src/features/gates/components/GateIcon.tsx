@@ -9,14 +9,15 @@ interface GateIconProps extends React.ComponentPropsWithoutRef<'div'> {
 
 export function GateIcon({ item, className, style, ...props }: GateIconProps) {
     const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity, singleQubit } = GATE_CONFIG;
-    
+
     const isCircuit = 'gates' in item;
     const title = isCircuit ? item.name : item.symbol;
     const color = isCircuit ? 'rgb(59, 130, 246)' : item.color;
+    const textSize = isCircuit ? 'text-md' : singleQubit.textSize;
 
     return (
         <div
-            className={`flex items-center justify-center border-2 ${singleQubit.textSize} ${className || ''}`}
+            className={`flex items-center justify-center border-2 ${textSize} ${className || ''}`}
             style={{
                 width: gateSize,
                 height: gateSize,
@@ -30,7 +31,7 @@ export function GateIcon({ item, className, style, ...props }: GateIconProps) {
             }}
             {...props}
         >
-            <span className="select-none text-foreground">{title}</span>
+            <span className={`select-none text-foreground px-1 ${isCircuit ? 'truncate' : ''}`}>{title}</span>
         </div>
     );
 }
