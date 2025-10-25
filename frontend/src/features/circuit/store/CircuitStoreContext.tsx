@@ -5,17 +5,18 @@ import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 
 import type { Gate } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { getInvolvedQubits } from '@/features/gates/utils';
 
 interface CircuitState {
-    placedGates: Gate[];
+    placedGates: (Gate | Circuit)[];
     numQubits: number;
     measurements: boolean[];
 }
 
 interface CircuitActions {
-    setPlacedGates: (gates: Gate[] | ((prev: Gate[]) => Gate[]), options?: { skipHistory?: boolean }) => void;
+    setPlacedGates: (gates: (Gate | Circuit)[] | ((prev: (Gate | Circuit)[]) => (Gate | Circuit)[]), options?: { skipHistory?: boolean }) => void;
     setNumQubits: (qubits: number | ((prev: number) => number)) => void;
     setMeasurements: (measurements: boolean[] | ((prev: boolean[]) => boolean[])) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;

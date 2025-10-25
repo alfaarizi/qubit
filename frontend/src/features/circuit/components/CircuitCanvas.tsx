@@ -249,11 +249,15 @@ export function CircuitCanvas() {
             </Card>
             {draggableGate && cursorPos && (
                 <GateIcon
-                    gate={draggableGate.gate}
+                    item={'circuit' in draggableGate ? draggableGate.circuit : draggableGate.gate}
                     className="fixed pointer-events-none z-50"
                     style={{
-                        left: draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1 ? cursorPos.x - dragOffset.x : cursorPos.x,
-                        top: draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1  ? cursorPos.y - dragOffset.y : cursorPos.y,
+                        left: 'gate' in draggableGate && draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1
+                            ? cursorPos.x - dragOffset.x
+                            : cursorPos.x,
+                        top: 'gate' in draggableGate && draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1
+                            ? cursorPos.y - dragOffset.y
+                            : cursorPos.y,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />

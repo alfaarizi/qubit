@@ -5,17 +5,18 @@ import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { SELECTION_STYLES } from '@/features/circuit/hooks/useGateSelection';
 import type { Gate } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 import { getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     maxDepth: number;
-    placedGates: Gate[];
+    placedGates: (Gate | Circuit)[];
     draggableGateId?: string | null;
     selectedGateIds?: Set<string>;
     scrollContainerWidth?: number | null;
-    handleMouseDown: (gate: Gate, event: MouseEvent) => void;
+    handleMouseDown: (gate: Gate | Circuit, event: MouseEvent) => void;
 }
 
 export function useCircuitRenderer({
@@ -35,6 +36,138 @@ export function useCircuitRenderer({
         if (!svgRef.current) return;
 
         const svg = d3.select(svgRef.current);
+
+        // Helper function to render a single gate
+        const renderGate = (
+            gate: Gate,
+            isPreview: boolean,
+            isSelected: boolean,
+            hasHitbox: boolean
+        ) => {
+            const { minQubit } = getQubitSpan(gate);
+            const x = gate.depth * gateSpacing + gateSpacing / 2;
+            const y = minQubit * gateSpacing + gateSpacing / 2;
+
+            const group = svg.append('g')
+                .datum(gate)
+                .attr('class', 'gate-element')
+                .attr('data-gate-id', gate.id)
+                .attr('opacity', isPreview ? previewOpacity : 1)
+                .style('cursor', isPreview ? 'default' : 'grab');
+
+            const totalQubits = gate.gate.numTargetQubits + gate.gate.numControlQubits;
+
+            if (totalQubits === 1) {
+                const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
+                const qubitY = gate.targetQubits[0] * gateSpacing + gateSpacing / 2;
+
+                group.append('rect')
+                    .attr('x', x - gateSize / 2)
+                    .attr('y', qubitY - gateSize / 2)
+                    .attr('width', gateSize)
+                    .attr('height', gateSize)
+                    .attr('class', 'fill-background')
+                    .attr('rx', borderRadius)
+                    .attr('pointer-events', isPreview ? 'none' : 'auto');
+
+                group.append('rect')
+                    .attr('x', x - gateSize / 2)
+                    .attr('y', y - gateSize / 2)
+                    .attr('width', gateSize)
+                    .attr('height', gateSize)
+                    .attr('fill', `${gate.gate.color}${backgroundOpacity}`)
+                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color)
+                    .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : borderWidth)
+                    .attr('rx', borderRadius)
+                    .attr('pointer-events', isPreview ? 'none' : 'auto');
+
+                group.append('text')
+                    .attr('x', x)
+                    .attr('y', y)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'middle')
+                    .attr('font-family', fontFamily)
+                    .attr('font-weight', fontWeight)
+                    .attr('font-style', fontStyle)
+                    .attr('class', `${textSize} fill-foreground`)
+                    .attr('pointer-events', 'none')
+                    .text(gate.gate.symbol);
+            } else {
+                const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
+                const involvedQubits = getInvolvedQubits(gate);
+                const yFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
+                const yLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
+
+                const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color;
+                const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
+
+                const drawCircle = (cy: number, radius: number) => {
+                    group.append('circle')
+                        .attr('cx', x).attr('cy', cy)
+                        .attr('r', radius)
+                        .attr('class', 'fill-background');
+
+                    group.append('circle')
+                        .attr('cx', x).attr('cy', cy)
+                        .attr('r', radius)
+                        .attr('fill', `${gate.gate.color}${backgroundOpacity}`)
+                        .attr('stroke', strokeColor)
+                        .attr('stroke-width', strokeWidth);
+                };
+
+                group.append('line')
+                    .attr('x1', x).attr('y1', yFirst)
+                    .attr('x2', x).attr('y2', yLast)
+                    .attr('stroke', strokeColor)
+                    .attr('stroke-width', strokeWidth);
+
+                gate.controlQubits.forEach((controlQubit: number) => {
+                    const yControl = controlQubit * gateSpacing + gateSpacing / 2;
+                    drawCircle(yControl, controlDotRadius);
+                });
+
+                gate.targetQubits.forEach((targetQubit: number) => {
+                    const yTarget = targetQubit * gateSpacing + gateSpacing / 2;
+                    drawCircle(yTarget, targetRadius);
+                });
+
+                const textY = gate.targetQubits[gate.targetQubits.length - 1] * gateSpacing + gateSpacing / 2;
+                group.append('text')
+                    .attr('x', x)
+                    .attr('y', textY)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'middle')
+                    .attr('font-family', fontFamily)
+                    .attr('font-weight', fontWeight)
+                    .attr('font-style', fontStyle)
+                    .attr('class', `${textSize} fill-foreground`)
+                    .attr('pointer-events', 'none')
+                    .text(gate.gate.symbol);
+            }
+
+            // Add interaction hitbox
+            if (hasHitbox && !isPreview) {
+                const involvedQubits = getInvolvedQubits(gate);
+                const hitboxYFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
+                const hitboxYLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
+                const hitboxHeight = hitboxYLast - hitboxYFirst + gateSize;
+
+                group.append('rect')
+                    .attr('x', x - gateSize / 2)
+                    .attr('y', hitboxYFirst - gateSize / 2)
+                    .attr('width', gateSize)
+                    .attr('height', hitboxHeight)
+                    .attr('fill', 'transparent')
+                    .attr('cursor', 'grab');
+
+                group.on('mousedown', function(event) {
+                    event.preventDefault();
+                    handleMouseDown(gate, event);
+                });
+            }
+
+            return group;
+        };
 
         // Draw circuit background
         svg.select('.circuit-background').remove();
@@ -70,141 +203,57 @@ export function useCircuitRenderer({
 
         // Draw gates
         svg.selectAll('.gate-element').remove();
+        svg.selectAll('.circuit-element').remove();
 
-        placedGates.forEach(placedGate => {
-            const { id, gate, depth, targetQubits, controlQubits } = placedGate;
-            const { minQubit } = getQubitSpan(placedGate);
-            const isPreview = draggableGateId === id;
-            const isSelected = selectedGateIds.has(id);
+        placedGates.forEach(item => {
+            const isPreview = draggableGateId === item.id;
+            const isSelected = selectedGateIds.has(item.id);
+            if ('circuit' in item) {
+                // render circuit
+                const { circuit, depth, startQubit, id } = item;
+                if (!circuit.gates.length) return;
 
-            const x = depth * gateSpacing + gateSpacing / 2;
-            const y = minQubit * gateSpacing + gateSpacing / 2;
+                // Render internal gates (offset by circuit position)
+                circuit.gates.forEach(g => renderGate({
+                    ...g,
+                    depth: depth + g.depth,
+                    targetQubits: g.targetQubits.map(q => q + startQubit),
+                    controlQubits: g.controlQubits.map(q => q + startQubit),
+                }, isPreview, false, false));
 
-            const group = svg.append('g')
-                .datum(placedGate)
-                .attr('class', 'gate-element')
-                .attr('data-gate-id', id)
-                .attr('opacity', isPreview ? previewOpacity : 1)
-                .style('cursor', isPreview ? 'default' : 'grab');
+                // Calculate border bounds
+                const depths = circuit.gates.map(g => g.depth);
+                const qubits = circuit.gates.flatMap(g => getInvolvedQubits(g));
+                const [minDepth, maxDepth] = [Math.min(...depths), Math.max(...depths)];
+                const [minQubit, maxQubit] = [Math.min(...qubits), Math.max(...qubits)];
+                const borderPad = 4;
 
-            const totalQubits = gate.numTargetQubits + gate.numControlQubits;
-            if (totalQubits === 1) {
-                const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
-                const qubitY = targetQubits[0] * gateSpacing + gateSpacing / 2;
-
-                group.append('rect')
-                    .attr('x', x - gateSize / 2)
-                    .attr('y', qubitY - gateSize / 2)
-                    .attr('width', gateSize)
-                    .attr('height', gateSize)
-                    .attr('fill', 'white')
-                    .attr('class', 'fill-background')
-                    .attr('rx', borderRadius)
-                    .attr('pointer-events', isPreview ? 'none' : 'auto');
-
-                group.append('rect')
-                    .attr('x', x - gateSize / 2)
-                    .attr('y', y - gateSize / 2)
-                    .attr('width', gateSize)
-                    .attr('height', gateSize)
-                    .attr('fill', `${gate.color}${backgroundOpacity}`)
-                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : gate.color)
-                    .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : borderWidth)
-                    .attr('rx', borderRadius)
-                    .attr('pointer-events', isPreview ? 'none' : 'auto');
-
-                group.append('text')
-                    .attr('x', x)
-                    .attr('y', y)
-                    .attr('text-anchor', 'middle')
-                    .attr('dominant-baseline', 'middle')
-                    .attr('font-family', fontFamily)
-                    .attr('font-weight', fontWeight)
-                    .attr('font-style', fontStyle)
-                    .attr('class', `${textSize} fill-foreground`)
-                    .attr('pointer-events', 'none')
-                    .text(gate.symbol);
-
-            } else if (totalQubits > 1) {
-                const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
-                
-                // Get all involved qubits (both control and target) for proper rendering
-                const involvedQubits = getInvolvedQubits(placedGate);
-                const yFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
-                const yLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
-
-                const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.color;
-                const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
-
-                const drawCircle = (cy: number, radius: number) => {
-                    group.append('circle')
-                        .attr('cx', x).attr('cy', cy)
-                        .attr('r', radius)
-                        .attr('class', 'fill-background');
-
-                    group.append('circle')
-                        .attr('cx', x).attr('cy', cy)
-                        .attr('r', radius)
-                        .attr('fill', `${gate.color}${backgroundOpacity}`)
-                        .attr('stroke', strokeColor)
-                        .attr('stroke-width', strokeWidth);
-                };
-
-                // Draw vertical line spanning all involved qubits
-                group.append('line')
-                    .attr('x1', x).attr('y1', yFirst)
-                    .attr('x2', x).attr('y2', yLast)
-                    .attr('stroke', strokeColor)
-                    .attr('stroke-width', strokeWidth);
-
-                // Draw control dots on their specific qubits
-                controlQubits.forEach(controlQubit => {
-                    const yControl = controlQubit * gateSpacing + gateSpacing / 2;
-                    drawCircle(yControl, controlDotRadius);
-                });
-
-                // Draw target circles on their specific qubits
-                targetQubits.forEach(targetQubit => {
-                    const yTarget = targetQubit * gateSpacing + gateSpacing / 2;
-                    drawCircle(yTarget, targetRadius);
-                });
-
-                // Position text at the last target qubit
-                const textY = targetQubits[targetQubits.length - 1] * gateSpacing + gateSpacing / 2;
-                
-                group.append('text')
-                    .attr('x', x)
-                    .attr('y', textY)
-                    .attr('text-anchor', 'middle')
-                    .attr('dominant-baseline', 'middle')
-                    .attr('font-family', fontFamily)
-                    .attr('font-weight', fontWeight)
-                    .attr('font-style', fontStyle)
-                    .attr('class', `${textSize} fill-foreground`)
-                    .attr('pointer-events', 'none')
-                    .text(gate.symbol);
-            }
-
-            // Add interaction for placed gates
-            if (!isPreview) {
-                // Calculate hitbox based on all involved qubits for non-contiguous gates
-                const involvedQubits = getInvolvedQubits(placedGate);
-                const hitboxYFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
-                const hitboxYLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
-                const hitboxHeight = hitboxYLast - hitboxYFirst + gateSize;
+                const group = svg.append('g')
+                    .datum(item)
+                    .attr('class', 'circuit-element')
+                    .attr('data-gate-id', id)
+                    .attr('opacity', isPreview ? previewOpacity : 1);
 
                 group.append('rect')
-                    .attr('x', x - gateSize / 2)
-                    .attr('y', hitboxYFirst - gateSize / 2)
-                    .attr('width', gateSize)
-                    .attr('height', hitboxHeight)
-                    .attr('fill', 'transparent')
+                    .attr('x', (depth + minDepth) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPad)
+                    .attr('y', (startQubit + minQubit) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPad)
+                    .attr('width', (maxDepth - minDepth) * gateSpacing + gateSize + borderPad * 2)
+                    .attr('height', (maxQubit - minQubit) * gateSpacing + gateSize + borderPad * 2)
+                    .attr('fill', 'none')
+                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : '#3b82f6')
+                    .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : 2)
+                    .attr('pointer-events', isPreview ? 'none' : 'all')
                     .attr('cursor', 'grab');
 
-                group.on('mousedown', function(event) {
-                    event.preventDefault();
-                    handleMouseDown(placedGate, event);
-                });
+                if (!isPreview) {
+                    group.on('mousedown', (e: MouseEvent) => {
+                        e.preventDefault();
+                        handleMouseDown(item, e);
+                    });
+                }
+            } else {
+                // render gate
+                renderGate(item, isPreview, isSelected, true);
             }
         });
     }, [

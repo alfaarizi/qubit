@@ -1,13 +1,18 @@
 import type { GateInfo } from "@/features/gates/types.ts";
+import type { CircuitInfo } from "@/features/circuit/types.ts";
 import { GATE_CONFIG } from "@/features/gates/constants.ts";
 import type React from "react";
 
 interface GateIconProps extends React.ComponentPropsWithoutRef<'div'> {
-    gate: GateInfo;
+    item: GateInfo | CircuitInfo;
 }
 
-export function GateIcon({ gate, className, style, ...props }: GateIconProps) {
+export function GateIcon({ item, className, style, ...props }: GateIconProps) {
     const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity, singleQubit } = GATE_CONFIG;
+    
+    const isCircuit = 'gates' in item;
+    const title = isCircuit ? item.name : item.symbol;
+    const color = isCircuit ? 'rgb(59, 130, 246)' : item.color;
 
     return (
         <div
@@ -15,8 +20,8 @@ export function GateIcon({ gate, className, style, ...props }: GateIconProps) {
             style={{
                 width: gateSize,
                 height: gateSize,
-                backgroundColor: `${gate.color}${backgroundOpacity}`,
-                borderColor: gate.color,
+                backgroundColor: `${color}${backgroundOpacity}`,
+                borderColor: color,
                 borderWidth: singleQubit.borderWidth,
                 fontFamily,
                 fontWeight,
@@ -25,7 +30,7 @@ export function GateIcon({ gate, className, style, ...props }: GateIconProps) {
             }}
             {...props}
         >
-            <span className="select-none text-foreground">{gate.symbol}</span>
+            <span className="select-none text-foreground">{title}</span>
         </div>
     );
 }

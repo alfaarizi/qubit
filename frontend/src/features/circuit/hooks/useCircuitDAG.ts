@@ -1,10 +1,12 @@
 import { useCallback } from "react";
 import type { Gate } from "@/features/gates/types";
+import type { Circuit } from "@/features/circuit/types";
 import { getInvolvedQubits } from "@/features/gates/utils";
 
 export function useCircuitDAG() {
 
-    const createGatesMap = useCallback((gates: Gate[]) => {
+    const createGatesMap = useCallback((items: (Gate | Circuit)[]) => {
+        const gates = items.filter((item): item is Gate => 'gate' in item);
         return new Map(gates.map(g => [g.id, { ...g, parents: [...g.parents], children: [...g.children] }]));
     }, []);
 
@@ -23,9 +25,10 @@ export function useCircuitDAG() {
 
     const injectGate = useCallback((
         gate: Gate,
-        gates: Gate[],
-    ): Gate[] => {
-        const gatesMap = createGatesMap(gates);
+        items: (Gate | Circuit)[],
+    ): (Gate | Circuit)[] => {
+        const gatesMap = createGatesMap(items);
+        const circuits = items.filter((item): item is Circuit => 'circuit' in item);
         const qubitToParent = new Map<number, Gate>();
         const qubitToChild = new Map<number, Gate>();
 
@@ -86,14 +89,15 @@ export function useCircuitDAG() {
 
         gatesMap.set(newGate.id, newGate);
         recalculateDepth(newGate.id, gatesMap);
-        return Array.from(gatesMap.values());
+        return [...Array.from(gatesMap.values()), ...circuits];
     }, [createGatesMap, recalculateDepth]);
 
     const ejectGate = useCallback((
         gate: Gate,
-        gates: Gate[],
-    ): Gate[] => {
-        const gatesMap = createGatesMap(gates);
+        items: (Gate | Circuit)[],
+    ): (Gate | Circuit)[] => {
+        const gatesMap = createGatesMap(items);
+        const circuits = items.filter((item): item is Circuit => 'circuit' in item);
         const qubitToParent = new Map<number, Gate>();
         const gateQubits = new Set(getInvolvedQubits(gate));
         gate.parents.sort((a, b) => {
@@ -126,19 +130,19 @@ export function useCircuitDAG() {
             recalculateDepth(childId, gatesMap);
         });
         gatesMap.delete(gate.id);
-        return Array.from(gatesMap.values());
+        return [...Array.from(gatesMap.values()), ...circuits];
     }, [createGatesMap, recalculateDepth]);
 
     const moveGate = useCallback((
         gateId: string,
-        gates: Gate[],
+        items: (Gate | Circuit)[],
         targetDepth: number,
         targetQubit: number
-    ): Gate[] => {
-        const gateToMove = gates.find(g => g.id === gateId);
-        if (!gateToMove) return gates;
+    ): (Gate | Circuit)[] => {
+        const gateToMove = items.find((item): item is Gate => 'gate' in item && item.id === gateId);
+        if (!gateToMove) return items;
 
-        const gatesWithoutMoved = ejectGate(gateToMove, gates);
+        const gatesWithoutMoved = ejectGate(gateToMove, items);
         
         // For moved gates, we need to adjust qubit positions based on the new target qubit
         // we calculate the offset from the original position to maintain relative qubit assignments
@@ -157,11 +161,17 @@ export function useCircuitDAG() {
 
     const removeGate = useCallback((
         gateId: string,
-        gates: Gate[]
-    ): Gate[] => {
-        const gateToRemove = gates.find(g => g.id === gateId);
-        if (!gateToRemove) return gates;
-        return ejectGate(gateToRemove, gates);
+        items: (Gate | Circuit)[]
+    ): (Gate | Circuit)[] => {
+        // Check if it's a circuit - just filter it out
+        const itemToRemove = items.find(item => item.id === gateId);
+        if (!itemToRemove) return items;
+
+        if ('circuit' in itemToRemove) {
+            return items.filter(item => item.id !== gateId);
+        }
+        // It's a gate - use ejectGate for DAG management
+        return ejectGate(itemToRemove, items);
     }, [ejectGate]);
 
     return {

@@ -7,6 +7,8 @@ import {
 } from "@/components/ui/context-menu";
 import { Package } from "lucide-react";
 import { InputDialog } from "@/components/common/InputDialog";
+import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
+import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -20,8 +22,8 @@ interface DialogState {
     position: { x: number; y: number };
 }
 
-export function SelectionContextMenu({ 
-    children, 
+export function SelectionContextMenu({
+    children,
     selectedGateIds,
     onPreventClearSelection,
     onClearSelection,
@@ -30,6 +32,9 @@ export function SelectionContextMenu({
     const [dialogState, setDialogState] = useState<DialogState | null>(null);
     const contextMenuRef = useRef<HTMLDivElement>(null);
     const setPlacedGateIdsRef = useRef<Set<string>>(new Set());
+
+    const placedGates = useCircuitStore((state) => state.placedGates);
+    const { addCircuit } = useCircuitTemplates();
 
     // update preventClearSelection whenever menu or dialog state changes
     useEffect(() => {
@@ -51,7 +56,39 @@ export function SelectionContextMenu({
 
     const handleConfirm = (circuitName: string) => {
         if (!dialogState) return;
-        console.log('Creating circuit:', circuitName, 'Gates:', Array.from(dialogState.gateIds));
+
+        const allGates = placedGates
+            .filter(item => dialogState.gateIds.has(item.id))
+            .flatMap(item => 'circuit' in item
+                ? item.circuit.gates.map(g => ({
+                    ...g,
+                    depth: g.depth + item.depth,
+                    targetQubits: g.targetQubits.map(q => q + item.startQubit),
+                    controlQubits: g.controlQubits.map(q => q + item.startQubit),
+                }))
+                : [item]
+            );
+
+        if (!allGates.length) {
+            setDialogState(null);
+            onClearSelection();
+            return;
+        }
+
+        const minDepth = Math.min(...allGates.map(g => g.depth));
+        const minQubit = Math.min(...allGates.flatMap(g => [...g.targetQubits, ...g.controlQubits]));
+
+        addCircuit({
+            id: crypto.randomUUID(),
+            name: circuitName,
+            gates: allGates.map(g => ({
+                ...g,
+                depth: g.depth - minDepth,
+                targetQubits: g.targetQubits.map(q => q - minQubit),
+                controlQubits: g.controlQubits.map(q => q - minQubit),
+            })),
+        });
+
         setDialogState(null);
         onClearSelection();
     };

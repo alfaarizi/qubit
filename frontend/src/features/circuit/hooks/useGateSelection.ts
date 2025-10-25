@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 import type { Gate } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { getQubitSpan } from '@/features/gates/utils';
 
@@ -13,7 +14,7 @@ interface SelectionRect {
 
 interface UseGateSelectionProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
-    placedGates: Gate[];
+    placedGates: (Gate | Circuit)[];
     isEnabled?: boolean;
     scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
     preventClearSelection?: boolean;
@@ -48,11 +49,11 @@ export function useGateSelection({
     const selectionStartPosRef = useRef<{ x: number; y: number } | null>(null);
     const selectionPosRef = useRef({ x: 0, y: 0 });
 
-    const isGateInSelectionRect = useCallback((gate: Gate, rect: SelectionRect) => {
+    const isGateInSelectionRect = useCallback((item: Gate | Circuit, rect: SelectionRect) => {
         const { gateSize, gateSpacing } = GATE_CONFIG;
-        const { minQubit, maxQubit } = getQubitSpan(gate);
+        const { minQubit, maxQubit } = getQubitSpan(item);
 
-        const gateX = gate.depth * gateSpacing + gateSpacing / 2;
+        const gateX = item.depth * gateSpacing + gateSpacing / 2;
         const gateY = minQubit * gateSpacing + gateSpacing / 2;
         const gateHeight = (maxQubit - minQubit + 1) * gateSpacing;
 

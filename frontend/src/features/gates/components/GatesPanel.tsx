@@ -8,30 +8,34 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronLeft, ChevronRight, ChevronDown, Layers, Search } from "lucide-react";
 
 import type { GateInfo } from '@/features/gates/types';
+import type { CircuitInfo } from '@/features/circuit/types';
 import { GATE_CONFIG, GATES } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
 import { GateIcon } from "@/features/gates/components/GateIcon";
+import { useCircuitTemplates } from '@/features/circuit/store/CircuitTemplatesStore';
 import { useInspector } from '@/features/inspector/InspectorContext';
 
-interface DraggableGateProps {
-    gate: GateInfo;
+interface DraggableItemProps {
+    item: GateInfo | CircuitInfo;
     isDragging: boolean;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, gate: GateInfo) => void;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => void;
     onDragEnd: () => void;
 }
 
-function DraggableGate({ 
-    gate, 
-    isDragging, 
-    onDragStart, 
-    onDragEnd 
-}: DraggableGateProps) {
+function DraggableItem({
+    item,
+    isDragging,
+    onDragStart,
+    onDragEnd
+}: DraggableItemProps) {
     const [isHovered, setIsHovered] = useState(false);
     const { setHoveredGate } = useInspector();
 
     const handleMouseEnter = () => {
         setIsHovered(true);
-        setHoveredGate(gate);
+        if (!('gates' in item)) {
+            setHoveredGate(item);
+        }
     };
 
     const handleMouseLeave = () => {
@@ -42,40 +46,42 @@ function DraggableGate({
     return (
         <div
             draggable
-            onDragStart={(e) => onDragStart(e, gate)}
+            onDragStart={(e) => onDragStart(e, item)}
             onDragEnd={onDragEnd}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             className={`relative mx-auto cursor-grab active:cursor-grabbing transition-all ${
                 isDragging ? 'opacity-50 scale-95' : ''
             }`}
-            title={gate.description}
+            title={!('gates' in item) ? item.description : `Circuit: ${item.name}`}
         >
             <GateIcon
-                gate={gate}
+                item={item}
                 className={isHovered ? 'shadow-md border-yellow-500' : 'shadow-sm'}
             />
         </div>
     );
 }
 
-interface GateCategoryGroupProps {
+interface CategoryGroupProps {
     categoryName: string;
-    gateList: GateInfo[];
-    draggedGateId: string | null;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, gate: GateInfo) => void;
+    items: (GateInfo | CircuitInfo)[];
+    draggedItemId: string | null;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => void;
     onDragEnd: () => void;
     gridColumns: number;
 }
 
-function GateCategoryGroup({ categoryName, gateList, draggedGateId, onDragStart, onDragEnd, gridColumns }: GateCategoryGroupProps) {
+function CategoryGroup({ categoryName, items, draggedItemId, onDragStart, onDragEnd, gridColumns }: CategoryGroupProps) {
     const [isOpen, setIsOpen] = useState(true);
+
+    if (items.length === 0) return null;
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
             <CollapsibleTrigger className={`
-                flex items-center justify-between w-full px-1 py-2 
-                text-sm font-medium text-foreground 
+                flex items-center justify-between w-full px-1 py-2
+                text-sm font-medium text-foreground
                 hover:text-foreground/80 transition-colors`
             }>
                 <span>{categoryName}</span>
@@ -83,11 +89,11 @@ function GateCategoryGroup({ categoryName, gateList, draggedGateId, onDragStart,
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-2">
                 <div className={`grid gap-2 grid-cols-${gridColumns}`}>
-                    {gateList.map((gate) => (
-                        <DraggableGate
-                            key={gate.id}
-                            gate={gate}
-                            isDragging={draggedGateId === gate.id}
+                    {items.map((item) => (
+                        <DraggableItem
+                            key={item.id}
+                            item={item}
+                            isDragging={draggedItemId === item.id}
                             onDragStart={onDragStart}
                             onDragEnd={onDragEnd}
                         />
@@ -101,19 +107,26 @@ function GateCategoryGroup({ categoryName, gateList, draggedGateId, onDragStart,
 export function GatesPanel() {
     const [isExpanded, setIsExpanded] = useState(true);
     const [showExpandedGrid, setShowExpandedGrid] = useState(true);
-    const [draggedGate, setDraggedGate] = useState<string | null>(null);
+    const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const { circuits } = useCircuitTemplates();
     const { gateSize } = GATE_CONFIG;
 
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, gate: GateInfo) => {
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => {
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('application/json', JSON.stringify(gate));
-        setDraggedGate(gate.id);
-        dragState.set(gate.id);
+        if ('gates' in item) {
+             e.dataTransfer.setData('application/json', JSON.stringify({ type: 'circuit', circuit: item }));
+            dragState.set(`circuit-${item.id}`);
+        } else {
+            e.dataTransfer.setData('application/json', JSON.stringify(item));
+            dragState.set(item.id);
+        }
+        setDraggedItemId(item.id);
     };
 
     const handleDragEnd = () => {
-        setDraggedGate(null);
+        setDraggedItemId(null);
         dragState.clear();
     };
 
@@ -127,45 +140,48 @@ export function GatesPanel() {
         }
     };
 
-const fuse = useMemo(() => {
-    return new Fuse(GATES, {
-        keys: [
-            { name: 'symbol', weight: 0.4 },
-            { name: 'name', weight: 0.35 },
-            { name: 'category', weight: 0.15 },
-            { name: 'description', weight: 0.1 }
-        ],
-        threshold: 0.4, // search sensitivity (0.0 = exact, 1.0 = match anything)
-        ignoreLocation: true, // match location flexibility
-        minMatchCharLength: 1, // minimum match requirements
-        includeScore: true,// sorting by relevance
-        shouldSort: true, // auto-sort by best match
-        findAllMatches: false, // stop at first good match
-        useExtendedSearch: false, // keep it simple (no special operators needed)
-        distance: 100, // How far to look for pattern match
-    });
-}, []);
+    const fuse = useMemo(() => {
+        return new Fuse(GATES, {
+            keys: [
+                { name: 'symbol', weight: 0.4 },
+                { name: 'name', weight: 0.35 },
+                { name: 'category', weight: 0.15 },
+                { name: 'description', weight: 0.1 }
+            ],
+            threshold: 0.4,
+            ignoreLocation: true,
+            minMatchCharLength: 1,
+            includeScore: true,
+            shouldSort: true,
+            findAllMatches: false,
+            useExtendedSearch: false,
+            distance: 100,
+        });
+    }, []);
 
     // filter gates based on search query
     const filteredGates = useMemo(() => {
         const query = searchQuery.trim();
         if (!query) return GATES;
-        // fuzzy search
         const results = fuse.search(query);
         return results.map(result => result.item);
     }, [searchQuery, fuse]);
 
     // group gates by category
-    const groupedGates = useMemo(() => {
-        const grouped: Record<string, GateInfo[]> = {};
+    const groupedItems = useMemo(() => {
+        const grouped: Record<string, (GateInfo | CircuitInfo)[]> = {};
         filteredGates.forEach(gate => {
             if (!grouped[gate.category]) {
                 grouped[gate.category] = [];
             }
             grouped[gate.category].push(gate);
         });
+        // custom circuits as a category
+        if (circuits.length > 0) {
+            grouped['Custom Partition'] = circuits;
+        }
         return grouped;
-    }, [filteredGates]);
+}, [filteredGates, circuits]);
 
     const calcPanelWidth = (cols: number) => gateSize * cols + 8 * (cols - 1) + 16;
     const gridColumns = showExpandedGrid ? 4 : 2;
@@ -213,19 +229,20 @@ const fuse = useMemo(() => {
                                     className="pl-9 h-9"
                                 />
                             </div>
-                            {/* Gate Categories */}
-                            {filteredGates.length === 0 ? (
+
+                            {/* Categories */}
+                            {filteredGates.length === 0 && circuits.length === 0 ? (
                                 <p className="text-sm text-muted-foreground text-center py-2">
                                     No gates found
                                 </p>
                             ) : (
                                 <div className="space-y-3">
-                                    {Object.entries(groupedGates).map(([categoryName, gateList]) => (
-                                        <GateCategoryGroup
+                                    {Object.entries(groupedItems).map(([categoryName, items]) => (
+                                        <CategoryGroup
                                             key={categoryName}
                                             categoryName={categoryName}
-                                            gateList={gateList}
-                                            draggedGateId={draggedGate}
+                                            items={items}
+                                            draggedItemId={draggedItemId}
                                             onDragStart={handleDragStart}
                                             onDragEnd={handleDragEnd}
                                             gridColumns={gridColumns}
@@ -238,10 +255,10 @@ const fuse = useMemo(() => {
                         /* Collapsed view */
                         <div className="grid gap-2 grid-cols-2">
                             {GATES.map((gate) => (
-                                <DraggableGate
+                                <DraggableItem
                                     key={gate.id}
-                                    gate={gate}
-                                    isDragging={draggedGate === gate.id}
+                                    item={gate}
+                                    isDragging={draggedItemId === gate.id}
                                     onDragStart={handleDragStart}
                                     onDragEnd={handleDragEnd}
                                 />

@@ -11,13 +11,14 @@ import {
 import {ChevronDown, Download} from "lucide-react";
 
 import type { Gate } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
 
 interface CircuitExportButtonProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
-    placedGates: Gate[];
+    placedGates: (Gate | Circuit)[];
 }
 
 export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitExportButtonProps) {

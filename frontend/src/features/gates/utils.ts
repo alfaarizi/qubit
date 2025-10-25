@@ -1,21 +1,27 @@
 import type { Gate, GateInfo } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 
 /**
- * Get all qubits involved in a gate (sorted ascending)
+ * Get all qubits involved in a gate or circuit (sorted ascending)
  */
-export function getInvolvedQubits(gate: Gate): number[] {
-    return [...gate.controlQubits, ...gate.targetQubits].sort((a, b) => a - b);
+export function getInvolvedQubits(item: Gate | Circuit): number[] {
+    if ('circuit' in item) {
+        const allQubits = item.circuit.gates.flatMap(g => [...g.controlQubits, ...g.targetQubits]);
+        const span = Math.max(...allQubits) + 1;
+        return Array.from({ length: span }, (_, i) => item.startQubit + i);
+    }
+    return [...item.controlQubits, ...item.targetQubits].sort((a, b) => a - b);
 }
 
 /**
- * Get the range of qubits a gate spans
+ * Get the range of qubits a gate or circuit spans
  */
-export function getQubitSpan(gate: Gate): {
+export function getQubitSpan(item: Gate | Circuit): {
     minQubit: number;
     maxQubit: number;
     span: number;
 } {
-    const involvedQubits = getInvolvedQubits(gate);
+    const involvedQubits = getInvolvedQubits(item);
     const minQubit = Math.min(...involvedQubits);
     const maxQubit = Math.max(...involvedQubits);
     return {

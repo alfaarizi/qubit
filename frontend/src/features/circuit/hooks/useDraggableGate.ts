@@ -3,17 +3,19 @@ import React, {useState, useEffect, useCallback, useRef } from 'react';
 import { dragState } from '@/lib/dragState';
 import {GATE_CONFIG, GATES} from '@/features/gates/constants';
 import type { Gate } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 import {createContiguousQubitArrays, getQubitSpan} from "@/features/gates/utils";
+import { useCircuitTemplates } from '@/features/circuit/store/CircuitTemplatesStore';
 
 interface UseDraggableGateProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     maxDepth: number;
-    setPlacedGates: (gates: Gate[] | ((prev: Gate[]) => Gate[]), options?: { skipHistory?: boolean }) => void;
+    setPlacedGates: (gates: (Gate | Circuit)[] | ((prev: (Gate | Circuit)[]) => (Gate | Circuit)[]), options?: { skipHistory?: boolean }) => void;
     scrollContainerWidth?: number | null;
-    injectGate: (gate: Gate, gates: Gate[]) => Gate[];
-    moveGate: (gateId: string, gates: Gate[], targetDepth: number, startQubit: number) => Gate[];
-    removeGate: (gateId: string, gates: Gate[]) => Gate[];
+    injectGate: (gate: Gate, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
+    moveGate: (gateId: string, gates: (Gate | Circuit)[], targetDepth: number, startQubit: number) => (Gate | Circuit)[];
+    removeGate: (gateId: string, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
 }
 
 export function useDraggableGate({
@@ -26,13 +28,14 @@ export function useDraggableGate({
     moveGate,
     removeGate,
 }: UseDraggableGateProps) {
-    const [draggableGate, setDraggableGate] = useState<Gate | null>(null);
+    const [draggableGate, setDraggableGate] = useState<Gate | Circuit | null>(null);
     const [dragGateId, setDragGateId] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
     const dragPosRef = useRef<{ depth: number; qubit: number } | null>(null);
 
     const { gateSpacing } = GATE_CONFIG;
+    const { getCircuit } = useCircuitTemplates();
 
     const getGridPosition = useCallback((e: { clientX: number; clientY: number }, gateSpan: number = 1) => {
         if (!svgRef.current) return null;
@@ -47,8 +50,8 @@ export function useDraggableGate({
         };
     }, [svgRef, gateSpacing, numQubits]);
 
-    const isValidGridPosition = useCallback((e: { clientX: number; clientY: number }, gate: Gate): boolean => {
-        const { span } = getQubitSpan(gate);
+    const isValidGridPosition = useCallback((e: { clientX: number; clientY: number }, item: Gate | Circuit): boolean => {
+        const { span } = getQubitSpan(item);
         const pos = getGridPosition(e, span);
         if (!pos) return false;
         // Check bounds
@@ -86,13 +89,39 @@ export function useDraggableGate({
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (draggableGate) return;
 
-        const gateId = dragState.get();
-        const gate = GATES.find(g => g.id === gateId) || null;
+        const dragId = dragState.get();
+        if (!dragId) return;
+
+        // Handle circuit
+        if (dragId.startsWith('circuit-')) {
+            const circuitInfo = getCircuit(dragId.replace('circuit-', ''));
+            if (!circuitInfo) return;
+
+            const involvedQubits = circuitInfo.gates.flatMap(g => [...g.controlQubits, ...g.targetQubits]);
+            const span = Math.max(...involvedQubits) + 1;
+            const pos = getGridPosition(e, span);
+            if (!pos || span > numQubits) return;
+
+            const newCircuit: Circuit = {
+                id: `circuit-${crypto.randomUUID()}`,
+                circuit: circuitInfo,
+                depth: pos.depth,
+                startQubit: pos.qubit,
+            };
+
+            dragPosRef.current = pos;
+            setDraggableGate(newCircuit);
+            setPlacedGates(prev => [...prev, newCircuit], { skipHistory: false });
+            return;
+        }
+
+        // Handle gate
+        const gate = GATES.find(g => g.id === dragId);
         if (!gate) return;
 
-        const totalQubits = gate.numTargetQubits + gate.numControlQubits;
-        const pos = getGridPosition(e, totalQubits);
-        if (!pos || totalQubits > numQubits) return;
+        const span = gate.numTargetQubits + gate.numControlQubits;
+        const pos = getGridPosition(e, span);
+        if (!pos || span > numQubits) return;
 
         const newGate: Gate = {
             id: `${gate.id}-${crypto.randomUUID()}`,
@@ -103,10 +132,10 @@ export function useDraggableGate({
             children: [],
         };
 
-        dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
+        dragPosRef.current = pos;
         setDraggableGate(newGate);
         setPlacedGates(prev => injectGate(newGate, prev), { skipHistory: false });
-    }, [draggableGate, getGridPosition, numQubits, setPlacedGates, injectGate])
+    }, [draggableGate, getGridPosition, numQubits, setPlacedGates, injectGate, getCircuit])
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -118,7 +147,20 @@ export function useDraggableGate({
 
         if (isValidGridPosition(e, draggableGate)) {
             dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
-            setPlacedGates(prev => moveGate(draggableGate.id, prev, pos.depth, pos.qubit), { skipHistory: true });
+            // For circuits, update position directly; for gates, use moveGate
+            if ('circuit' in draggableGate) {
+                setPlacedGates(prev => prev.map(item =>
+                    item.id === draggableGate.id
+                        ? { 
+                            ...draggableGate, 
+                            depth: pos.depth, 
+                            startQubit: pos.qubit 
+                        }
+                        : item
+                ), { skipHistory: true });
+            } else {
+                setPlacedGates(prev => moveGate(draggableGate.id, prev, pos.depth, pos.qubit), { skipHistory: true });
+            }
         }
     }, [draggableGate, getGridPosition, isValidGridPosition, setPlacedGates, moveGate]);
 
@@ -137,16 +179,17 @@ export function useDraggableGate({
         setDraggableGate(null);
     }, [dragPosRef]);
 
-    const handleMouseDown = useCallback((gate: Gate, event: MouseEvent) => {
+    const handleMouseDown = useCallback((item: Gate | Circuit, event: MouseEvent) => {
         if (event.button !== 0 || !svgRef.current) return;
 
-        const { minQubit, span } = getQubitSpan(gate);
+        const { minQubit, span } = getQubitSpan(item);
         const rect = svgRef.current.getBoundingClientRect();
-        const x = gate.depth * gateSpacing + gateSpacing / 2;
+        const depth = 'circuit' in item ? item.depth : item.depth;
+        const x = depth * gateSpacing + gateSpacing / 2;
         const y = minQubit * gateSpacing + gateSpacing / 2;
 
-        setDraggableGate(gate);
-        setDragGateId(gate.id);
+        setDraggableGate(item);
+        setDragGateId(item.id);
         setDragOffset({
             x: event.clientX - (x + rect.left),
             y: event.clientY - (y + rect.top)
@@ -161,17 +204,30 @@ export function useDraggableGate({
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const pos = getGridPosition(moveEvent, span);
             if (!pos || !hasDragPositionChanged(pos)) return;
-            // move gate if position is valid
-            if (isValidGridPosition(moveEvent, gate)) {
+            // move item if position is valid
+            if (isValidGridPosition(moveEvent, item)) {
                 dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
-                setPlacedGates(prev => moveGate(gate.id, prev, pos.depth, pos.qubit), { skipHistory: false });
+                // for circuits, update position directly; for gates, use moveGate
+                if ('circuit' in item) {
+                    setPlacedGates(prev => prev.map(i =>
+                        i.id === item.id
+                            ? { 
+                                ...item, 
+                                depth: pos.depth, 
+                                startQubit: pos.qubit 
+                            }
+                            : i
+                    ), { skipHistory: false });
+                } else {
+                    setPlacedGates(prev => moveGate(item.id, prev, pos.depth, pos.qubit), { skipHistory: false });
+                }
             }
         };
 
         const handleMouseUp = (upEvent: MouseEvent) => {
             dragPosRef.current = null;
-            if (!isValidGridPosition(upEvent, gate)) {
-                setPlacedGates(prev => removeGate(gate.id, prev), { skipHistory: false });
+            if (!isValidGridPosition(upEvent, item)) {
+                setPlacedGates(prev => removeGate(item.id, prev), { skipHistory: false });
             }
             setDraggableGate(null);
             setDragGateId(null);
@@ -180,7 +236,7 @@ export function useDraggableGate({
         };
 
         const handleContextMenu = () => {
-            // Cancel drag without removing the gate
+            // Cancel drag without removing the item
             dragPosRef.current = null;
             setDraggableGate(null);
             setDragGateId(null);
