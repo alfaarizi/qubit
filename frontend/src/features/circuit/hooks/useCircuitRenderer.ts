@@ -241,7 +241,7 @@ export function useCircuitRenderer({
                     .attr('height', (maxQubit - minQubit) * gateSpacing + gateSize + borderPad * 2)
                     .attr('fill', 'none')
                     .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : '#3b82f6')
-                    .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : 2)
+                    .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : 1)
                     .attr('pointer-events', isPreview ? 'none' : 'all')
                     .attr('cursor', 'grab');
 

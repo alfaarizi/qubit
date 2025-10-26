@@ -13,7 +13,7 @@ export function GateIcon({ item, className, style, ...props }: GateIconProps) {
     const isCircuit = 'gates' in item;
     const title = isCircuit ? item.name : item.symbol;
     const color = isCircuit ? 'rgb(59, 130, 246)' : item.color;
-    const textSize = isCircuit ? 'text-md' : singleQubit.textSize;
+    const textSize = isCircuit ? 'text-xs' : singleQubit.textSize;
 
     return (
         <div

@@ -140,8 +140,10 @@ export function GatesPanel() {
         }
     };
 
+    const allItems = useMemo(() => [...GATES, ...circuits], [circuits]);
+
     const fuse = useMemo(() => {
-        return new Fuse(GATES, {
+        return new Fuse(allItems, {
             keys: [
                 { name: 'symbol', weight: 0.4 },
                 { name: 'name', weight: 0.35 },
@@ -157,31 +159,25 @@ export function GatesPanel() {
             useExtendedSearch: false,
             distance: 100,
         });
-    }, []);
+    }, [allItems]);
 
-    // filter gates based on search query
-    const filteredGates = useMemo(() => {
+    // filter items based on search query
+    const filteredItems = useMemo(() => {
         const query = searchQuery.trim();
-        if (!query) return GATES;
+        if (!query) return allItems;
         const results = fuse.search(query);
         return results.map(result => result.item);
-    }, [searchQuery, fuse]);
+    }, [searchQuery, fuse, allItems]);
 
-    // group gates by category
+    // group items by category
     const groupedItems = useMemo(() => {
         const grouped: Record<string, (GateInfo | CircuitInfo)[]> = {};
-        filteredGates.forEach(gate => {
-            if (!grouped[gate.category]) {
-                grouped[gate.category] = [];
-            }
-            grouped[gate.category].push(gate);
+        filteredItems.forEach(item => {
+            const category = 'gates' in item ? 'Custom Partition' : item.category;
+            (grouped[category] ||= []).push(item);
         });
-        // custom circuits as a category
-        if (circuits.length > 0) {
-            grouped['Custom Partition'] = circuits;
-        }
         return grouped;
-}, [filteredGates, circuits]);
+    }, [filteredItems]);
 
     const calcPanelWidth = (cols: number) => gateSize * cols + 8 * (cols - 1) + 16;
     const gridColumns = showExpandedGrid ? 4 : 2;
@@ -192,8 +188,8 @@ export function GatesPanel() {
             style={{ width: `${isExpanded ? calcPanelWidth(4) : calcPanelWidth(2)}px` }}
         >
             <Card className={`
-                h-full flex flex-col rounded-none border-border/50 
-                bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 gap-1`
+                h-full flex flex-col rounded-none border-border/50
+                bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 gap-1 min-h-0`
             }>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
@@ -214,7 +210,7 @@ export function GatesPanel() {
                     </Button>
                 </CardHeader>
 
-                <CardContent className="flex-1 overflow-y-auto p-3 space-y-3 scroll-smooth">
+                <CardContent className="flex-1 p-3 space-y-3">
                     {isExpanded ? (
                         <>
                             {/* Search Bar */}
@@ -229,11 +225,10 @@ export function GatesPanel() {
                                     className="pl-9 h-9"
                                 />
                             </div>
-
                             {/* Categories */}
-                            {filteredGates.length === 0 && circuits.length === 0 ? (
+                            {filteredItems.length === 0 ? (
                                 <p className="text-sm text-muted-foreground text-center py-2">
-                                    No gates found
+                                    No items found
                                 </p>
                             ) : (
                                 <div className="space-y-3">
@@ -254,11 +249,11 @@ export function GatesPanel() {
                     ) : (
                         /* Collapsed view */
                         <div className="grid gap-2 grid-cols-2">
-                            {GATES.map((gate) => (
+                            {allItems.map((item) => (
                                 <DraggableItem
-                                    key={gate.id}
-                                    item={gate}
-                                    isDragging={draggedItemId === gate.id}
+                                    key={item.id}
+                                    item={item}
+                                    isDragging={draggedItemId === item.id}
                                     onDragStart={handleDragStart}
                                     onDragEnd={handleDragEnd}
                                 />
