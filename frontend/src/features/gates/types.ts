@@ -1,3 +1,10 @@
+export interface DagOperation {
+    id: string;
+    depth: number;
+    parents: string[];
+    children: string[];
+}
+
 /**
  * Gate Template – defines the quantum gate type
  */
@@ -22,12 +29,8 @@ export interface GateInfo {
 /**
  * Circuit Gate Instance - a placed gate in the circuit
  */
-export interface Gate {
-    id: string;
+export interface Gate extends DagOperation {
     gate: GateInfo;
-    depth: number;
     targetQubits: number[];
     controlQubits: number[];
-    parents: string[];
-    children: string[];
 }

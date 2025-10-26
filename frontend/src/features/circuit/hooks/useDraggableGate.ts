@@ -107,6 +107,8 @@ export function useDraggableGate({
                 circuit: circuitInfo,
                 depth: pos.depth,
                 startQubit: pos.qubit,
+                parents: [],
+                children: []
             };
 
             dragPosRef.current = pos;

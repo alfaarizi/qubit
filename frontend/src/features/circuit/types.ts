@@ -1,4 +1,4 @@
-import type { Gate } from "@/features/gates/types";
+import type { Gate, DagOperation } from "@/features/gates/types";
 
 /**
  * CircuitInfo - defines a custom circuit/partition template
@@ -13,9 +13,7 @@ export interface CircuitInfo {
 /**
  * Circuit - a circuit instance placed in the canvas
  */
-export interface Circuit {
-    id: string;
+export interface Circuit extends DagOperation {
     circuit: CircuitInfo;
-    depth: number;
     startQubit: number;
 }
