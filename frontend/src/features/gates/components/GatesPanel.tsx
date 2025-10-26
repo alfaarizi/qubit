@@ -184,7 +184,7 @@ export function GatesPanel() {
 
     return (
         <div
-            className="h-full transition-all duration-300 ease-in-out"
+            className="h-full overflow-hidden transition-all duration-300 ease-in-out"
             style={{ width: `${isExpanded ? calcPanelWidth(4) : calcPanelWidth(2)}px` }}
         >
             <Card className={`
