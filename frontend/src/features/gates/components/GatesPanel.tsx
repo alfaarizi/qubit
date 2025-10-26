@@ -189,7 +189,7 @@ export function GatesPanel() {
         >
             <Card className={`
                 h-full flex flex-col rounded-none border-border/50
-                bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 gap-1 min-h-0`
+                bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 gap-2 py-4 min-h-0`
             }>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
@@ -210,42 +210,44 @@ export function GatesPanel() {
                     </Button>
                 </CardHeader>
 
-                <CardContent className="flex-1 p-3 space-y-3">
+                {isExpanded && (
+                    <div className="px-2 pt-3">
+                        <div className="relative">
+                            <Search className={`
+                                absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`
+                            }/>
+                            <Input
+                                placeholder="Search gates..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 h-9"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <CardContent className="flex-1 overflow-y-auto p-3 space-y-3 scroll-smooth">
                     {isExpanded ? (
-                        <>
-                            {/* Search Bar */}
-                            <div className="relative">
-                                <Search className={`
-                                    absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`
-                                }/>
-                                <Input
-                                    placeholder="Search gates..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-9 h-9"
-                                />
+                        /* Expanded view */
+                        filteredItems.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-2">
+                                No gates found
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                {Object.entries(groupedItems).map(([categoryName, items]) => (
+                                    <CategoryGroup
+                                        key={categoryName}
+                                        categoryName={categoryName}
+                                        items={items}
+                                        draggedItemId={draggedItemId}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                        gridColumns={gridColumns}
+                                    />
+                                ))}
                             </div>
-                            {/* Categories */}
-                            {filteredItems.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-2">
-                                    No items found
-                                </p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {Object.entries(groupedItems).map(([categoryName, items]) => (
-                                        <CategoryGroup
-                                            key={categoryName}
-                                            categoryName={categoryName}
-                                            items={items}
-                                            draggedItemId={draggedItemId}
-                                            onDragStart={handleDragStart}
-                                            onDragEnd={handleDragEnd}
-                                            gridColumns={gridColumns}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </>
+                        )
                     ) : (
                         /* Collapsed view */
                         <div className="grid gap-2 grid-cols-2">
