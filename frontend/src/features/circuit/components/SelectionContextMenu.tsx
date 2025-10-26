@@ -6,7 +6,7 @@ import {
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Package } from "lucide-react";
-import { InputDialog } from "@/components/common/InputDialog";
+import { CreateCircuitDialog } from "@/components/common/CreateCircuitDialog";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
 
@@ -54,7 +54,7 @@ export function SelectionContextMenu({
         setDialogState({ gateIds: setPlacedGateIdsRef.current, position });
     };
 
-    const handleConfirm = (circuitName: string) => {
+    const handleConfirm = (symbol: string, color: string) => {
         if (!dialogState) return;
 
         const allGates = placedGates
@@ -80,7 +80,8 @@ export function SelectionContextMenu({
 
         addCircuit({
             id: crypto.randomUUID(),
-            name: circuitName,
+            symbol,
+            color,
             gates: allGates.map(g => ({
                 ...g,
                 depth: g.depth - minDepth,
@@ -121,14 +122,11 @@ export function SelectionContextMenu({
                     </ContextMenuContent>
                 </ContextMenu>
             )}
-            <InputDialog
+            <CreateCircuitDialog
                 open={!!dialogState}
                 position={dialogState?.position || null}
                 onClose={handleDialogClose}
                 onConfirm={handleConfirm}
-                title="Create Circuit"
-                placeholder="Circuit name..."
-                confirmText="Create"
             />
         </>
     );

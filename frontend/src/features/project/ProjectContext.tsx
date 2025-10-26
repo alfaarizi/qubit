@@ -16,7 +16,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const [circuits, setCircuits] = useState<CircuitInfo[]>(
         Array.from({ length: 4 }, (_, i) => ({
             id: `circuit-${i}`,
-            name: `Circuit ${i + 1}`,
+            symbol: `Circuit ${i + 1}`,
+            color: '#3b82f6',
             gates: [],
         }))
     );

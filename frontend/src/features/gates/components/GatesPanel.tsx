@@ -54,7 +54,7 @@ function DraggableItem({
             className={`relative mx-auto cursor-grab active:cursor-grabbing transition-all ${
                 isDragging ? 'opacity-50 scale-95' : ''
             }`}
-            title={!('gates' in item) ? item.description : `Circuit: ${item.name}`}
+            title={!('gates' in item) ? item.description : `Circuit: ${item.symbol}`}
         >
             <GateIcon
                 item={item}

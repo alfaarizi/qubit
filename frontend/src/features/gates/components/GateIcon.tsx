@@ -11,8 +11,8 @@ export function GateIcon({ item, className, style, ...props }: GateIconProps) {
     const { gateSize, fontFamily, fontWeight, fontStyle, backgroundOpacity, singleQubit } = GATE_CONFIG;
 
     const isCircuit = 'gates' in item;
-    const title = isCircuit ? item.name : item.symbol;
-    const color = isCircuit ? 'rgb(59, 130, 246)' : item.color;
+    const title = item.symbol;
+    const color = item.color;
     const textSize = isCircuit ? 'text-xs' : singleQubit.textSize;
 
     return (

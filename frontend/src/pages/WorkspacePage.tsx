@@ -75,7 +75,7 @@ function WorkspaceContent() {
                                         <TabsList>
                                             {circuits.map(circuit => (
                                                 <TabsTrigger key={circuit.id} value={circuit.id}>
-                                                    {circuit.name}
+                                                    {circuit.symbol}
                                                 </TabsTrigger>
                                             ))}
                                         </TabsList>

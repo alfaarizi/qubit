@@ -84,8 +84,8 @@ export function EditGateDialog({
                 {qubits.map((qubit, index) => {
                     const isControl = index < numControls;
                     const label = isControl
-                        ? `Control ${String.fromCharCode(98 + index)}`
-                        : `Target ${String.fromCharCode(97 + index - numControls)}`;
+                        ? `Control (${String.fromCharCode(97 + index)})`
+                        : `Target (${String.fromCharCode(97 + index)})`;
 
                     return (
                         <div key={index} className="space-y-1.5">

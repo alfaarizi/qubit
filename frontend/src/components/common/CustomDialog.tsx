@@ -52,13 +52,11 @@ export function CustomDialog({
     useEffect(() => {
         if (!open) return;
         const handleClickOutside = (e: MouseEvent) => {
-            if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
-                onClose();
-            }
+            const target = e.target as Element;
+            if (dialogRef.current?.contains(target) || target.closest('[data-radix-popper-content-wrapper]')) return;
+            onClose();
         };
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
+        const handleEscape = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
         document.addEventListener('mousedown', handleClickOutside);
         document.addEventListener('keydown', handleEscape);
         return () => {

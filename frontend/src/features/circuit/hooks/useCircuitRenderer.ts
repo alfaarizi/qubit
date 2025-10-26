@@ -234,16 +234,42 @@ export function useCircuitRenderer({
                     .attr('data-gate-id', id)
                     .attr('opacity', isPreview ? previewOpacity : 1);
 
+                const rectX = (depth + minDepth) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPad;
+                const rectY = (startQubit + minQubit) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPad;
+                const rectWidth = (maxDepth - minDepth) * gateSpacing + gateSize + borderPad * 2;
+                const rectHeight = (maxQubit - minQubit) * gateSpacing + gateSize + borderPad * 2;
+
                 group.append('rect')
-                    .attr('x', (depth + minDepth) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPad)
-                    .attr('y', (startQubit + minQubit) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPad)
-                    .attr('width', (maxDepth - minDepth) * gateSpacing + gateSize + borderPad * 2)
-                    .attr('height', (maxQubit - minQubit) * gateSpacing + gateSize + borderPad * 2)
+                    .attr('x', rectX)
+                    .attr('y', rectY)
+                    .attr('width', rectWidth)
+                    .attr('height', rectHeight)
                     .attr('fill', 'none')
-                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : '#3b82f6')
+                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : circuit.color)
                     .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : 1)
                     .attr('pointer-events', isPreview ? 'none' : 'all')
                     .attr('cursor', 'grab');
+
+                // Add circuit name label in top-right corner
+                const maxChars = Math.floor((rectWidth * 0.75 - 8) / 6);
+                const labelText = circuit.symbol.length > maxChars ? circuit.symbol.substring(0, maxChars - 3) + '...' : circuit.symbol;
+                const labelWidth = labelText.length * 6 + 8;
+
+                group.append('rect')
+                    .attr('x', rectX + rectWidth - labelWidth)
+                    .attr('y', rectY)
+                    .attr('width', labelWidth)
+                    .attr('height', 14)
+                    .attr('fill', circuit.color);
+
+                group.append('text')
+                    .attr('x', rectX + rectWidth - 4)
+                    .attr('y', rectY + 7)
+                    .attr('text-anchor', 'end')
+                    .attr('dominant-baseline', 'middle')
+                    .attr('font-family', fontFamily)
+                    .attr('class', 'text-xs fill-background')
+                    .text(labelText);
 
                 if (!isPreview) {
                     group.on('mousedown', (e: MouseEvent) => {
