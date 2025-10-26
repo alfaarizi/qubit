@@ -4,6 +4,7 @@ import Fuse from 'fuse.js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronLeft, ChevronRight, ChevronDown, Layers, Search } from "lucide-react";
 
@@ -226,42 +227,44 @@ export function GatesPanel() {
                     </div>
                 )}
 
-                <CardContent className="flex-1 overflow-y-auto p-3 space-y-3 scroll-smooth">
-                    {isExpanded ? (
-                        /* Expanded view */
-                        filteredItems.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-2">
-                                No gates found
-                            </p>
-                        ) : (
-                            <div className="space-y-3">
-                                {Object.entries(groupedItems).map(([categoryName, items]) => (
-                                    <CategoryGroup
-                                        key={categoryName}
-                                        categoryName={categoryName}
-                                        items={items}
-                                        draggedItemId={draggedItemId}
-                                        onDragStart={handleDragStart}
-                                        onDragEnd={handleDragEnd}
-                                        gridColumns={gridColumns}
-                                    />
-                                ))}
-                            </div>
-                        )
-                    ) : (
-                        /* Collapsed view */
-                        <div className="grid gap-2 grid-cols-2">
-                            {allItems.map((item) => (
-                                <DraggableItem
-                                    key={item.id}
-                                    item={item}
-                                    isDragging={draggedItemId === item.id}
-                                    onDragStart={handleDragStart}
-                                    onDragEnd={handleDragEnd}
-                                />
-                            ))}
+                <CardContent className="flex-1 overflow-hidden p-0">
+                    <ScrollArea className="h-full">
+                        <div className="p-3 space-y-3">
+                            {isExpanded ? (
+                                filteredItems.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-2">
+                                        No items found
+                                    </p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {Object.entries(groupedItems).map(([categoryName, items]) => (
+                                            <CategoryGroup
+                                                key={categoryName}
+                                                categoryName={categoryName}
+                                                items={items}
+                                                draggedItemId={draggedItemId}
+                                                onDragStart={handleDragStart}
+                                                onDragEnd={handleDragEnd}
+                                                gridColumns={gridColumns}
+                                            />
+                                        ))}
+                                    </div>
+                                )
+                            ) : (
+                                <div className="grid gap-2 grid-cols-2">
+                                    {allItems.map((item) => (
+                                        <DraggableItem
+                                            key={item.id}
+                                            item={item}
+                                            isDragging={draggedItemId === item.id}
+                                            onDragStart={handleDragStart}
+                                            onDragEnd={handleDragEnd}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </div>
