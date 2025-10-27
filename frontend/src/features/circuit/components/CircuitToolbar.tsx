@@ -5,10 +5,13 @@ import {
     Play,
     ChevronDown,
     FolderOpen,
-    GitBranch
+    GitBranch,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,6 +29,8 @@ export function CircuitToolbar() {
     const numQubits = useCircuitStore((state) => state.numQubits);
     const measurements = useCircuitStore((state) => state.measurements);
     const placedGates = useCircuitStore((state) => state.placedGates);
+    const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
+    const setShowNestedCircuit = useCircuitStore((state) => state.setShowNestedCircuit);
     const reset = useCircuitStore((state) => state.reset);
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
@@ -54,6 +59,7 @@ export function CircuitToolbar() {
             placedGates: [],
             numQubits: numQubits,
             measurements: measurements.map(() => true),
+            showNestedCircuit: showNestedCircuit,
         });
     };
 
@@ -118,6 +124,21 @@ export function CircuitToolbar() {
                 <Trash2 className="h-4 w-4" />
                 Clear
             </Button>
+
+            <Separator orientation="vertical" className="h-6" />
+            <div className="flex items-center gap-2 h-9 px-2 rounded-md">
+                {
+                    showNestedCircuit ? (
+                        <Eye className="h-4 w-4"/>
+                    ) : (
+                        <EyeOff className="h-4 w-4"/>
+                    )
+                }
+                <Switch
+                    checked={showNestedCircuit}
+                    onCheckedChange={setShowNestedCircuit}
+                />
+            </div>
 
             {/* Spacer */}
             <div className="flex-1" />

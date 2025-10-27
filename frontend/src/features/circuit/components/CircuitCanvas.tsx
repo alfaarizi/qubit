@@ -116,6 +116,7 @@ export function CircuitCanvas() {
     const numQubits = useCircuitStore((state) => state.numQubits);
     const placedGates = useCircuitStore((state) => state.placedGates);
     const measurements = useCircuitStore((state) => state.measurements);
+    const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
 
@@ -198,6 +199,7 @@ export function CircuitCanvas() {
         selectedGateIds,
         scrollContainerWidth,
         handleMouseDown,
+        showNestedCircuit,
     });
 
     return (

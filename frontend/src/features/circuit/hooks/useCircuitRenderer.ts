@@ -16,7 +16,7 @@ interface UseCircuitRendererProps {
     draggableGateId?: string | null;
     selectedGateIds?: Set<string>;
     scrollContainerWidth?: number | null;
-    showNestedCircuitBorders?: boolean;
+    showNestedCircuit?: boolean;
     handleMouseDown: (gate: Gate | Circuit, event: MouseEvent) => void;
 }
 
@@ -28,7 +28,7 @@ export function useCircuitRenderer({
     draggableGateId = '',
     selectedGateIds = new Set(),
     scrollContainerWidth,
-    showNestedCircuitBorders = true,
+    showNestedCircuit = false,
     handleMouseDown,
 }: UseCircuitRendererProps) {
     const { footerHeight } = CIRCUIT_CONFIG;
@@ -240,7 +240,7 @@ export function useCircuitRenderer({
                 });
             }
 
-            return showLabel ? { rectX, rectY, rectWidth, rectHeight, circuit, isTopCircuit } : null;
+            return { rectX, rectY, rectWidth, rectHeight, circuit, isTopCircuit, showLabel };
         };
 
         const renderCircuitLabel = (
@@ -352,6 +352,7 @@ export function useCircuitRenderer({
             rectHeight: number;
             circuit: Circuit['circuit'];
             isTopCircuit: boolean;
+            showLabel: boolean;
         }> = [];
 
         const renderGateRecursive = (g: Gate | Circuit, dOffset: number, qOffset: number, isPreview: boolean, depth: number = 0) => {
@@ -366,12 +367,11 @@ export function useCircuitRenderer({
                 g.circuit.gates.forEach(nested => 
                     renderGateRecursive(nested, dOffset + g.depth, qOffset + g.startQubit, isPreview, depth + 1)
                 );
-                if (showNestedCircuitBorders || depth === 0) { 
+                if (showNestedCircuit || depth === 0) {
                     const circuitLabel = renderCircuitBorder(g, dOffset + g.depth, qOffset + g.startQubit, isPreview, false, false, depth === 0);
                     if (circuitLabel) {
                         circuitLabelsToRender.push(circuitLabel);
                     }
-
                 }
             }
         };
@@ -397,11 +397,13 @@ export function useCircuitRenderer({
         });
 
         circuitLabelsToRender.forEach(info => {
-            renderCircuitLabel(info.rectX, info.rectY, info.rectWidth, info.circuit, info.isTopCircuit);
+            if (info.showLabel) {
+                renderCircuitLabel(info.rectX, info.rectY, info.rectWidth, info.circuit, info.isTopCircuit);
+            }
         });
     }, [
         svgRef, numQubits, maxDepth, placedGates, draggableGateId, scrollContainerWidth,
         gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, qubitSpacing, backgroundOpacity, previewOpacity, footerHeight,
-        handleMouseDown, selectedGateIds
+        handleMouseDown, selectedGateIds, showNestedCircuit
     ]);
 }

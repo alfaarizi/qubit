@@ -13,12 +13,14 @@ interface CircuitState {
     placedGates: (Gate | Circuit)[];
     numQubits: number;
     measurements: boolean[];
+    showNestedCircuit: boolean;
 }
 
 interface CircuitActions {
     setPlacedGates: (gates: (Gate | Circuit)[] | ((prev: (Gate | Circuit)[]) => (Gate | Circuit)[]), options?: { skipHistory?: boolean }) => void;
     setNumQubits: (qubits: number | ((prev: number) => number)) => void;
     setMeasurements: (measurements: boolean[] | ((prev: boolean[]) => boolean[])) => void;
+    setShowNestedCircuit: (show: boolean | ((prev: boolean) => boolean)) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;
     addQubit: () => void;
     removeQubit: () => void;
@@ -33,6 +35,7 @@ const initialState: CircuitState = {
     placedGates: [],
     numQubits: CIRCUIT_CONFIG.defaultNumQubits,
     measurements: Array(CIRCUIT_CONFIG.defaultNumQubits).fill(true),
+    showNestedCircuit: false,
 };
 
 const circuitStores = new Map<string, CircuitStoreApi>();
@@ -60,12 +63,17 @@ const createCircuitStore = (circuitId: string) => {
                         set((state) => ({
                             measurements: typeof measurements === 'function' ? measurements(state.measurements) : measurements,
                         })),
+                    setShowNestedCircuit: (show) =>
+                        set((state) => ({
+                            showNestedCircuit: typeof show === 'function' ? show(state.showNestedCircuit) : show,
+                        })),
                     updateCircuit: (updater) =>
                         set((state) => {
                             return updater({
                                 placedGates: state.placedGates,
                                 numQubits: state.numQubits,
                                 measurements: state.measurements,
+                                showNestedCircuit: state.showNestedCircuit,
                             });
                         }),
                     addQubit: () =>
@@ -94,6 +102,10 @@ const createCircuitStore = (circuitId: string) => {
                 }),
                 {
                     limit: 50,
+                    partialize: (state) => {
+                        const { showNestedCircuit, ...rest } = state;
+                        return rest;
+                    },
                     equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),
                     handleSet: (handleSet) => (state) => {
                         if (skipHistory) {
