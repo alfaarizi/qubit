@@ -9,6 +9,7 @@ import { Package } from "lucide-react";
 import { CreateCircuitDialog } from "@/components/common/CreateCircuitDialog";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
+import { getInvolvedQubits } from "@/features/gates/utils";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -57,36 +58,30 @@ export function SelectionContextMenu({
     const handleConfirm = (symbol: string, color: string) => {
         if (!dialogState) return;
 
-        const allGates = placedGates
-            .filter(item => dialogState.gateIds.has(item.id))
-            .flatMap(item => 'circuit' in item
-                ? item.circuit.gates.map(g => ({
-                    ...g,
-                    depth: g.depth + item.depth,
-                    targetQubits: g.targetQubits.map(q => q + item.startQubit),
-                    controlQubits: g.controlQubits.map(q => q + item.startQubit),
-                }))
-                : [item]
-            );
-
-        if (!allGates.length) {
+        const selectedItems = placedGates.filter(item => dialogState.gateIds.has(item.id));
+        if (!selectedItems.length) {
             setDialogState(null);
             onClearSelection();
             return;
         }
 
-        const minDepth = Math.min(...allGates.map(g => g.depth));
-        const minQubit = Math.min(...allGates.flatMap(g => [...g.targetQubits, ...g.controlQubits]));
+        const minDepth = Math.min(...selectedItems.map(item => item.depth));
+        const minQubit = Math.min(...selectedItems.flatMap(item => getInvolvedQubits(item)));
 
         addCircuit({
             id: crypto.randomUUID(),
             symbol,
             color,
-            gates: allGates.map(g => ({
-                ...g,
-                depth: g.depth - minDepth,
-                targetQubits: g.targetQubits.map(q => q - minQubit),
-                controlQubits: g.controlQubits.map(q => q - minQubit),
+            gates: selectedItems.map(item => ({
+                ...item,
+                depth: item.depth - minDepth,
+                ...('circuit' in item
+                    ? { startQubit: item.startQubit - minQubit }
+                    : {
+                        targetQubits: item.targetQubits.map(q => q - minQubit),
+                        controlQubits: item.controlQubits.map(q => q - minQubit),
+                    }
+                ),
             })),
         });
 

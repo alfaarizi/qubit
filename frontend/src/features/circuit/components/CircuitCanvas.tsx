@@ -28,7 +28,7 @@ function QubitLabels({ numQubits, onAddQubit, onRemoveQubit }: QubitLabelsProps)
     return (
         <div className="flex flex-col">
             {Array.from({ length: numQubits }, (_, i) => (
-                <div key={i} style={{ height: GATE_CONFIG.gateSpacing }}
+                <div key={i} style={{ height: GATE_CONFIG.qubitSpacing }}
                      className="flex items-center justify-center font-mono text-sm">
                     q[{i}]
                 </div>
@@ -61,7 +61,7 @@ export function MeasurementToggles({ measurements, onToggle }: MeasurementToggle
     return (
         <div className="flex flex-col">
             {measurements.map((isMeasured, i) => (
-                <div key={i} style={{height: GATE_CONFIG.gateSpacing}} className="flex items-center justify-center">
+                <div key={i} style={{height: GATE_CONFIG.qubitSpacing}} className="flex items-center justify-center">
                     <button
                         onClick={() => onToggle(i)}
                         className={`w-6 h-6 flex items-center justify-center cursor-pointer ${

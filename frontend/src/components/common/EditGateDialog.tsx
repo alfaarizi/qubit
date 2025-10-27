@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { CustomDialog } from './CustomDialog';
-import { useCircuitDAG } from '@/features/circuit/hooks/useCircuitDAG';
 import { useCircuitStore } from '@/features/circuit/store/CircuitStoreContext';
+import { useCircuitDAG } from '@/features/circuit/hooks/useCircuitDAG';
+import { getSpanQubits } from '@/features/gates/utils';
 import type { Gate } from '@/features/gates/types';
 
 interface EditGateDialogProps {
@@ -21,9 +22,9 @@ export function EditGateDialog({
 }: EditGateDialogProps) {
     const [qubits, setQubits] = useState<number[]>([]);
     const [currentGate, setCurrentGate] = useState<Gate | null>(null);
-    const { ejectGate, injectGate } = useCircuitDAG();
     const placedGates = useCircuitStore(state => state.placedGates);
     const setPlacedGates = useCircuitStore(state => state.setPlacedGates);
+    const { ejectGate, injectGate } = useCircuitDAG();
 
     useEffect(() => {
         if (open && gate) {
@@ -35,35 +36,36 @@ export function EditGateDialog({
     const handleQubitChange = (index: number, newValue: number) => {
         if (!currentGate) return;
 
+        const newQubits = [...qubits];
         const existingIndex = qubits.indexOf(newValue);
-        let newQubits: number[];
 
         if (existingIndex !== -1 && existingIndex !== index) {
-            // Swap qubits
-            newQubits = [...qubits];
-            newQubits[existingIndex] = qubits[index];
-            newQubits[index] = newValue;
+            [newQubits[index], newQubits[existingIndex]] = [newQubits[existingIndex], newQubits[index]];
         } else {
-            // Just update
-            newQubits = [...qubits];
             newQubits[index] = newValue;
         }
 
         setQubits(newQubits);
 
-        // Immediately apply the change to the circuit
         const numControls = currentGate.controlQubits.length;
-        const gatesWithoutEdited = ejectGate(currentGate, placedGates);
-
         const editedGate: Gate = {
             ...currentGate,
             controlQubits: newQubits.slice(0, numControls),
             targetQubits: newQubits.slice(numControls),
         };
 
-        const gatesWithEdited = injectGate(editedGate, gatesWithoutEdited);
-        setPlacedGates(gatesWithEdited);
-        setCurrentGate(editedGate); // Update reference for next change
+        // Prevent collapse: exclude children that still overlap with edited gate from reconnection
+        // Children that no longer overlap will collapse properly by reconnecting to earlier parents
+        const newSpanQubits = new Set(getSpanQubits(editedGate));
+        const childrenToExclude = currentGate.children.filter(childId => {
+            const child = placedGates.find(g => g.id === childId);
+            if (!child) return false;
+            const childSpanQubits = getSpanQubits(child);
+            return childSpanQubits.some(q => newSpanQubits.has(q));
+        });
+
+        setPlacedGates(injectGate(editedGate, ejectGate(currentGate, placedGates, childrenToExclude)));
+        setCurrentGate(editedGate);
     };
 
     if (!open || !gate || !position) return null;

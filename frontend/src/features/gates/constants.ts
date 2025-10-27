@@ -9,6 +9,7 @@ export const GATE_CATEGORIES = {
 export const GATE_CONFIG = {
     gateSize: 42,
     gateSpacing: 50,
+    qubitSpacing: 50,
     backgroundOpacity: 40,
     previewOpacity: 0.5,
     fontWeight: 'normal',
