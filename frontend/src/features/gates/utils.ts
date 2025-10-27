@@ -6,7 +6,7 @@ import type { Circuit } from '@/features/circuit/types';
  */
 export function getInvolvedQubits(item: Gate | Circuit): number[] {
     if ('circuit' in item) {
-        const allQubits = item.circuit.gates.flatMap(g => [...g.controlQubits, ...g.targetQubits]);
+        const allQubits = item.circuit.gates.flatMap(g => getInvolvedQubits(g));
         const span = Math.max(...allQubits) + 1;
         return Array.from({ length: span }, (_, i) => item.startQubit + i);
     }
@@ -16,12 +16,21 @@ export function getInvolvedQubits(item: Gate | Circuit): number[] {
 /**
  * Get the range of qubits a gate or circuit spans
  */
+export function getQubitSpanQubits(item: Gate | Circuit): number[]
+{
+    const involvedQubits = getInvolvedQubits(item);
+    const minQubit = Math.min(...involvedQubits);
+    const maxQubit = Math.max(...involvedQubits);
+    const rangeQubits = (start: number, end: number) => Array.from({ length: end - start }, (_, i) => start + i);
+    return rangeQubits(minQubit, maxQubit + 1)
+}
+
 export function getQubitSpan(item: Gate | Circuit): {
     minQubit: number;
     maxQubit: number;
     span: number;
 } {
-    const involvedQubits = getInvolvedQubits(item);
+const involvedQubits = getInvolvedQubits(item);
     const minQubit = Math.min(...involvedQubits);
     const maxQubit = Math.max(...involvedQubits);
     return {

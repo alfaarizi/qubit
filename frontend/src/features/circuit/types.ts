@@ -7,7 +7,7 @@ export interface CircuitInfo {
     id: string;
     symbol: string;
     color: string;
-    gates: Gate[];
+    gates: (Gate | Circuit)[];
 }
 
 /**

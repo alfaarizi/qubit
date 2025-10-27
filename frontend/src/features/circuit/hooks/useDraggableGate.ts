@@ -4,7 +4,7 @@ import { dragState } from '@/lib/dragState';
 import {GATE_CONFIG, GATES} from '@/features/gates/constants';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
-import {createContiguousQubitArrays, getQubitSpan} from "@/features/gates/utils";
+import {createContiguousQubitArrays, getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
 import { useCircuitTemplates } from '@/features/circuit/store/CircuitTemplatesStore';
 
 interface UseDraggableGateProps {
@@ -13,7 +13,7 @@ interface UseDraggableGateProps {
     maxDepth: number;
     setPlacedGates: (gates: (Gate | Circuit)[] | ((prev: (Gate | Circuit)[]) => (Gate | Circuit)[]), options?: { skipHistory?: boolean }) => void;
     scrollContainerWidth?: number | null;
-    injectGate: (gate: Gate, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
+    injectGate: (gate: Gate | Circuit, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
     moveGate: (gateId: string, gates: (Gate | Circuit)[], targetDepth: number, startQubit: number) => (Gate | Circuit)[];
     removeGate: (gateId: string, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
 }
@@ -97,7 +97,7 @@ export function useDraggableGate({
             const circuitInfo = getCircuit(dragId.replace('circuit-', ''));
             if (!circuitInfo) return;
 
-            const involvedQubits = circuitInfo.gates.flatMap(g => [...g.controlQubits, ...g.targetQubits]);
+            const involvedQubits = circuitInfo.gates.flatMap(g => getInvolvedQubits(g));
             const span = Math.max(...involvedQubits) + 1;
             const pos = getGridPosition(e, span);
             if (!pos || span > numQubits) return;
@@ -113,7 +113,7 @@ export function useDraggableGate({
 
             dragPosRef.current = pos;
             setDraggableGate(newCircuit);
-            setPlacedGates(prev => [...prev, newCircuit], { skipHistory: false });
+            setPlacedGates(prev => injectGate(newCircuit, prev), { skipHistory: false });
             return;
         }
 
@@ -149,20 +149,7 @@ export function useDraggableGate({
 
         if (isValidGridPosition(e, draggableGate)) {
             dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
-            // For circuits, update position directly; for gates, use moveGate
-            if ('circuit' in draggableGate) {
-                setPlacedGates(prev => prev.map(item =>
-                    item.id === draggableGate.id
-                        ? { 
-                            ...draggableGate, 
-                            depth: pos.depth, 
-                            startQubit: pos.qubit 
-                        }
-                        : item
-                ), { skipHistory: true });
-            } else {
-                setPlacedGates(prev => moveGate(draggableGate.id, prev, pos.depth, pos.qubit), { skipHistory: true });
-            }
+            setPlacedGates(prev => moveGate(draggableGate.id, prev, pos.depth, pos.qubit), { skipHistory: true });
         }
     }, [draggableGate, getGridPosition, isValidGridPosition, setPlacedGates, moveGate]);
 
@@ -209,20 +196,7 @@ export function useDraggableGate({
             // move item if position is valid
             if (isValidGridPosition(moveEvent, item)) {
                 dragPosRef.current = { depth: pos.depth, qubit: pos.qubit };
-                // for circuits, update position directly; for gates, use moveGate
-                if ('circuit' in item) {
-                    setPlacedGates(prev => prev.map(i =>
-                        i.id === item.id
-                            ? { 
-                                ...item, 
-                                depth: pos.depth, 
-                                startQubit: pos.qubit 
-                            }
-                            : i
-                    ), { skipHistory: false });
-                } else {
-                    setPlacedGates(prev => moveGate(item.id, prev, pos.depth, pos.qubit), { skipHistory: false });
-                }
+                setPlacedGates(prev => moveGate(item.id, prev, pos.depth, pos.qubit), { skipHistory: false });
             }
         };
 

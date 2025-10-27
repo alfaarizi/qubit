@@ -39,27 +39,27 @@ export function useCircuitRenderer({
 
         // Helper function to render a single gate
         const renderGate = (
-            gate: Gate,
+            item: Gate,
             isPreview: boolean,
             isSelected: boolean,
             hasHitbox: boolean
         ) => {
-            const { minQubit } = getQubitSpan(gate);
-            const x = gate.depth * gateSpacing + gateSpacing / 2;
+            const { minQubit } = getQubitSpan(item);
+            const x = item.depth * gateSpacing + gateSpacing / 2;
             const y = minQubit * gateSpacing + gateSpacing / 2;
 
             const group = svg.append('g')
-                .datum(gate)
+                .datum(item)
                 .attr('class', 'gate-element')
-                .attr('data-gate-id', gate.id)
+                .attr('data-gate-id', item.id)
                 .attr('opacity', isPreview ? previewOpacity : 1)
                 .style('cursor', isPreview ? 'default' : 'grab');
 
-            const totalQubits = gate.gate.numTargetQubits + gate.gate.numControlQubits;
+            const totalQubits = item.gate.numTargetQubits + item.gate.numControlQubits;
 
             if (totalQubits === 1) {
                 const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
-                const qubitY = gate.targetQubits[0] * gateSpacing + gateSpacing / 2;
+                const qubitY = item.targetQubits[0] * gateSpacing + gateSpacing / 2;
 
                 group.append('rect')
                     .attr('x', x - gateSize / 2)
@@ -75,8 +75,8 @@ export function useCircuitRenderer({
                     .attr('y', y - gateSize / 2)
                     .attr('width', gateSize)
                     .attr('height', gateSize)
-                    .attr('fill', `${gate.gate.color}${backgroundOpacity}`)
-                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color)
+                    .attr('fill', `${item.gate.color}${backgroundOpacity}`)
+                    .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : item.gate.color)
                     .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : borderWidth)
                     .attr('rx', borderRadius)
                     .attr('pointer-events', isPreview ? 'none' : 'auto');
@@ -91,14 +91,14 @@ export function useCircuitRenderer({
                     .attr('font-style', fontStyle)
                     .attr('class', `${textSize} fill-foreground`)
                     .attr('pointer-events', 'none')
-                    .text(gate.gate.symbol);
+                    .text(item.gate.symbol);
             } else {
                 const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
-                const involvedQubits = getInvolvedQubits(gate);
+                const involvedQubits = getInvolvedQubits(item);
                 const yFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
                 const yLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
 
-                const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color;
+                const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : item.gate.color;
                 const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
 
                 const drawCircle = (cy: number, radius: number) => {
@@ -110,7 +110,7 @@ export function useCircuitRenderer({
                     group.append('circle')
                         .attr('cx', x).attr('cy', cy)
                         .attr('r', radius)
-                        .attr('fill', `${gate.gate.color}${backgroundOpacity}`)
+                        .attr('fill', `${item.gate.color}${backgroundOpacity}`)
                         .attr('stroke', strokeColor)
                         .attr('stroke-width', strokeWidth);
                 };
@@ -121,17 +121,17 @@ export function useCircuitRenderer({
                     .attr('stroke', strokeColor)
                     .attr('stroke-width', strokeWidth);
 
-                gate.controlQubits.forEach((controlQubit: number) => {
+                item.controlQubits.forEach((controlQubit: number) => {
                     const yControl = controlQubit * gateSpacing + gateSpacing / 2;
                     drawCircle(yControl, controlDotRadius);
                 });
 
-                gate.targetQubits.forEach((targetQubit: number) => {
+                item.targetQubits.forEach((targetQubit: number) => {
                     const yTarget = targetQubit * gateSpacing + gateSpacing / 2;
                     drawCircle(yTarget, targetRadius);
                 });
 
-                const textY = gate.targetQubits[gate.targetQubits.length - 1] * gateSpacing + gateSpacing / 2;
+                const textY = item.targetQubits[item.targetQubits.length - 1] * gateSpacing + gateSpacing / 2;
                 group.append('text')
                     .attr('x', x)
                     .attr('y', textY)
@@ -142,12 +142,12 @@ export function useCircuitRenderer({
                     .attr('font-style', fontStyle)
                     .attr('class', `${textSize} fill-foreground`)
                     .attr('pointer-events', 'none')
-                    .text(gate.gate.symbol);
+                    .text(item.gate.symbol);
             }
 
             // Add interaction hitbox
             if (hasHitbox && !isPreview) {
-                const involvedQubits = getInvolvedQubits(gate);
+                const involvedQubits = getInvolvedQubits(item);
                 const hitboxYFirst = involvedQubits[0] * gateSpacing + gateSpacing / 2;
                 const hitboxYLast = involvedQubits[involvedQubits.length - 1] * gateSpacing + gateSpacing / 2;
                 const hitboxHeight = hitboxYLast - hitboxYFirst + gateSize;
@@ -162,10 +162,9 @@ export function useCircuitRenderer({
 
                 group.on('mousedown', function(event) {
                     event.preventDefault();
-                    handleMouseDown(gate, event);
+                    handleMouseDown(item, event);
                 });
             }
-
             return group;
         };
 
@@ -214,12 +213,16 @@ export function useCircuitRenderer({
                 if (!circuit.gates.length) return;
 
                 // Render internal gates (offset by circuit position)
-                circuit.gates.forEach(g => renderGate({
-                    ...g,
-                    depth: depth + g.depth,
-                    targetQubits: g.targetQubits.map(q => q + startQubit),
-                    controlQubits: g.controlQubits.map(q => q + startQubit),
-                }, isPreview, false, false));
+                circuit.gates.forEach((g: Gate | Circuit) => {
+                    if ('gate' in g) {
+                        renderGate({
+                            ...g,
+                            depth: depth + g.depth,
+                            targetQubits: g.targetQubits.map(q => q + startQubit),
+                            controlQubits: g.controlQubits.map(q => q + startQubit),
+                        }, isPreview, false, false);
+                    }
+                });
 
                 // Calculate border bounds
                 const depths = circuit.gates.map(g => g.depth);
