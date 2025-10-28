@@ -9,7 +9,7 @@ interface LaTeXProps {
 }
 
 export function LaTeX({ children, block = false, className = '' }: LaTeXProps) {
-    const containerRef = useRef<HTMLSpanElement | HTMLDivElement>(null);
+    const containerRef = useRef<HTMLSpanElement & HTMLDivElement>(null);
 
     useEffect(() => {
         if (containerRef.current) {
@@ -30,6 +30,7 @@ export function LaTeX({ children, block = false, className = '' }: LaTeXProps) {
     }, [children, block]);
 
     const Component = block ? 'div' : 'span';
-    
-    return <Component ref={containerRef as any} className={className} />;
+
+    return <Component ref={containerRef} className={className} />;
+
 }

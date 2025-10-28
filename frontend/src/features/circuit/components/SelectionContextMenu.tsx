@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -9,7 +9,9 @@ import { Package } from "lucide-react";
 import { CreateCircuitDialog } from "@/components/common/CreateCircuitDialog";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
-import { getInvolvedQubits } from "@/features/gates/utils";
+import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
+import type { Gate } from "@/features/gates/types";
+import type { Circuit } from "../types";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -35,7 +37,10 @@ export function SelectionContextMenu({
     const setPlacedGateIdsRef = useRef<Set<string>>(new Set());
 
     const placedGates = useCircuitStore((state) => state.placedGates);
+    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
+    const group = useCircuitStore((state) => state.group);
     const { addCircuit } = useCircuitTemplates();
+    const { ejectGate, injectGate } = useCircuitDAG();
 
     // update preventClearSelection whenever menu or dialog state changes
     useEffect(() => {
@@ -55,7 +60,7 @@ export function SelectionContextMenu({
         setDialogState({ gateIds: setPlacedGateIdsRef.current, position });
     };
 
-    const handleConfirm = (symbol: string, color: string) => {
+    const handleGroup = (symbol: string, color: string) => {
         if (!dialogState) return;
 
         const selectedItems = placedGates.filter(item => dialogState.gateIds.has(item.id));
@@ -65,24 +70,20 @@ export function SelectionContextMenu({
             return;
         }
 
-        const minDepth = Math.min(...selectedItems.map(item => item.depth));
-        const minQubit = Math.min(...selectedItems.flatMap(item => getInvolvedQubits(item)));
+        const gates = selectedItems.reduce((acc, item) => ejectGate(item, acc), placedGates);
+        const circuit = group(selectedItems, symbol, color);
 
+        // Rebuild circuit gates with DAG relationships
+        circuit.circuit.gates = circuit.circuit.gates
+            .sort((a, b) => a.depth - b.depth)
+            .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
+
+        setPlacedGates(injectGate(circuit, gates));
         addCircuit({
-            id: crypto.randomUUID(),
-            symbol,
-            color,
-            gates: selectedItems.map(item => ({
-                ...item,
-                depth: item.depth - minDepth,
-                ...('circuit' in item
-                    ? { startQubit: item.startQubit - minQubit }
-                    : {
-                        targetQubits: item.targetQubits.map(q => q - minQubit),
-                        controlQubits: item.controlQubits.map(q => q - minQubit),
-                    }
-                ),
-            })),
+            id: circuit.circuit.id,
+            symbol: circuit.circuit.symbol,
+            color: circuit.circuit.color,
+            gates: circuit.circuit.gates,
         });
 
         setDialogState(null);
@@ -112,7 +113,7 @@ export function SelectionContextMenu({
                             className="gap-2"
                         >
                             <Package className="h-4 w-4" />
-                            <span>Create as Circuit</span>
+                            <span>Group</span>
                         </ContextMenuItem>
                     </ContextMenuContent>
                 </ContextMenu>
@@ -121,7 +122,7 @@ export function SelectionContextMenu({
                 open={!!dialogState}
                 position={dialogState?.position || null}
                 onClose={handleDialogClose}
-                onConfirm={handleConfirm}
+                onConfirm={handleGroup}
             />
         </>
     );

@@ -3,18 +3,18 @@
  * This allows communication between GatesPanel and CircuitCanvas
  */
 class DragState {
-    private currentGateId: string | null = null;
+    private currentData: { id: string; type: 'gate' | 'circuit' } | null = null;
 
-    set(gateId: string | null): void {
-        this.currentGateId = gateId;
+    set(id: string, type: 'gate' | 'circuit'): void {
+        this.currentData = { id, type };
     }
 
-    get(): string | null {
-        return this.currentGateId;
+    get(): { id: string; type: 'gate' | 'circuit' } | null {
+        return this.currentData;
     }
 
     clear(): void {
-        this.currentGateId = null;
+        this.currentData = null;
     }
 }
 

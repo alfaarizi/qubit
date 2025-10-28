@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
@@ -200,7 +200,7 @@ export function useGateSelection({
         };
     }, [isEnabled, handleMouseDown, handleMouseMove, handleMouseUp]);
 
-    // Rrnder selection rectangle
+    // Render selection rectangle
     useEffect(() => {
         if (!svgRef.current) return;
 

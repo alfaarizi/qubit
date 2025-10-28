@@ -1,11 +1,11 @@
-import React, {useState, useEffect, useCallback, useRef } from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 
-import { dragState } from '@/lib/dragState';
+import {dragState} from '@/lib/dragState';
 import {GATE_CONFIG, GATES} from '@/features/gates/constants';
-import type { Gate } from '@/features/gates/types';
-import type { Circuit } from '@/features/circuit/types';
+import type {Gate} from '@/features/gates/types';
+import type {Circuit} from '@/features/circuit/types';
 import {createContiguousQubitArrays, getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
-import { useCircuitTemplates } from '@/features/circuit/store/CircuitTemplatesStore';
+import {useCircuitTemplates} from '@/features/circuit/store/CircuitTemplatesStore';
 
 interface UseDraggableGateProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -89,15 +89,15 @@ export function useDraggableGate({
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (draggableGate) return;
 
-        const dragId = dragState.get();
-        if (!dragId) return;
+        const dragData = dragState.get();
+        if (!dragData) return;
 
         let newItem: Gate | Circuit;
         let span: number;
 
         // Handle circuit
-        if (dragId.startsWith('circuit-')) {
-            const circuitInfo = getCircuit(dragId.replace('circuit-', ''));
+        if (dragData.type === 'circuit') {
+            const circuitInfo = getCircuit(dragData.id);
             if (!circuitInfo) return;
 
             const involvedQubits = circuitInfo.gates.flatMap(g => getInvolvedQubits(g));
@@ -106,7 +106,7 @@ export function useDraggableGate({
             if (!pos || span > numQubits) return;
 
             newItem = {
-                id: `circuit-${crypto.randomUUID()}`,
+                id: `${circuitInfo.symbol}-${crypto.randomUUID()}`,
                 circuit: circuitInfo,
                 depth: pos.depth,
                 startQubit: pos.qubit,
@@ -116,16 +116,15 @@ export function useDraggableGate({
             dragPosRef.current = pos;
         } else {
             // Handle gate
-            const gate = GATES.find(g => g.id === dragId);
+            const gate = GATES.find(g => g.id === dragData.id);
             if (!gate) return;
 
-            const totalQubits = gate.numControlQubits + gate.numTargetQubits;
-            span = totalQubits;
+            span = gate.numControlQubits + gate.numTargetQubits;
             const pos = getGridPosition(e, span);
             if (!pos || span > numQubits) return;
 
             newItem = {
-                id: `${gate.id}-${crypto.randomUUID()}`,
+                id: `${gate.symbol}-${crypto.randomUUID()}`,
                 gate,
                 depth: pos.depth,
                 ...createContiguousQubitArrays(gate, pos.qubit),

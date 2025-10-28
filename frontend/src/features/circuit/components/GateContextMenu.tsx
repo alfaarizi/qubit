@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { Edit, Info } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Edit, Info, PackageOpen } from "lucide-react";
 import { EditGateDialog } from "@/components/common/EditGateDialog";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useInspector } from "@/features/inspector/InspectorContext";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
+import { useCircuitDAG } from "../hooks/useCircuitDAG";
 
 interface GateContextMenuProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -19,9 +20,13 @@ export function GateContextMenu({
     const { setHoveredGate } = useInspector();
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editDialogPosition, setEditDialogPosition] = useState<{ x: number; y: number } | null>(null);
-    const [gateToEdit, setGateToEdit] = useState<Gate | null>(null);
+    const [gateToEdit, setGateToEdit] = useState<Gate | Circuit | null>(null);
 
+    const placedGates = useCircuitStore(state => state.placedGates);
+    const setPlacedGates = useCircuitStore(state => state.setPlacedGates);
     const numQubits = useCircuitStore(state => state.numQubits);
+    const ungroup = useCircuitStore(state => state.ungroup);
+    const { ejectGate, injectGate } = useCircuitDAG();
     
     const {
         contextMenu,
@@ -43,12 +48,27 @@ export function GateContextMenu({
     };
 
     const handleEditGate = () => {
-        if (contextMenu?.data && 'gate' in contextMenu.data) {
+        if (contextMenu?.data) {
             setGateToEdit(contextMenu.data);
             setEditDialogPosition(contextMenu.position);
             setEditDialogOpen(true);
             hideContextMenu();
         }
+    };
+
+    const handleUngroup = () => {
+        if (!contextMenu?.data || !('circuit' in contextMenu.data)) return;
+        
+        const circuit = contextMenu.data;
+        const gates = ungroup(circuit);
+        
+        let updatedGates = ejectGate(circuit, placedGates, circuit.children);
+        gates.sort((a, b) => a.depth - b.depth).forEach(g => {
+            updatedGates = injectGate(g, updatedGates);
+        });
+        
+        setPlacedGates(updatedGates);
+        hideContextMenu();
     };
 
 
@@ -89,13 +109,22 @@ export function GateContextMenu({
                         <Info className="h-4 w-4" />
                         <span>View Info</span>
                     </button>
-                    {contextMenu?.data && 'gate' in contextMenu.data && (
+                    {contextMenu?.data && (
                         <button
                             onClick={handleEditGate}
                             className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                         >
                             <Edit className="h-4 w-4" />
-                            <span>Edit Gate</span>
+                            <span>{'gate' in contextMenu.data ? 'Edit Gate' : 'Edit Circuit'}</span>
+                        </button>
+                    )}
+                    {contextMenu?.data && 'circuit' in contextMenu.data && (
+                        <button
+                            onClick={handleUngroup}
+                            className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                            <PackageOpen className="h-4 w-4" />
+                            <span>Ungroup</span>
                         </button>
                     )}
                 </div>

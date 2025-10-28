@@ -25,6 +25,8 @@ interface CircuitActions {
     addQubit: () => void;
     removeQubit: () => void;
     toggleMeasurement: (index: number) => void;
+    group: (items: (Gate | Circuit)[], symbol?: string, color?: string) => Circuit;
+    ungroup: (circuit: Circuit) => (Gate | Circuit)[];
     reset: (newState: CircuitState) => void;
 }
 
@@ -98,11 +100,57 @@ const createCircuitStore = (circuitId: string) => {
                             newMeasurements[index] = !newMeasurements[index];
                             return { measurements: newMeasurements };
                         }),
+                    group: (items, symbol = 'GRP', color = '#6366f1') => {
+                        const minDepth = Math.min(...items.map(item => item.depth));
+                        const minQubit = Math.min(...items.flatMap(item => getInvolvedQubits(item)));
+                        return {
+                            id: `${symbol}-${crypto.randomUUID()}`,
+                            depth: minDepth,
+                            startQubit: minQubit,
+                            parents: [],
+                            children: [],
+                            circuit: {
+                                id: `${symbol}-${crypto.randomUUID()}`,
+                                symbol,
+                                color,
+                                gates: items.map(item => ({
+                                    ...item,
+                                    depth: item.depth - minDepth,
+                                    parents: [],
+                                    children: [],
+                                    ...('circuit' in item
+                                        ? { startQubit: item.startQubit - minQubit }
+                                        : {
+                                            targetQubits: item.targetQubits.map(q => q - minQubit),
+                                            controlQubits: item.controlQubits.map(q => q - minQubit),
+                                        }
+                                    ),
+                                })),
+                            },
+                        } as Circuit;
+                    },
+                    ungroup: (circuit) => {
+                        return circuit.circuit.gates.map(item => ({
+                            ...item,
+                            id: `${item.id.split('-')[0]}-${crypto.randomUUID()}`,
+                            depth: item.depth + circuit.depth,
+                            parents: [],
+                            children: [],
+                            ...('circuit' in item
+                                ? { startQubit: item.startQubit + circuit.startQubit }
+                                : {
+                                    targetQubits: item.targetQubits.map(q => q + circuit.startQubit),
+                                    controlQubits: item.controlQubits.map(q => q + circuit.startQubit),
+                                }
+                            ),
+                        })) as (Gate | Circuit)[];
+                    },
                     reset: (newState) => set(newState),
                 }),
                 {
                     limit: 50,
                     partialize: (state) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         const { showNestedCircuit, ...rest } = state;
                         return rest;
                     },

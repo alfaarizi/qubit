@@ -51,7 +51,7 @@ export function CircuitToolbar() {
             ctrl: true,
             shift: true,
             handler: () => canRedo && redo()
-        },
+        }
     ]);
 
     const handleClear = () => {

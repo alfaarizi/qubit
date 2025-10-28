@@ -113,15 +113,14 @@ export function GatesPanel() {
     const { circuits } = useCircuitTemplates();
     const { gateSize } = GATE_CONFIG;
 
-
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => {
         e.dataTransfer.effectAllowed = 'move';
         if ('gates' in item) {
-             e.dataTransfer.setData('application/json', JSON.stringify({ type: 'circuit', circuit: item }));
-            dragState.set(`circuit-${item.id}`);
+            e.dataTransfer.setData('application/json', JSON.stringify({ type: 'circuit', circuit: item }));
+            dragState.set(item.id, 'circuit');
         } else {
-            e.dataTransfer.setData('application/json', JSON.stringify(item));
-            dragState.set(item.id);
+            e.dataTransfer.setData('application/json', JSON.stringify({ type: 'gate', gate: item }));
+            dragState.set(item.id, 'gate');
         }
         setDraggedItemId(item.id);
     };
