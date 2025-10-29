@@ -6,7 +6,7 @@ import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { SELECTION_STYLES } from '@/features/circuit/hooks/useGateSelection';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
-import { getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
+import {getBounds, getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
 
 interface UseCircuitRendererProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -185,27 +185,6 @@ export function useCircuitRenderer({
         ) => {
             const { circuit, id } = circ;
             if (circuit.gates.length === 0) return;
-            
-            const getBounds = (gates: (Gate | Circuit)[], dOffset: number, qOffset: number) => {
-                let minDepth = Infinity, maxDepth = -Infinity, minQubit = Infinity, maxQubit = -Infinity;
-                gates.forEach(g => {
-                    const depth = g.depth + dOffset;
-                    if ('gate' in g) {
-                        const qubits = getInvolvedQubits(g).map(q => q + qOffset);
-                        minDepth = Math.min(minDepth, depth);
-                        maxDepth = Math.max(maxDepth, depth);
-                        minQubit = Math.min(minQubit, ...qubits);
-                        maxQubit = Math.max(maxQubit, ...qubits);
-                    } else {
-                        const nextBound = getBounds(g.circuit.gates, depth, g.startQubit + qOffset);
-                        minDepth = Math.min(minDepth, nextBound.minDepth);
-                        maxDepth = Math.max(maxDepth, nextBound.maxDepth);
-                        minQubit = Math.min(minQubit, nextBound.minQubit);
-                        maxQubit = Math.max(maxQubit, nextBound.maxQubit);
-                    }
-                });
-                return { minDepth, maxDepth, minQubit, maxQubit };
-            };
 
             const { minDepth, maxDepth, minQubit, maxQubit } = getBounds(circuit.gates, 0, 0);
 

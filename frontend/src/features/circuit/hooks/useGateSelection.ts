@@ -3,7 +3,8 @@ import * as d3 from 'd3';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
 import { GATE_CONFIG } from '@/features/gates/constants';
-import { getQubitSpan } from '@/features/gates/utils';
+import {getBounds, getQubitSpan} from '@/features/gates/utils';
+import { CIRCUIT_CONFIG } from "@/features/circuit/constants";
 
 interface SelectionRect {
     startX: number;
@@ -42,6 +43,8 @@ export function useGateSelection({
     scrollContainerRef,
     preventClearSelection = false,
 }: UseGateSelectionProps) {
+    const { headerHeight } = CIRCUIT_CONFIG;
+
     const [selectedGateIds, setSelectedGateIds] = useState<Set<string>>(new Set());
     const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -51,28 +54,34 @@ export function useGateSelection({
 
     const isGateInSelectionRect = useCallback((item: Gate | Circuit, rect: SelectionRect) => {
         const { gateSize, gateSpacing } = GATE_CONFIG;
-        const { minQubit, maxQubit } = getQubitSpan(item);
-
-        const gateX = item.depth * gateSpacing + gateSpacing / 2;
-        const gateY = minQubit * gateSpacing + gateSpacing / 2;
-        const gateHeight = (maxQubit - minQubit + 1) * gateSpacing;
-
-        const [gateLeft, gateRight, gateTop, gateBottom] = [
-            gateX - gateSize / 2,
-            gateX + gateSize / 2,
-            gateY - gateSize / 2,
-            gateY + gateHeight
-        ];
-
         const [rectLeft, rectRight, rectTop, rectBottom] = [
             Math.min(rect.startX, rect.startX + rect.width),
             Math.max(rect.startX, rect.startX + rect.width),
             Math.min(rect.startY, rect.startY + rect.height),
             Math.max(rect.startY, rect.startY + rect.height)
         ];
-
-        return gateRight >= rectLeft && gateLeft <= rectRight && gateBottom >= rectTop && gateTop <= rectBottom;
-    }, []);
+        let itemLeft, itemRight, itemTop, itemBottom;
+        if ('circuit' in item) {
+            // for circuits
+            const { minDepth, maxDepth, minQubit, maxQubit } = getBounds(item.circuit.gates, 0, 0);
+            itemLeft = (item.depth + minDepth) * gateSpacing + gateSpacing / 2 - gateSize / 2;
+            itemRight = (item.depth + maxDepth) * gateSpacing + gateSize;
+            itemTop = (item.startQubit + minQubit) * gateSpacing + gateSpacing / 2 - gateSize / 2 + headerHeight;
+            itemBottom = (item.startQubit + maxQubit) * gateSpacing + gateSize + headerHeight;
+        } else {
+            // for gates
+            const { minQubit, maxQubit } = getQubitSpan(item);
+            const gateX = item.depth * gateSpacing + gateSpacing / 2;
+            const minY = minQubit * gateSpacing + gateSpacing / 2 + headerHeight;
+            const maxY = maxQubit * gateSpacing + gateSpacing / 2 + headerHeight;
+            itemLeft = gateX - gateSize / 2;
+            itemRight = gateX + gateSize / 2;
+            itemTop = minY - gateSize / 2;
+            itemBottom = maxY + gateSize / 2;
+        }
+        // check if rectangles overlap
+        return itemRight >= rectLeft && itemLeft <= rectRight && itemBottom >= rectTop && itemTop <= rectBottom;
+    }, [headerHeight]);
 
     const clearSelection = useCallback(() => {
         setSelectedGateIds(new Set());

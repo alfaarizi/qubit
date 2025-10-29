@@ -56,6 +56,39 @@ export function getMaxDepth(gates: (Gate | Circuit)[]): number {
 }
 
 /**
+ * Get the bounds of a gate/circuit
+ */
+export function getBounds(
+    gates: (Gate | Circuit)[],
+    dOffset: number,
+    qOffset: number
+): {
+    minDepth: number,
+    maxDepth: number,
+    minQubit: number,
+    maxQubit: number
+} {
+    let minDepth = Infinity, maxDepth = -Infinity, minQubit = Infinity, maxQubit = -Infinity;
+    gates.forEach(g => {
+        const depth = g.depth + dOffset;
+        if ('gate' in g) {
+            const qubits = getInvolvedQubits(g).map(q => q + qOffset);
+            minDepth = Math.min(minDepth, depth);
+            maxDepth = Math.max(maxDepth, depth);
+            minQubit = Math.min(minQubit, ...qubits);
+            maxQubit = Math.max(maxQubit, ...qubits);
+        } else {
+            const nextBound = getBounds(g.circuit.gates, depth, g.startQubit + qOffset);
+            minDepth = Math.min(minDepth, nextBound.minDepth);
+            maxDepth = Math.max(maxDepth, nextBound.maxDepth);
+            minQubit = Math.min(minQubit, nextBound.minQubit);
+            maxQubit = Math.max(maxQubit, nextBound.maxQubit);
+        }
+    });
+    return { minDepth, maxDepth, minQubit, maxQubit };
+}
+
+/**
  * Helper for contiguous gate placement (for initial drag-and-drop)
  * Assigns control qubits first, then target qubits, starting from startQubit
  */
