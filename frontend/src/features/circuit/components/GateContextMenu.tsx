@@ -27,7 +27,7 @@ export function GateContextMenu({
     const setPlacedGates = useCircuitStore(state => state.setPlacedGates);
     const numQubits = useCircuitStore(state => state.numQubits);
     const ungroup = useCircuitStore(state => state.ungroup);
-    const { ejectGate, injectGate } = useCircuitDAG();
+    const { ejectGate, injectGate, getItemWidth } = useCircuitDAG();
     
     const {
         contextMenu,
@@ -67,13 +67,11 @@ export function GateContextMenu({
     const handleUngroup = () => {
         if (!contextMenu?.data || !('circuit' in contextMenu.data)) return;
 
-        // step 1: ungroup circuit
         const circuit = contextMenu.data;
 
-        // step 2: rebuilt internal dag
+        // step 1: ungroup circuit and rebuild internal dag for nested circuits
         const ungroupedGates = ungroup(circuit).map(item => {
             if ('circuit' in item) {
-                // rebuild nested circuit's internal dag
                 return {
                     ...item,
                     circuit: {
@@ -86,20 +84,25 @@ export function GateContextMenu({
                 };
             }
             return item;
-        })
-        .sort((a, b) => a.depth - b.depth);
-
-        // step 3: find children that still overlap with ungrouped gates' qubits
-        const ungroupedSpanQubits = new Set(ungroupedGates.flatMap(gate => getSpanQubits(gate)));
-        const overlappingChildren = circuit.children.filter(childId => {
-            const child = placedGates.find(g => g.id === childId);
-            return child && getSpanQubits(child).some(q => ungroupedSpanQubits.has(q));
         });
 
-        // step 4: eject circuit, keeping only children that still overlap
-        const gates = ejectGate(circuit, placedGates, overlappingChildren);
+        // step 2: find gates that overlap with circuit's qubits and depth range
+        const circuitSpanQubits = new Set(getSpanQubits(circuit));
+        const circuitWidth = getItemWidth(circuit);
+        const circuitMaxDepth = circuit.depth + circuitWidth;
 
-        // step 5: inject ungrouped gates, reconnecting overlapping children
+        const overlappingGates = placedGates
+            .filter(gate => {
+                if (gate.id === circuit.id) return false;
+                const overlapQubits = getSpanQubits(gate).some(q => circuitSpanQubits.has(q));
+                return gate.depth >= circuit.depth && gate.depth < circuitMaxDepth && overlapQubits;
+            })
+            .map(gate => gate.id);
+
+        // step 3: eject circuit, keeping overlapping gates disconnected
+        const gates = ejectGate(circuit, placedGates, overlappingGates);
+
+        // step 4: inject ungrouped gates, reconnecting overlapping gates
         setPlacedGates(
             ungroupedGates.reduce((acc, gate) => injectGate(gate, acc), gates)
         );

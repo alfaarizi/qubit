@@ -209,5 +209,6 @@ export function useCircuitDAG() {
         ejectGate,
         moveGate,
         removeGate,
+        getItemWidth
     };
 }
