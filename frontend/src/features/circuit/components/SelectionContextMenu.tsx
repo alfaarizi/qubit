@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, {useState, useRef, useEffect, useCallback} from "react";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -12,6 +12,7 @@ import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesSt
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "../types";
+import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts.ts";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -60,6 +61,24 @@ export function SelectionContextMenu({
         setDialogState({ gateIds: setPlacedGateIdsRef.current, position });
     };
 
+    const handleDeleteGates = useCallback((gateIds: Set<string>) => {
+        const gates = Array.from(gateIds).reduce(
+            (acc, gateId) => {
+                const gate = placedGates.find(g => g.id === gateId);
+                return gate ? ejectGate(gate, acc) : acc;
+            },
+            placedGates
+        );
+        setPlacedGates(gates);
+        onClearSelection();
+    }, [placedGates, ejectGate, setPlacedGates, onClearSelection]);
+
+    const handleDelete = useCallback(() => {
+        if (selectedGateIds.size > 0) {
+            handleDeleteGates(selectedGateIds);
+        }
+    }, [selectedGateIds, handleDeleteGates]);
+
     const handleGroup = (symbol: string, color: string) => {
         if (!dialogState) return;
 
@@ -95,6 +114,11 @@ export function SelectionContextMenu({
         onClearSelection();
     };
 
+    useKeyboardShortcuts([
+        { key: 'Delete', handler: handleDelete },
+        { key: 'Backspace', handler: handleDelete },
+    ]);
+
     return (
         <>
             {selectedGateIds.size === 0 ? (
@@ -108,7 +132,8 @@ export function SelectionContextMenu({
                         ref={contextMenuRef} 
                         className="w-48"
                     >
-                        <ContextMenuItem 
+                        <ContextMenuItem
+                            onClick={() => handleDeleteGates(setPlacedGateIdsRef.current)}
                             onPointerDown={handleContextMenuItemPointerDown}
                             className="gap-2"
                         >

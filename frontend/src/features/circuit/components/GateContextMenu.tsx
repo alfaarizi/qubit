@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Edit, Info, PackageOpen } from "lucide-react";
+import { Edit, Info, PackageOpen, Trash2 } from "lucide-react";
 import { EditGateDialog } from "@/components/common/EditGateDialog";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useInspector } from "@/features/inspector/InspectorContext";
@@ -56,6 +56,13 @@ export function GateContextMenu({
         }
     };
 
+    const handleDelete = () => {
+        if (!contextMenu?.data) return;
+        const gates = ejectGate(contextMenu.data, placedGates);
+        setPlacedGates(gates);
+        hideContextMenu();
+    };
+
     const handleUngroup = () => {
         if (!contextMenu?.data || !('circuit' in contextMenu.data)) return;
         
@@ -104,24 +111,29 @@ export function GateContextMenu({
                 >
                     <button
                         onClick={handleViewInfo}
-                        className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                     >
                         <Info className="h-4 w-4" />
                         <span>View Info</span>
                     </button>
-                    {contextMenu?.data && (
-                        <button
-                            onClick={handleEditGate}
-                            className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                            <Edit className="h-4 w-4" />
-                            <span>{'gate' in contextMenu.data ? 'Edit Gate' : 'Edit Circuit'}</span>
-                        </button>
-                    )}
-                    {contextMenu?.data && 'circuit' in contextMenu.data && (
+                    <button
+                        onClick={handleEditGate}
+                        className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    >
+                        <Edit className="h-4 w-4" />
+                        <span>{'gate' in contextMenu.data ? 'Edit Gate' : 'Edit Circuit'}</span>
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-destructive focus:bg-accent focus:text-destructive"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete {contextMenu?.data && 'gate' in contextMenu.data ? 'Gate' : 'Circuit'}</span>
+                    </button>
+                    {'circuit' in contextMenu.data && (
                         <button
                             onClick={handleUngroup}
-                            className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                         >
                             <PackageOpen className="h-4 w-4" />
                             <span>Ungroup</span>

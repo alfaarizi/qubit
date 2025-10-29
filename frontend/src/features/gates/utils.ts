@@ -40,6 +40,22 @@ const involvedQubits = getInvolvedQubits(item);
 }
 
 /**
+ * Get the maximum depth
+ */
+export function getMaxDepth(gates: (Gate | Circuit)[]): number {
+    let max = 0;
+    gates.forEach(g => {
+        if ('circuit' in g) {
+            const circuitMax = getMaxDepth(g.circuit.gates) + g.depth;
+            max = Math.max(max, circuitMax);
+        } else {
+            max = Math.max(max, g.depth);
+        }
+    });
+    return max;
+}
+
+/**
  * Helper for contiguous gate placement (for initial drag-and-drop)
  * Assigns control qubits first, then target qubits, starting from startQubit
  */

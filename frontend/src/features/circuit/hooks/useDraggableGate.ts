@@ -12,7 +12,6 @@ interface UseDraggableGateProps {
     numQubits: number;
     maxDepth: number;
     setPlacedGates: (gates: (Gate | Circuit)[] | ((prev: (Gate | Circuit)[]) => (Gate | Circuit)[]), options?: { skipHistory?: boolean }) => void;
-    scrollContainerWidth?: number | null;
     injectGate: (gate: Gate | Circuit, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
     moveGate: (gateId: string, gates: (Gate | Circuit)[], targetDepth: number, startQubit: number) => (Gate | Circuit)[];
     removeGate: (gateId: string, gates: (Gate | Circuit)[]) => (Gate | Circuit)[];
@@ -23,7 +22,6 @@ export function useDraggableGate({
     numQubits,
     maxDepth,
     setPlacedGates,
-    scrollContainerWidth,
     injectGate,
     moveGate,
     removeGate,
@@ -54,12 +52,13 @@ export function useDraggableGate({
         const { span } = getQubitSpan(item);
         const pos = getGridPosition(e, span);
         if (!pos) return false;
+
         // Check bounds
         const contentWidth = maxDepth * gateSpacing;
-        const maxWidth = Math.min(scrollContainerWidth || contentWidth, contentWidth);
         const maxHeight = numQubits * gateSpacing;
-        return pos.x >= 0 && pos.x <= maxWidth && pos.y >= 0 && pos.y <= maxHeight;
-    }, [getGridPosition, maxDepth, gateSpacing, scrollContainerWidth, numQubits]);
+
+        return pos.x >= 0 && pos.x <= contentWidth && pos.y >= 0 && pos.y <= maxHeight;
+    }, [getGridPosition, maxDepth, gateSpacing, numQubits]);
 
     const hasDragPositionChanged = (pos: { depth: number; qubit: number }) => {
         return dragPosRef.current?.depth !== pos.depth || dragPosRef.current?.qubit !== pos.qubit;

@@ -31,7 +31,7 @@ export function useCircuitRenderer({
     showNestedCircuit = false,
     handleMouseDown,
 }: UseCircuitRendererProps) {
-    const { footerHeight } = CIRCUIT_CONFIG;
+    const { footerHeight, headerHeight, defaultScrollPaddingDepth } = CIRCUIT_CONFIG;
     const { fontFamily, fontWeight, fontStyle, gateSize, gateSpacing, qubitSpacing, backgroundOpacity, previewOpacity } = GATE_CONFIG;
     
     const borderPadding = 4;
@@ -54,7 +54,7 @@ export function useCircuitRenderer({
         ) => {
             const { minQubit } = getQubitSpan(gate);
             const x = gate.depth * gateSpacing + gateSpacing / 2;
-            const y = minQubit * qubitSpacing + qubitSpacing / 2;
+            const y = minQubit * qubitSpacing + qubitSpacing / 2 + headerHeight
 
             const group = svg.append('g')
                 .datum(gate)
@@ -67,7 +67,7 @@ export function useCircuitRenderer({
 
             if (totalQubits === 1) {
                 const { textSize, borderWidth, borderRadius } = GATE_CONFIG.singleQubit;
-                const qubitY = gate.targetQubits[0] * qubitSpacing + qubitSpacing / 2;
+                const qubitY = gate.targetQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
 
                 group.append('rect')
                     .attr('x', x - gateSize / 2)
@@ -103,8 +103,8 @@ export function useCircuitRenderer({
             } else {
                 const { textSize, lineWidth, targetRadius, controlDotRadius } = GATE_CONFIG.multiQubit;
                 const involvedQubits = getInvolvedQubits(gate);
-                const yFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2;
-                const yLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2;
+                const yFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
+                const yLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
 
                 const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color;
                 const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
@@ -130,16 +130,16 @@ export function useCircuitRenderer({
                     .attr('stroke-width', strokeWidth);
 
                 gate.controlQubits.forEach((controlQubit: number) => {
-                    const yControl = controlQubit * qubitSpacing + qubitSpacing / 2;
+                    const yControl = controlQubit * qubitSpacing + qubitSpacing / 2 + headerHeight;
                     drawCircle(yControl, controlDotRadius);
                 });
 
                 gate.targetQubits.forEach((targetQubit: number) => {
-                    const yTarget = targetQubit * qubitSpacing + qubitSpacing / 2;
+                    const yTarget = targetQubit * qubitSpacing + qubitSpacing / 2 + headerHeight;
                     drawCircle(yTarget, targetRadius);
                 });
 
-                const textY = gate.targetQubits[gate.targetQubits.length - 1] * qubitSpacing + qubitSpacing / 2;
+                const textY = gate.targetQubits[gate.targetQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
                 group.append('text')
                     .attr('x', x)
                     .attr('y', textY)
@@ -156,8 +156,8 @@ export function useCircuitRenderer({
             // add interaction hitbox
             if (hasHitbox && !isPreview) {
                 const involvedQubits = getInvolvedQubits(gate);
-                const hitboxYFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2;
-                const hitboxYLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2;
+                const hitboxYFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
+                const hitboxYLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
                 const hitboxHeight = hitboxYLast - hitboxYFirst + gateSize;
 
                 group.append('rect')
@@ -209,7 +209,7 @@ export function useCircuitRenderer({
 
             const { minDepth, maxDepth, minQubit, maxQubit } = getBounds(circuit.gates, 0, 0);
 
-            const baseY = (qubitOffset + minQubit) * qubitSpacing + qubitSpacing / 2 - gateSize / 2 - borderPadding;
+            const baseY = (qubitOffset + minQubit) * qubitSpacing + qubitSpacing / 2 - gateSize / 2 - borderPadding + headerHeight;
             const rectX = (depthOffset + minDepth) * gateSpacing + gateSpacing / 2 - gateSize / 2 - borderPadding;
             const rectY = baseY;
             const rectWidth = (maxDepth - minDepth) * gateSpacing + gateSize + borderPadding * 2;
@@ -286,7 +286,13 @@ export function useCircuitRenderer({
             rectHeight: number,
             color: string
         ) => {
-            svg.insert('rect', '.gate-element')
+            if (svg.select('.circuit-backgrounds-group').empty()) {
+                svg.insert('g', '.gate-element').attr('class', 'circuit-backgrounds-group');
+            }
+
+            const bgGroup = svg.select('.circuit-backgrounds-group');
+
+            bgGroup.insert('rect', '.gate-element')
                 .attr('class', 'circuit-background-clear fill-background')
                 .attr('x', rectX)
                 .attr('y', rectY)
@@ -295,7 +301,7 @@ export function useCircuitRenderer({
                 .attr('pointer-events', 'none');
         
             // Then draw the colored rectangle
-            svg.insert('rect', '.gate-element')
+            bgGroup.insert('rect', '.gate-element')
                 .attr('class', 'circuit-background-fill')
                 .attr('x', rectX)
                 .attr('y', rectY)
@@ -311,23 +317,24 @@ export function useCircuitRenderer({
         const background = svg.insert('g', ':first-child')
             .attr('class', 'circuit-background');
 
-        const contentWidth = maxDepth * gateSpacing;
+        const scrollableDepth = maxDepth + defaultScrollPaddingDepth;
+        const contentWidth = scrollableDepth * gateSpacing;
         const svgWidth = Math.max(scrollContainerWidth || contentWidth, contentWidth);
-        const svgHeight = numQubits * qubitSpacing + footerHeight;
+        const svgHeight = numQubits * qubitSpacing + footerHeight + headerHeight;
 
         svg.attr('width', svgWidth).attr('height', svgHeight);
 
         // Qubit lines
         for (let i = 0; i < numQubits; i++) {
             background.append('line')
-                .attr('x1', 0).attr('y1', i * qubitSpacing + qubitSpacing / 2)
-                .attr('x2', svgWidth).attr('y2', i * qubitSpacing + qubitSpacing / 2)
+                .attr('x1', 0).attr('y1', i * qubitSpacing + qubitSpacing / 2 + headerHeight)
+                .attr('x2', svgWidth).attr('y2', i * qubitSpacing + qubitSpacing / 2 + headerHeight)
                 .attr('class', 'stroke-border circuit-line')
                 .attr('stroke-width', 2);
         }
 
         // Depth markers
-        const markersY = numQubits * qubitSpacing + footerHeight / 2;
+        const markersY = numQubits * qubitSpacing + footerHeight / 2 + headerHeight;
         for (let i = 1; i <= maxDepth; i++) {
             background.append('text')
                 .attr('x', (i - 1) * gateSpacing + gateSpacing / 2)
@@ -342,8 +349,7 @@ export function useCircuitRenderer({
         svg.selectAll('.gate-element').remove();
         svg.selectAll('.circuit-element').remove();
         svg.selectAll('.circuit-label').remove();
-        svg.selectAll('.circuit-background-fill').remove();
-        svg.selectAll('.circuit-background-clear').remove();
+        svg.selectAll('.circuit-backgrounds-group').remove();
 
         const circuitLabelsToRender: Array<{
             rectX: number;
@@ -402,8 +408,8 @@ export function useCircuitRenderer({
             }
         });
     }, [
-        svgRef, numQubits, maxDepth, placedGates, draggableGateId, scrollContainerWidth,
-        gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, qubitSpacing, backgroundOpacity, previewOpacity, footerHeight,
+        svgRef, numQubits, maxDepth, placedGates, draggableGateId, scrollContainerWidth, defaultScrollPaddingDepth,
+        gateSize, fontFamily, fontWeight, fontStyle, gateSpacing, qubitSpacing, backgroundOpacity, previewOpacity, headerHeight, footerHeight,
         handleMouseDown, selectedGateIds, showNestedCircuit
     ]);
 }

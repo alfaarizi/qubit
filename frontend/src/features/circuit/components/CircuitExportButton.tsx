@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { getMaxDepth } from '@/features/gates/utils'
 import * as d3 from 'd3';
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
+import {getInvolvedQubits} from "@/features/gates/utils.ts";
 
 interface CircuitExportButtonProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -22,7 +24,7 @@ interface CircuitExportButtonProps {
 }
 
 export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitExportButtonProps) {
-    const { defaultMaxDepth, qubitLabelWidth, footerHeight} = CIRCUIT_CONFIG;
+    const { defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight} = CIRCUIT_CONFIG;
     const { gateSpacing } = GATE_CONFIG;
 
     const getTimestamp = (): string => {
@@ -37,18 +39,19 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
         if (!svgRef.current) return null;
 
         const svg = d3.select(svgRef.current.cloneNode(true) as SVGSVGElement);
-        const maxDepth = placedGates.length > 0 ? Math.max(...placedGates.map(g => g.depth)) + 1 : defaultMaxDepth;
+
+        const maxDepth = placedGates.length > 0 ? getMaxDepth(placedGates) + 1 : defaultMaxDepth;
+        const maxQubits = placedGates.length > 0 ? Math.max(...placedGates.flatMap(g => getInvolvedQubits(g))) + 1 : numQubits;
         const trimmedWidth = maxDepth * gateSpacing;
 
         svg.selectAll('[data-preview="true"]').remove();
-
         svg.selectAll('.fill-background').attr('fill', 'white').attr('class', null);
 
-        // Add qubit labels
-        for (let i = 0; i < numQubits; i++) {
+        // add qubit labels
+        for (let i = 0; i < maxQubits; i++) {
             svg.append('text')
                 .attr('x', qubitLabelWidth / 2)
-                .attr('y', i * gateSpacing + gateSpacing / 2)
+                .attr('y', i * gateSpacing + gateSpacing / 2 + headerHeight)
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'middle')
                 .attr('font-family', 'monospace')
@@ -57,39 +60,42 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
                 .text(`q[${i}]`);
         }
 
-        // Trim circuit lines (only horizontal lines)
-        svg.selectAll('.circuit-line')
-            .attr('x1', qubitLabelWidth)
-            .attr('x2', qubitLabelWidth + trimmedWidth)
-            .attr('stroke', '#e5e7eb')
-            .attr('stroke-width', 2);
-
-        svg.selectAll('g:not(.circuit-background)').attr('transform', `translate(${qubitLabelWidth}, 0)`);
-
-        // Remove extra depth markers
-        svg.selectAll('.depth-marker').each(function(_, i) {
-            if (i >= maxDepth) {
+        // trim circuit lines and remove unused qubits
+        svg.selectAll('.circuit-line').each(function(_, i) {
+            if (i >= maxQubits) {
                 d3.select(this).remove();
             } else {
-                const marker = d3.select(this);
-                const x = parseFloat(marker.attr('x') || '0');
-                marker.attr('x', x + qubitLabelWidth)
-                    .attr('font-size', '12px')
-                    .attr('font-family', 'monospace')
-                    .attr('fill', '#6b7280');
-                (this as SVGElement).removeAttribute('class');
+                d3.select(this)
+                    .attr('x1', qubitLabelWidth)
+                    .attr('x2', qubitLabelWidth + trimmedWidth)
+                    .attr('stroke', '#e5e7eb')
+                    .attr('stroke-width', 2);
             }
         });
 
+        svg.selectAll('g:not(.circuit-background)').attr('transform', `translate(${qubitLabelWidth}, 0)`);
+
+        // adjust depth markers
+        svg.selectAll('.depth-marker').each(function() {
+            const marker = d3.select(this);
+            const x = parseFloat(marker.attr('x') || '0');
+            marker.attr('x', x + qubitLabelWidth)
+                .attr('y', maxQubits * gateSpacing + footerHeight / 2 + headerHeight)
+                .attr('font-size', '12px')
+                .attr('font-family', 'monospace')
+                .attr('fill', '#6b7280');
+            (this as SVGElement).removeAttribute('class');
+        });
+
         const totalWidth = trimmedWidth + qubitLabelWidth + gateSpacing / 4
-        const totalHeight = numQubits * gateSpacing + footerHeight;
+        const totalHeight = maxQubits * gateSpacing + footerHeight + headerHeight;
 
         svg.attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`)
             .attr('width', totalWidth)
             .attr('height', totalHeight);
 
         return svg.node()!;
-    }, [svgRef, numQubits, placedGates, gateSpacing, defaultMaxDepth, qubitLabelWidth, footerHeight]);
+    }, [svgRef, numQubits, placedGates, gateSpacing, defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight]);
 
     const exportAsSVG = useCallback(() => {
         const node = prepareSVG();

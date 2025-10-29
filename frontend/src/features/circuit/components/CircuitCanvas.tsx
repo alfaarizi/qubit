@@ -11,7 +11,7 @@ import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer'
 import { useGateSelection } from '@/features/circuit/hooks/useGateSelection';
 import { SelectionContextMenu } from '@/features/circuit/components/SelectionContextMenu';
 import { GateContextMenu } from '@/features/circuit/components/GateContextMenu';
-import { getInvolvedQubits } from "@/features/gates/utils";
+import {getInvolvedQubits, getMaxDepth} from "@/features/gates/utils";
 
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
@@ -27,6 +27,7 @@ interface QubitLabelsProps {
 function QubitLabels({ numQubits, onAddQubit, onRemoveQubit }: QubitLabelsProps) {
     return (
         <div className="flex flex-col">
+            <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
             {Array.from({ length: numQubits }, (_, i) => (
                 <div key={i} style={{ height: GATE_CONFIG.qubitSpacing }}
                      className="flex items-center justify-center font-mono text-sm">
@@ -60,6 +61,7 @@ interface MeasurementTogglesProps {
 export function MeasurementToggles({ measurements, onToggle }: MeasurementTogglesProps) {
     return (
         <div className="flex flex-col">
+            <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
             {measurements.map((isMeasured, i) => (
                 <div key={i} style={{height: GATE_CONFIG.qubitSpacing}} className="flex items-center justify-center">
                     <button
@@ -120,7 +122,8 @@ export function CircuitCanvas() {
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
 
-    const [maxDepth] = useState(CIRCUIT_CONFIG.defaultMaxDepth);
+    const maxDepth = placedGates.length > 0 ? getMaxDepth(placedGates) + 1 : CIRCUIT_CONFIG.defaultMaxDepth;
+    const scrollableDepth = maxDepth + CIRCUIT_CONFIG.defaultScrollPaddingDepth;
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const addQubit = useCallback(() => {
@@ -166,9 +169,8 @@ export function CircuitCanvas() {
     } = useDraggableGate({
         svgRef,
         numQubits,
-        maxDepth,
+        maxDepth: scrollableDepth,
         setPlacedGates,
-        scrollContainerWidth,
         injectGate,
         moveGate,
         removeGate
@@ -233,7 +235,7 @@ export function CircuitCanvas() {
                         >
                             <ScrollArea className="h-full w-full">
                                 <svg ref={svgRef}
-                                    style={{ display: 'block', minWidth: maxDepth * GATE_CONFIG.gateSpacing + 6}}
+                                    style={{ display: 'block', minWidth: scrollableDepth * GATE_CONFIG.gateSpacing + 6}}
                                     onDragEnter={handleDragEnter}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -258,8 +260,8 @@ export function CircuitCanvas() {
                             ? cursorPos.x - dragOffset.x
                             : cursorPos.x,
                         top: 'gate' in draggableGate && draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1
-                            ? cursorPos.y - dragOffset.y
-                            : cursorPos.y,
+                            ? cursorPos.y - dragOffset.y + CIRCUIT_CONFIG.headerHeight
+                            : cursorPos.y + CIRCUIT_CONFIG.headerHeight,
                         transform: 'translate(-50%, -50%)'
                     }}
                 />
