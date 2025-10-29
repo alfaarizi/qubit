@@ -89,12 +89,18 @@ export function SelectionContextMenu({
             return;
         }
 
-        const gates = selectedItems.reduce((acc, item) => ejectGate(item, acc), placedGates);
+        // eject all selected items
+        const gates = Array.from(dialogState.gateIds).reduce(
+            (acc, gateId) => {
+                const gate = acc.find(g => g.id === gateId);
+                return gate ? ejectGate(gate, acc) : acc;
+            },
+            placedGates
+        );
         const circuit = group(selectedItems, symbol, color);
 
-        // Rebuild circuit gates with DAG relationships
+        // rebuild circuit gates with DAG relationships
         circuit.circuit.gates = circuit.circuit.gates
-            .sort((a, b) => a.depth - b.depth)
             .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
 
         setPlacedGates(injectGate(circuit, gates));
@@ -133,7 +139,6 @@ export function SelectionContextMenu({
                         className="w-48"
                     >
                         <ContextMenuItem
-                            onClick={() => handleDeleteGates(setPlacedGateIdsRef.current)}
                             onPointerDown={handleContextMenuItemPointerDown}
                             className="gap-2"
                         >
