@@ -78,10 +78,22 @@ export function useCircuitDAG() {
             }
         });
 
+        // disconnect old parent-child relationships on overlapping qubits
+        // NOTE: this is important to handle injection between gates
+        for (const [qubit, parent] of qubitToParent) {
+            const child = qubitToChild.get(qubit);
+            if (child) {
+                child.parents = child.parents.filter(id => id !== parent.id);
+                parent.children = parent.children.filter(id => id !== child.id);
+            }
+        }
+
         // Connect to parents
         const parentSet = new Set(qubitToParent.values());
-        newItem.parents = Array.from(parentSet, p => p.id);
-        parentSet.forEach(parent => {
+        // Sort parents by depth ascending
+        const sortedParents = Array.from(parentSet).sort((a, b) => a.depth - b.depth);
+        newItem.parents = sortedParents.map(p => p.id);
+        sortedParents.forEach(parent => {
             if (!parent.children.includes(newItem.id)) {
                 parent.children.push(newItem.id);
             }

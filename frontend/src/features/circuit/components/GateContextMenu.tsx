@@ -66,24 +66,17 @@ export function GateContextMenu({
     const handleUngroup = () => {
         if (!contextMenu?.data || !('circuit' in contextMenu.data)) return;
 
+        // step 1: ungroup circuit
         const circuit = contextMenu.data;
         const ungroupedGates = ungroup(circuit);
-        const subsequentGates = placedGates.filter(g =>
-            g.depth >= circuit.depth && g.id !== circuit.id
+
+        // step 2: eject circuit, keeping its children disconnected
+        const gates = ejectGate(circuit, placedGates, circuit.children);
+
+        // step 3: inject ungrouped gates, reconnecting children
+        setPlacedGates(
+            ungroupedGates.reduce((acc, gate) => injectGate(gate, acc), gates)
         );
-
-        // remove circuit and subsequent gates
-        let gates = [circuit, ...subsequentGates].reduce(
-            (acc, gate) => ejectGate(gate, acc),
-            placedGates
-        );
-
-        //rRe-inject ungrouped gates, then subsequent gates
-        [...ungroupedGates, ...subsequentGates].forEach(gate => {
-            gates = injectGate(gate, gates);
-        });
-
-        setPlacedGates(gates);
         hideContextMenu();
     };
 

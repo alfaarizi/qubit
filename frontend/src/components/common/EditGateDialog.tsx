@@ -39,6 +39,20 @@ export function EditGateDialog({
         }
     }, [open, gate]);
 
+    const updateGate = (editedGate: Gate | Circuit) => {
+        const editedSpanQubits = new Set(getSpanQubits(editedGate));
+        const overlappingChildren = currentGate!.children.filter(childId => {
+            const child = placedGates.find(g => g.id === childId);
+            return child && getSpanQubits(child).some(q => editedSpanQubits.has(q));
+        });
+        const updatedGates = injectGate(
+            editedGate,
+            ejectGate(currentGate!, placedGates, overlappingChildren)
+        );
+        setPlacedGates(updatedGates);
+        setCurrentGate(updatedGates.find(g => g.id === editedGate.id) || editedGate);
+    };
+
     const handleGateQubitsChange = (index: number, newValue: number) => {
         if (!currentGate || 'circuit' in currentGate) return;
 
@@ -54,31 +68,23 @@ export function EditGateDialog({
 
         setGateQubits(newQubits);
 
+        // step 1: find children that still overlap with the edited gate's qubits
+        // step 2: eject, excluding only children that still overlap
         const numControls = currentGate.controlQubits.length;
-        const editedGate: Gate = {
+        updateGate({
             ...currentGate,
             controlQubits: newQubits.slice(0, numControls),
             targetQubits: newQubits.slice(numControls),
-        };
-
-        const updatedGates = injectGate(editedGate, ejectGate(currentGate, placedGates, []));
-
-        setPlacedGates(updatedGates);
-        setCurrentGate(updatedGates.find(g => g.id === currentGate.id) || editedGate);
+        });
     };
 
     const handleCircuitStartQubitChange = (newValue: number) => {
         if (!currentGate || !('circuit' in currentGate)) return;
-
         setCircuitStartQubit(newValue);
-        const movedCircuit = {
+        updateGate({
             ...currentGate,
             startQubit: newValue
-        };
-        const updatedGates = injectGate(movedCircuit, ejectGate(currentGate, placedGates, []));
-
-        setPlacedGates(updatedGates);
-        setCurrentGate(updatedGates.find(g => g.id === currentGate.id) || currentGate);
+        });
     };
 
     if (!open || !gate || !position) return null;

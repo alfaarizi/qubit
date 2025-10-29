@@ -5,7 +5,7 @@ import {
     ContextMenuItem,
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Package } from "lucide-react";
+import { Package, Trash2 } from "lucide-react";
 import { CreateCircuitDialog } from "@/components/common/CreateCircuitDialog";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
@@ -62,13 +62,11 @@ export function SelectionContextMenu({
     };
 
     const handleDeleteGates = useCallback((gateIds: Set<string>) => {
-        const gates = Array.from(gateIds).reduce(
-            (acc, gateId) => {
-                const gate = acc.find(g => g.id === gateId);
-                return gate ? ejectGate(gate, acc) : acc;
-            },
-            placedGates
-        );
+        // lookup from accumulator (not placedGates) to get gates with updated DAG relationships after each ejection
+        const gates = Array.from(gateIds).reduce((acc, gateId) => {
+            const gate = acc.find(g => g.id === gateId);
+            return gate ? ejectGate(gate, acc) : acc;
+        }, placedGates);
         setPlacedGates(gates);
         onClearSelection();
     }, [placedGates, ejectGate, setPlacedGates, onClearSelection]);
@@ -89,20 +87,24 @@ export function SelectionContextMenu({
             return;
         }
 
-        // eject all selected items
-        const gates = Array.from(dialogState.gateIds).reduce(
-            (acc, gateId) => {
-                const gate = acc.find(g => g.id === gateId);
-                return gate ? ejectGate(gate, acc) : acc;
-            },
+        // step 1: find external children, they are gates that depend on selected gates but aren't selected themselves
+        const selectedIds = new Set(selectedItems.map(item => item.id));
+        const externalChildren = selectedItems.flatMap(item => item.children).filter(id => !selectedIds.has(id));
+
+        // step 2: eject selected items, keeping external children disconnected
+        const gates = selectedItems.reduce((acc, item) =>
+            ejectGate(item, acc, externalChildren),
             placedGates
         );
+
+        // step 3: create circuit and rebuild internal dag
         const circuit = group(selectedItems, symbol, color);
+        circuit.circuit.gates = circuit.circuit.gates.reduce(
+            (acc, gate) => injectGate(gate, acc),
+            [] as (Gate | Circuit)[]
+        );
 
-        // rebuild circuit gates with DAG relationships
-        circuit.circuit.gates = circuit.circuit.gates
-            .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
-
+        // step 4: inject circuit, reconnecting external children
         setPlacedGates(injectGate(circuit, gates));
         addCircuit({
             id: circuit.circuit.id,
@@ -144,6 +146,13 @@ export function SelectionContextMenu({
                         >
                             <Package className="h-4 w-4" />
                             <span>Group</span>
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                            onPointerDown={() => handleDeleteGates(selectedGateIds)}
+                            className="gap-2 data-[highlighted]:text-destructive focus:text-destructive"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Delete</span>
                         </ContextMenuItem>
                     </ContextMenuContent>
                 </ContextMenu>
