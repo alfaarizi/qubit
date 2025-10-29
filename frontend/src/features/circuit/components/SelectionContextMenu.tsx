@@ -87,12 +87,7 @@ export function SelectionContextMenu({
             return;
         }
 
-        // step 1: eject selected items, reconnecting their children to grandparents
-        const unselectedGates = selectedItems
-            .sort((a, b) => a.depth - b.depth)
-            .reduce((acc, item) => ejectGate(item, acc), placedGates);
-
-        // step 2: create circuit and rebuild its internal DAG
+        // step 1: create circuit and rebuild its internal DAG
         const newCircuit = group(selectedItems, symbol, color);
         newCircuit.circuit.gates = newCircuit.circuit.gates
             .map(g => ({
@@ -103,8 +98,15 @@ export function SelectionContextMenu({
             .sort((a, b) => a.depth - b.depth)
             .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
 
-        // step 3: inject circuit, reconnects to proper parents and children
-        setPlacedGates(injectGate(newCircuit, unselectedGates));
+        // step 2: eject selected items first, this connects their parents to their children
+        const unselectedGates = selectedItems
+            .sort((a, b) => b.depth - a.depth) // NOTE: this is very important, deepest first
+            .reduce((acc, item) => ejectGate(item, acc), placedGates);
+
+        // step 3: inject the circuit into unselected gates
+        const gatesWithCircuit = injectGate(newCircuit, unselectedGates);
+
+        setPlacedGates(gatesWithCircuit);
 
         addCircuit({
             id: newCircuit.circuit.id,

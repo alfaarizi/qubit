@@ -91,23 +91,44 @@ export function GateContextMenu({
             return item;
         });
 
-        // step 2: partition gates into unaffected and affected regions
+        // step 2: identify gates that need reconnection
         const affectedQubits = new Set(getSpanQubits(circuit));
+        const affectedGatesIds = new Set<string>();
+        const placedGatesMap = new Map(placedGates.map(g => [g.id, g]));
+
+        // first pass: mark direct overlaps
+        placedGates.forEach(g => {
+            if (g.id === circuit.id || getSpanQubits(g).some(q => affectedQubits.has(q))) {
+                affectedGatesIds.add(g.id);
+            }
+        });
+
+        // second pass: mark all parents and children recursively
+        const markGatesForReconnection = (gateId: string) => {
+            const gate = placedGatesMap.get(gateId);
+            if (!gate) return;
+            [...gate.parents, ...gate.children].forEach(relatedId => {
+                if (!affectedGatesIds.has(relatedId)) {
+                    affectedGatesIds.add(relatedId);
+                    markGatesForReconnection(relatedId);
+                }
+            });
+        };
+        affectedGatesIds.forEach(id => markGatesForReconnection(id));
+
+        // step 3: partition gates into unaffected and affected regions
         const [unaffectedGates, affectedGates] = placedGates.reduce(
             ([unaffected, affected], g) => {
-                const overlapsCircuit = g.id === circuit.id || getSpanQubits(g).some(q => affectedQubits.has(q));
-                return overlapsCircuit
+                return affectedGatesIds.has(g.id)
                     ? [unaffected, [...affected, g]]
                     : [[...unaffected, g], affected];
             },
             [[], []] as [(Gate | Circuit)[], (Gate | Circuit)[]]
         );
 
-        // step 3: rebuild DAG for the affected region
-        // NOTE: unaffectedGates needs to be included to make sure the new gates collapse correctly
-        const allGatesReconnected = [
-            ...unaffectedGates,
-            ...affectedGates.filter(g => g.id !== circuit.id),
+        // step 4: rebuild affected gates
+        const affectedReconnected = [
+            ...affectedGates.filter(g => g.id !== circuit.id), // remove the circuit
             ...ungroupedGates
         ]
             .map(g => ({
@@ -118,11 +139,26 @@ export function GateContextMenu({
             .sort((a, b) => a.depth - b.depth)
             .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
 
-        setPlacedGates(allGatesReconnected);
+        setPlacedGates([...unaffectedGates, ...affectedReconnected]);
+        hideContextMenu();
 
-        // // 2nd Version
-        // // NOTE: Optimized but does not collapse the gate correctly
-        // const affectedReconnected = [
+        // Another version, inefficient, re-render all gates, replaces step 2-4 above
+        // step 2: partition gates into unaffected and affected regions
+        // const affectedQubits = new Set(getSpanQubits(circuit));
+        // const [unaffectedGates, affectedGates] = placedGates.reduce(
+        //     ([unaffected, affected], g) => {
+        //         const overlapsCircuit = g.id === circuit.id || getSpanQubits(g).some(q => affectedQubits.has(q));
+        //         return overlapsCircuit
+        //             ? [unaffected, [...affected, g]]
+        //             : [[...unaffected, g], affected];
+        //     },
+        //     [[], []] as [(Gate | Circuit)[], (Gate | Circuit)[]]
+        // );
+
+        // step 3: rebuild DAG for the affected region
+        // NOTE: unaffectedGates needs to be included to make sure the new gates collapse correctly
+        // const allGatesReconnected = [
+        //     ...unaffectedGates,
         //     ...affectedGates.filter(g => g.id !== circuit.id),
         //     ...ungroupedGates
         // ]
@@ -134,8 +170,8 @@ export function GateContextMenu({
         //     .sort((a, b) => a.depth - b.depth)
         //     .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
         //
-        // setPlacedGates([...unaffectedGates, ...affectedReconnected]);
-        hideContextMenu();
+        // setPlacedGates(allGatesReconnected);
+        // hideContextMenu();
     };
 
     useEffect(() => {
