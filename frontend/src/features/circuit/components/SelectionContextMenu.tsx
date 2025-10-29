@@ -64,7 +64,7 @@ export function SelectionContextMenu({
     const handleDeleteGates = useCallback((gateIds: Set<string>) => {
         const gates = Array.from(gateIds).reduce(
             (acc, gateId) => {
-                const gate = placedGates.find(g => g.id === gateId);
+                const gate = acc.find(g => g.id === gateId);
                 return gate ? ejectGate(gate, acc) : acc;
             },
             placedGates
