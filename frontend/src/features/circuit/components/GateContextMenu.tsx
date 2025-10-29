@@ -7,6 +7,7 @@ import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
 import { useCircuitDAG } from "../hooks/useCircuitDAG";
+import {getSpanQubits} from "@/features/gates/utils.ts";
 
 interface GateContextMenuProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -68,12 +69,37 @@ export function GateContextMenu({
 
         // step 1: ungroup circuit
         const circuit = contextMenu.data;
-        const ungroupedGates = ungroup(circuit);
 
-        // step 2: eject circuit, keeping its children disconnected
-        const gates = ejectGate(circuit, placedGates, circuit.children);
+        // step 2: rebuilt internal dag
+        const ungroupedGates = ungroup(circuit).map(item => {
+            if ('circuit' in item) {
+                // rebuild nested circuit's internal dag
+                return {
+                    ...item,
+                    circuit: {
+                        ...item.circuit,
+                        gates: item.circuit.gates.reduce(
+                            (acc, gate) => injectGate(gate, acc),
+                            [] as (Gate | Circuit)[]
+                        )
+                    }
+                };
+            }
+            return item;
+        })
+        .sort((a, b) => a.depth - b.depth);
 
-        // step 3: inject ungrouped gates, reconnecting children
+        // step 3: find children that still overlap with ungrouped gates' qubits
+        const ungroupedSpanQubits = new Set(ungroupedGates.flatMap(gate => getSpanQubits(gate)));
+        const overlappingChildren = circuit.children.filter(childId => {
+            const child = placedGates.find(g => g.id === childId);
+            return child && getSpanQubits(child).some(q => ungroupedSpanQubits.has(q));
+        });
+
+        // step 4: eject circuit, keeping only children that still overlap
+        const gates = ejectGate(circuit, placedGates, overlappingChildren);
+
+        // step 5: inject ungrouped gates, reconnecting overlapping children
         setPlacedGates(
             ungroupedGates.reduce((acc, gate) => injectGate(gate, acc), gates)
         );

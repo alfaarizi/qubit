@@ -40,15 +40,17 @@ export function EditGateDialog({
     }, [open, gate]);
 
     const updateGate = (editedGate: Gate | Circuit) => {
+        // step 1: find children that still overlap with the edited gate's qubits
         const editedSpanQubits = new Set(getSpanQubits(editedGate));
         const overlappingChildren = currentGate!.children.filter(childId => {
             const child = placedGates.find(g => g.id === childId);
             return child && getSpanQubits(child).some(q => editedSpanQubits.has(q));
         });
-        const updatedGates = injectGate(
-            editedGate,
-            ejectGate(currentGate!, placedGates, overlappingChildren)
-        );
+        // step 2: eject gate, excluding only children that still overlap
+        const gates = ejectGate(currentGate!, placedGates, overlappingChildren)
+
+        // step 3: inject gate back, reconnecting overlapping children
+        const updatedGates = injectGate(editedGate, gates);
         setPlacedGates(updatedGates);
         setCurrentGate(updatedGates.find(g => g.id === editedGate.id) || editedGate);
     };
@@ -68,8 +70,6 @@ export function EditGateDialog({
 
         setGateQubits(newQubits);
 
-        // step 1: find children that still overlap with the edited gate's qubits
-        // step 2: eject, excluding only children that still overlap
         const numControls = currentGate.controlQubits.length;
         updateGate({
             ...currentGate,
