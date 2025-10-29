@@ -27,7 +27,7 @@ export function GateContextMenu({
     const setPlacedGates = useCircuitStore(state => state.setPlacedGates);
     const numQubits = useCircuitStore(state => state.numQubits);
     const ungroup = useCircuitStore(state => state.ungroup);
-    const { ejectGate, injectGate, getItemWidth } = useCircuitDAG();
+    const { ejectGate, injectGate } = useCircuitDAG();
     
     const {
         contextMenu,
@@ -69,43 +69,72 @@ export function GateContextMenu({
 
         const circuit = contextMenu.data;
 
-        // step 1: ungroup circuit and rebuild internal dag for nested circuits
+        // step 1: get ungrouped gates and rebuild internal DAGs for nested circuits
         const ungroupedGates = ungroup(circuit).map(item => {
             if ('circuit' in item) {
+                // Rebuild internal DAG for nested circuits
                 return {
                     ...item,
                     circuit: {
                         ...item.circuit,
-                        gates: item.circuit.gates.reduce(
-                            (acc, gate) => injectGate(gate, acc),
-                            [] as (Gate | Circuit)[]
-                        )
+                        gates: item.circuit.gates
+                            .map(g => ({
+                                ...g,
+                                parents: [],
+                                children: []
+                            }))
+                            .sort((a, b) => a.depth - b.depth)
+                            .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[])
                     }
                 };
             }
             return item;
         });
 
-        // step 2: find gates that overlap with circuit's qubits and depth range
-        const circuitSpanQubits = new Set(getSpanQubits(circuit));
-        const circuitWidth = getItemWidth(circuit);
-        const circuitMaxDepth = circuit.depth + circuitWidth;
-
-        const overlappingGates = placedGates
-            .filter(gate => {
-                if (gate.id === circuit.id) return false;
-                const overlapQubits = getSpanQubits(gate).some(q => circuitSpanQubits.has(q));
-                return gate.depth >= circuit.depth && gate.depth < circuitMaxDepth && overlapQubits;
-            })
-            .map(gate => gate.id);
-
-        // step 3: eject circuit, keeping overlapping gates disconnected
-        const gates = ejectGate(circuit, placedGates, overlappingGates);
-
-        // step 4: inject ungrouped gates, reconnecting overlapping gates
-        setPlacedGates(
-            ungroupedGates.reduce((acc, gate) => injectGate(gate, acc), gates)
+        // step 2: partition gates into unaffected and affected regions
+        const affectedQubits = new Set(getSpanQubits(circuit));
+        const [unaffectedGates, affectedGates] = placedGates.reduce(
+            ([unaffected, affected], g) => {
+                const overlapsCircuit = g.id === circuit.id || getSpanQubits(g).some(q => affectedQubits.has(q));
+                return overlapsCircuit
+                    ? [unaffected, [...affected, g]]
+                    : [[...unaffected, g], affected];
+            },
+            [[], []] as [(Gate | Circuit)[], (Gate | Circuit)[]]
         );
+
+        // step 3: rebuild DAG for the affected region
+        // NOTE: unaffectedGates needs to be included to make sure the new gates collapse correctly
+        const allGatesReconnected = [
+            ...unaffectedGates,
+            ...affectedGates.filter(g => g.id !== circuit.id),
+            ...ungroupedGates
+        ]
+            .map(g => ({
+                ...g,
+                parents: [],
+                children: []
+            }))
+            .sort((a, b) => a.depth - b.depth)
+            .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
+
+        setPlacedGates(allGatesReconnected);
+
+        // // 2nd Version
+        // // NOTE: Optimized but does not collapse the gate correctly
+        // const affectedReconnected = [
+        //     ...affectedGates.filter(g => g.id !== circuit.id),
+        //     ...ungroupedGates
+        // ]
+        //     .map(g => ({
+        //         ...g,
+        //         parents: [],
+        //         children: []
+        //     }))
+        //     .sort((a, b) => a.depth - b.depth)
+        //     .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
+        //
+        // setPlacedGates([...unaffectedGates, ...affectedReconnected]);
         hideContextMenu();
     };
 

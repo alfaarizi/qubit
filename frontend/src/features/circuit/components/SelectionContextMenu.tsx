@@ -13,7 +13,6 @@ import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "../types";
 import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts.ts";
-import {getSpanQubits} from "@/features/gates/utils.ts";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -88,40 +87,30 @@ export function SelectionContextMenu({
             return;
         }
 
-        const selectedIds = new Set(selectedItems.map(item => item.id));
+        // step 1: eject selected items, reconnecting their children to grandparents
+        const unselectedGates = selectedItems
+            .sort((a, b) => a.depth - b.depth)
+            .reduce((acc, item) => ejectGate(item, acc), placedGates);
 
-        // step 1: create circuit to determine its span and depth range
-        const circuit = group(selectedItems, symbol, color);
-        const circuitSpanQubits = new Set(getSpanQubits(circuit));
+        // step 2: create circuit and rebuild its internal DAG
+        const newCircuit = group(selectedItems, symbol, color);
+        newCircuit.circuit.gates = newCircuit.circuit.gates
+            .map(g => ({
+                ...g,
+                parents: [],
+                children: []
+            }))
+            .sort((a, b) => a.depth - b.depth)
+            .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
 
-        // step 2: find all gates that overlap with circuit's qubits and depth range
-        const overlappingGates = placedGates
-            .filter(gate => {
-                if (selectedIds.has(gate.id)) return false;
-                const overlapQubits = getSpanQubits(gate).some(q => circuitSpanQubits.has(q));
-                return gate.depth >= circuit.depth && overlapQubits;
-            })
-            .map(gate => gate.id);
+        // step 3: inject circuit, reconnects to proper parents and children
+        setPlacedGates(injectGate(newCircuit, unselectedGates));
 
-        // step 3: eject selected items, keeping overlapping gates disconnected
-        const gates = selectedItems.reduce((acc, item) =>
-                ejectGate(item, acc, overlappingGates),
-            placedGates
-        );
-
-        // step 4: rebuild circuit's internal dag
-        circuit.circuit.gates = circuit.circuit.gates.reduce(
-            (acc, gate) => injectGate(gate, acc),
-            [] as (Gate | Circuit)[]
-        );
-
-        // step 5: inject circuit, reconnecting overlapping gates
-        setPlacedGates(injectGate(circuit, gates));
         addCircuit({
-            id: circuit.circuit.id,
-            symbol: circuit.circuit.symbol,
-            color: circuit.circuit.color,
-            gates: circuit.circuit.gates,
+            id: newCircuit.circuit.id,
+            symbol: newCircuit.circuit.symbol,
+            color: newCircuit.circuit.color,
+            gates: newCircuit.circuit.gates,
         });
 
         setDialogState(null);
