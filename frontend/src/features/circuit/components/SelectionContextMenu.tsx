@@ -155,19 +155,18 @@ export function SelectionContextMenu({
         let reconnectedGates = injectGate(newCircuit, unaffectedGates);
 
         // step 6: inject affected gates within circuit
-        const newCircuitMaxDepth = getItemWidth(newCircuit);
+        let reconnectedGatesMaxDepth = getMaxDepth(reconnectedGates);
         reconnectedGates = affectedGatesInCircuit
-        .map(g => ({ 
+        .map(g => ({
             ...g, 
             parents: [], 
             children: [] 
         }))
         .sort((a, b) => a.depth - b.depth)
-        .reduce((acc, gate) => injectGate(gate, acc, gate.depth - newCircuit.depth + 1 + newCircuitMaxDepth), reconnectedGates);
-        
-        const reconnectedGatesMaxDepth = getMaxDepth(reconnectedGates);
-
+        .reduce((acc, gate) => injectGate(gate, acc, gate.depth - newCircuit.depth + 1 + reconnectedGatesMaxDepth), reconnectedGates);
+                
         // step 7: inject affected gates not within circuit
+        reconnectedGatesMaxDepth = getMaxDepth(reconnectedGates);
         reconnectedGates = affectedGatesOutsideCircuit
             .map(g => ({ 
                 ...g, 
