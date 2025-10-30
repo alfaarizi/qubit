@@ -108,9 +108,10 @@ export function GateContextMenu({
             const gate = placedGatesMap.get(gateId);
             if (!gate) return;
             [...gate.parents, ...gate.children].forEach(relatedId => {
-                if (affectedGateIds.has(relatedId)) return;
-                affectedGateIds.add(relatedId);
-                markReachable(relatedId);
+                if (!affectedGateIds.has(relatedId)) {
+                    affectedGateIds.add(relatedId);
+                    markReachable(relatedId);
+                }
             });
         };
         affectedGateIds.forEach(id => markReachable(id));

@@ -126,7 +126,7 @@ export function SelectionContextMenu({
         };
         affectedGateIds.forEach(id => markChildren(id));
 
-        // step 3: eject all affected gates from deepest first
+        // step 3: eject all affected gates from deepest first, partition into unaffected and affected regions
         const affectedGates = Array.from(affectedGateIds)
         .map(id => placedGatesMap.get(id)!)
         .filter(Boolean)
@@ -138,13 +138,12 @@ export function SelectionContextMenu({
         );
         
         // step 4: separate non-selected affected gates
-        const circuitMaxDepth = newCircuit.depth + getItemWidth(newCircuit) - 1;
-
+        const newCircuitMaxDepth = newCircuit.depth + getItemWidth(newCircuit) - 1;
         const [affectedGatesInCircuit, affectedGatesOutsideCircuit] = affectedGates
             .filter(g => !selectedItemIds.has(g.id))
             .reduce(
                 ([inCircuit, outsideCircuit], g) => {
-                    return g.depth >= (newCircuit.depth - 1) && g.depth <= circuitMaxDepth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))
+                    return g.depth >= newCircuit.depth && g.depth <= newCircuitMaxDepth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))
                         ? [[...inCircuit, g], outsideCircuit]
                         : [inCircuit, [...outsideCircuit, g]];
                 },
