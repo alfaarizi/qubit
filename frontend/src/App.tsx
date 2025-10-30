@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
 
 const Home = lazy(() => import('@/pages/HomePage'));
-const Workspace = lazy(() => import('@/pages/WorkspacePage'));
+const Composer = lazy(() => import('@/pages/ComposerPage'));
 
 function App() {
     return (
@@ -16,7 +16,7 @@ function App() {
                 <Suspense fallback={<FullScreenSpinner />}>
                     <Routes>
                         <Route path="/" element={<Home />} />
-                        <Route path="/workspace" element={<Workspace />} />
+                        <Route path="/composer" element={<Composer />} />
                     </Routes>
                 </Suspense>
             </Router>

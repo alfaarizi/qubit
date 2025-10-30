@@ -9,8 +9,8 @@ const cardStyle = 'border-white/15 bg-white/5 backdrop-blur-3xl shadow-2xl shado
 function HomePage() {
     const navigate = useNavigate();
 
-    const navigateToWorkspace = () => {
-        navigate('/workspace');
+    const navigateToComposer = () => {
+        navigate('/composer');
     };
 
     return (
@@ -27,7 +27,7 @@ function HomePage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center">
-                        <Button onClick={navigateToWorkspace} className="bg-teal-500 hover:bg-teal-600 text-black">
+                        <Button onClick={navigateToComposer} className="bg-teal-500 hover:bg-teal-600 text-black">
                             Open Partitioner
                         </Button>
                     </CardContent>

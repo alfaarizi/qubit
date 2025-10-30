@@ -25,7 +25,7 @@ const DEFAULT_INSPECTOR_SIZE = 30;
 const EXPANDED_INSPECTOR_SIZE = 50;
 const COLLAPSED_INSPECTOR_SIZE = 0;
 
-function WorkspaceContent() {
+function ComposerContent() {
     const { circuits, activeCircuitId, setActiveCircuitId } = useProject()
 
     const inspectorRef = useRef<ImperativePanelHandle>(null)
@@ -144,11 +144,11 @@ function WorkspaceContent() {
     )
 }
 
-export default function WorkspacePage() {
+export default function ComposerPage() {
     return (
         <ProjectProvider>
             <InspectorProvider>
-                <WorkspaceContent />
+                <ComposerContent />
             </InspectorProvider>
         </ProjectProvider>
     )
