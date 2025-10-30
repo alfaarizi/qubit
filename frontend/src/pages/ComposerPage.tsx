@@ -69,34 +69,34 @@ function ComposerContent() {
                     <GatesPanel />
                     <ResizablePanelGroup direction="horizontal">
                         <ResizablePanel defaultSize={70} minSize={30} className="relative overflow-hidden">
-                            <div className="h-full overflow-y-auto p-6 flex flex-col gap-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                <div className="min-h-[45vh] flex-shrink-0 -mb-4">
-                                    <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId}>
-                                        <TabsList>
-                                            {circuits.map(circuit => (
-                                                <TabsTrigger key={circuit.id} value={circuit.id}>
-                                                    {circuit.symbol}
-                                                </TabsTrigger>
-                                            ))}
-                                        </TabsList>
+                            <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId} className="h-full">
+                                <div className="h-full overflow-y-auto p-6 flex flex-col gap-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                    <TabsList>
                                         {circuits.map(circuit => (
-                                            <TabsContent key={circuit.id} value={circuit.id}>
+                                            <TabsTrigger key={circuit.id} value={circuit.id}>
+                                                {circuit.symbol}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                    {circuits.map(circuit => (
+                                        <TabsContent key={circuit.id} value={circuit.id} className="mt-0 flex flex-col gap-4">
+                                            <div className="flex-shrink-0">
                                                 <CircuitProvider circuitId={circuit.id}>
-                                                <CircuitToolbar />
+                                                    <CircuitToolbar />
                                                     <CircuitCanvas />
                                                 </CircuitProvider>
-                                            </TabsContent>
-                                        ))}
-                                    </Tabs>
+                                            </div>
+                                            <div className="flex-shrink-0">
+                                                <ResultsPanel
+                                                    results={mockResults}
+                                                    totalShots={1024}
+                                                    executionTime={0.34}
+                                                />
+                                            </div>
+                                        </TabsContent>
+                                    ))}
                                 </div>
-                                <div className="min-h-[53vh] flex-shrink-0">
-                                    <ResultsPanel
-                                        results={mockResults}
-                                        totalShots={1024}
-                                        executionTime={0.34}
-                                    />
-                                </div>
-                            </div>
+                            </Tabs>
                             {/* Inspector Toggle Button */}
                             <Button
                                 variant="default"
