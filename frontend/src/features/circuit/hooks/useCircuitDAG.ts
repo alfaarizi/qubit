@@ -92,10 +92,8 @@ export function useCircuitDAG() {
 
         // Connect to parents
         const parentSet = new Set(qubitToParent.values());
-        // Sort parents by depth ascending
-        const sortedParents = Array.from(parentSet).sort((a, b) => a.depth - b.depth);
-        newItem.parents = sortedParents.map(p => p.id);
-        sortedParents.forEach(parent => {
+        newItem.parents = Array.from(parentSet, p => p.id);
+        parentSet.forEach(parent => {
             if (!parent.children.includes(newItem.id)) {
                 parent.children.push(newItem.id);
             }
@@ -128,11 +126,7 @@ export function useCircuitDAG() {
         item.parents
             .map(parentId => ({ id: parentId, parent: itemsMap.get(parentId) }))
             .filter(({ parent }) => parent !== undefined)
-            .sort((a, b) => {
-                const x = a.parent!.depth;
-                const y = b.parent!.depth;
-                return x === y ? 0 : x > y ? 1 : -1;
-            })
+            .sort((a, b) => a.parent!.depth - b.parent!.depth)
             .forEach(({ parent }) => {
                 if (!parent) return;
                 parent.children = parent.children.filter(id => id !== item.id);

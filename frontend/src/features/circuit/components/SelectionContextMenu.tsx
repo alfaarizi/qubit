@@ -216,7 +216,7 @@ export function SelectionContextMenu({
                             <span>Group</span>
                         </ContextMenuItem>
                         <ContextMenuItem
-                            onPointerDown={() => handleDeleteGates(selectedGateIds)}
+                            onClick={() => handleDeleteGates(selectedGateIds)}
                             className="gap-2 data-[highlighted]:text-destructive focus:text-destructive"
                         >
                             <Trash2 className="h-4 w-4" />
