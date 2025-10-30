@@ -13,6 +13,7 @@ import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "../types";
 import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts.ts";
+import {getMaxDepth, getSpanQubits} from "@/features/gates/utils.ts";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -41,7 +42,7 @@ export function SelectionContextMenu({
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const group = useCircuitStore((state) => state.group);
     const { addCircuit } = useCircuitTemplates();
-    const { ejectGate, injectGate } = useCircuitDAG();
+    const { ejectGate, injectGate, getItemWidth } = useCircuitDAG();
 
     // update preventClearSelection whenever menu or dialog state changes
     useEffect(() => {
@@ -102,11 +103,12 @@ export function SelectionContextMenu({
         const selectedItemIds = new Set(selectedItems.map(item => item.id));
         const affectedGateIds = new Set<string>();
         const placedGatesMap = new Map(placedGates.map(g => [g.id, g]));
+        const circuitSpanQubits = new Set(getSpanQubits(newCircuit));
 
-        // first pass: mark selected items and their direct children
+        // first pass: mark selected items and gates that overlap with circuit at circuit depth
         selectedItems.forEach(item => affectedGateIds.add(item.id));
         placedGates.forEach(g => {
-            if (!selectedItemIds.has(g.id) && g.parents.some(parentId => selectedItemIds.has(parentId))) {
+            if (!selectedItemIds.has(g.id) && g.depth >= newCircuit.depth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))) {
                 affectedGateIds.add(g.id);
             }
         });
@@ -135,14 +137,47 @@ export function SelectionContextMenu({
             placedGates
         );
         
-        // step 4: inject circuit and non-selected affected gates sorted by depth
-        const reconnectedGates = affectedGates
+        // step 4: separate non-selected affected gates
+        const circuitMaxDepth = newCircuit.depth + getItemWidth(newCircuit) - 1;
+
+        const [affectedGatesInCircuit, affectedGatesOutsideCircuit] = affectedGates
             .filter(g => !selectedItemIds.has(g.id))
-            .sort((a, b) => a.depth - b.depth)
-            .reduce((acc, gate) => injectGate(gate, acc), unaffectedGates);
+            .reduce(
+                ([inCircuit, outsideCircuit], g) => {
+                    return g.depth >= (newCircuit.depth - 1) && g.depth <= circuitMaxDepth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))
+                        ? [[...inCircuit, g], outsideCircuit]
+                        : [inCircuit, [...outsideCircuit, g]];
+                },
+                [[], []] as [(Gate | Circuit)[], (Gate | Circuit)[]]
+            );
+
+        // step 5: inject circuit first
+        let reconnectedGates = injectGate(newCircuit, unaffectedGates);
+
+        // step 6: inject affected gates within circuit
+        const newCircuitMaxDepth = getItemWidth(newCircuit);
+        reconnectedGates = affectedGatesInCircuit
+        .map(g => ({ 
+            ...g, 
+            parents: [], 
+            children: [] 
+        }))
+        .sort((a, b) => a.depth - b.depth)
+        .reduce((acc, gate) => injectGate(gate, acc, gate.depth - newCircuit.depth + 1 + newCircuitMaxDepth), reconnectedGates);
         
-        // step 5: inject circuit
-        setPlacedGates(injectGate(newCircuit, reconnectedGates));
+        const reconnectedGatesMaxDepth = getMaxDepth(reconnectedGates);
+
+        // step 7: inject affected gates not within circuit
+        reconnectedGates = affectedGatesOutsideCircuit
+            .map(g => ({ 
+                ...g, 
+                parents: [], 
+                children: [] 
+            }))
+            .sort((a, b) => a.depth - b.depth)
+            .reduce((acc, gate) => injectGate(gate, acc, gate.depth - newCircuit.depth + 1 + reconnectedGatesMaxDepth), reconnectedGates);
+
+        setPlacedGates(reconnectedGates);
 
         addCircuit({
             id: newCircuit.circuit.id,

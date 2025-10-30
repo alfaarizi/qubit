@@ -43,6 +43,7 @@ export function useCircuitDAG() {
     const injectGate = useCallback((
         item: Gate | Circuit,
         items: (Gate | Circuit)[],
+        startDepth?: number
     ): (Gate | Circuit)[] => {
         const itemsMap = createItemsMap(items);
         const qubitToParent = new Map<number, Gate | Circuit>();
@@ -50,6 +51,7 @@ export function useCircuitDAG() {
 
         const newItem: Gate | Circuit = {
             ...item,
+            depth: startDepth ?? item.depth,
             parents: [],
             children: []
         };
