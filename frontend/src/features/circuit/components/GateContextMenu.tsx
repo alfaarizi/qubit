@@ -6,8 +6,7 @@ import { useInspector } from "@/features/inspector/InspectorContext";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
-import { useCircuitDAG } from "../hooks/useCircuitDAG";
-import {getSpanQubits} from "@/features/gates/utils.ts";
+import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 
 interface GateContextMenuProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -92,7 +91,6 @@ export function GateContextMenu({
         });
 
         // step 2: identify gates that need reconnection
-        const circuitSpanQubits = new Set(getSpanQubits(circuit));
         const affectedGateIds = new Set<string>();
         const placedGatesMap = new Map(placedGates.map(g => [g.id, g]));
 
@@ -113,19 +111,19 @@ export function GateContextMenu({
         affectedGateIds.forEach(id => markChildren(id));
 
         // step 3: partition gates into unaffected and affected regions
-        const [unaffectedGates, affectedGates] = placedGates.reduce(
-            ([unaffected, affected], g) => {
-                return affectedGateIds.has(g.id)
-                    ? [unaffected, [...affected, g]]
-                    : [[...unaffected, g], affected];
-            },
-            [[], []] as [(Gate | Circuit)[], (Gate | Circuit)[]]
+        const affectedGates = Array.from(affectedGateIds)
+        .map(id => placedGatesMap.get(id)!)
+        .filter(Boolean);
+                        
+        const unaffectedGates = affectedGates.reduce(
+            (acc, gate) => ejectGate(gate, acc),
+            placedGates
         );
 
         // step 4: rebuild affected gates
         const reconnectedGates = [
-            ...affectedGates.filter(g => g.id !== circuit.id), // remove the circuit
-            ...ungroupedGates
+            ...ungroupedGates,
+            ...affectedGates.filter(g => g.id !== circuit.id) // remove the circuit
         ]
             .map(g => ({
                 ...g,

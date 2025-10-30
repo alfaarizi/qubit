@@ -11,9 +11,9 @@ import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
-import type { Circuit } from "../types";
-import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts.ts";
-import {getMaxDepth, getSpanQubits} from "@/features/gates/utils.ts";
+import type { Circuit } from "@/features/circuit/types";
+import {useKeyboardShortcuts} from "@/hooks/useKeyboardShortcuts";
+import {getMaxDepth, getSpanQubits} from "@/features/gates/utils";
 
 interface SelectionContextMenuProps {
     children: React.ReactNode;
@@ -121,11 +121,10 @@ export function SelectionContextMenu({
         };
         affectedGateIds.forEach(id => markChildren(id));
 
-        // step 3: eject all affected gates from deepest first, partition into unaffected and affected regions
+        // step 3: eject all affected gates, partition into unaffected and affected regions
         const affectedGates = Array.from(affectedGateIds)
         .map(id => placedGatesMap.get(id)!)
-        .filter(Boolean)
-        .sort((a, b) => b.depth - a.depth); // NOTE: this is important, deepest first
+        .filter(Boolean);
         
         const unaffectedGates = affectedGates.reduce(
             (acc, gate) => ejectGate(gate, acc),
@@ -136,11 +135,13 @@ export function SelectionContextMenu({
         const newCircuitMaxDepth = newCircuit.depth + getItemWidth(newCircuit) - 1;
         const [affectedGatesInCircuit, affectedGatesOutsideCircuit] = affectedGates
             .filter(g => !selectedItemIds.has(g.id))
-            .reduce(
-                ([inCircuit, outsideCircuit], g) => {
-                    return g.depth >= newCircuit.depth && g.depth <= newCircuitMaxDepth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))
-                        ? [[...inCircuit, g], outsideCircuit]
-                        : [inCircuit, [...outsideCircuit, g]];
+            .reduce(([inCircuit, outsideCircuit], g) => {
+                    if (g.depth >= newCircuit.depth && g.depth <= newCircuitMaxDepth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))) {
+                        inCircuit.push(g);
+                    } else {
+                        outsideCircuit.push(g);
+                    }
+                    return [inCircuit, outsideCircuit];
                 },
                 [[], []] as [(Gate | Circuit)[], (Gate | Circuit)[]]
             );
