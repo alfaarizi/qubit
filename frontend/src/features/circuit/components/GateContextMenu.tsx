@@ -96,25 +96,21 @@ export function GateContextMenu({
         const affectedGateIds = new Set<string>();
         const placedGatesMap = new Map(placedGates.map(g => [g.id, g]));
 
-        // first pass: mark gates that overlap circuit qubits
-        placedGates.forEach(g => {
-            if (g.id === circuit.id || getSpanQubits(g).some(q => circuitSpanQubits.has(q))) {
-                affectedGateIds.add(g.id);
-            }
-        });
+        // first pass: mark circuit
+        affectedGateIds.add(circuit.id);
 
         // second pass: mark all parents and children recursively
-        const markReachable = (gateId: string) => {
+        const markChildren = (gateId: string) => {
             const gate = placedGatesMap.get(gateId);
             if (!gate) return;
-            [...gate.parents, ...gate.children].forEach(relatedId => {
-                if (!affectedGateIds.has(relatedId)) {
-                    affectedGateIds.add(relatedId);
-                    markReachable(relatedId);
+            gate.children.forEach(childId => {
+                if (!affectedGateIds.has(childId)) {
+                    affectedGateIds.add(childId);
+                    markChildren(childId);
                 }
             });
         };
-        affectedGateIds.forEach(id => markReachable(id));
+        affectedGateIds.forEach(id => markChildren(id));
 
         // step 3: partition gates into unaffected and affected regions
         const [unaffectedGates, affectedGates] = placedGates.reduce(
@@ -137,9 +133,9 @@ export function GateContextMenu({
                 children: []
             }))
             .sort((a, b) => a.depth - b.depth)
-            .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
+            .reduce((acc, gate) => injectGate(gate, acc), unaffectedGates);
 
-        setPlacedGates([...unaffectedGates, ...reconnectedGates]);
+        setPlacedGates(reconnectedGates);
         hideContextMenu();
     };
 
