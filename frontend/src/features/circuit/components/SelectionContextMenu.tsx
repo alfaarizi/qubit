@@ -98,15 +98,51 @@ export function SelectionContextMenu({
             .sort((a, b) => a.depth - b.depth)
             .reduce((acc, gate) => injectGate(gate, acc), [] as (Gate | Circuit)[]);
 
-        // step 2: eject selected items first, this connects their parents to their children
-        const unselectedGates = selectedItems
-            .sort((a, b) => b.depth - a.depth) // NOTE: this is very important, deepest first
-            .reduce((acc, item) => ejectGate(item, acc), placedGates);
+        // step 2: identify gates that need reconnection
+        const selectedItemIds = new Set(selectedItems.map(item => item.id));
+        const affectedGateIds = new Set<string>();
+        const placedGatesMap = new Map(placedGates.map(g => [g.id, g]));
 
-        // step 3: inject the circuit into unselected gates
-        const gatesWithCircuit = injectGate(newCircuit, unselectedGates);
+        // first pass: mark selected items and their direct children
+        selectedItems.forEach(item => affectedGateIds.add(item.id));
+        placedGates.forEach(g => {
+            if (!selectedItemIds.has(g.id) && g.parents.some(parentId => selectedItemIds.has(parentId))) {
+                affectedGateIds.add(g.id);
+            }
+        });
 
-        setPlacedGates(gatesWithCircuit);
+        // second pass: mark all children recursively
+        const markChildren = (gateId: string) => {
+            const gate = placedGatesMap.get(gateId);
+            if (!gate) return;
+            gate.children.forEach(childId => {
+                if (!affectedGateIds.has(childId)) {
+                    affectedGateIds.add(childId);
+                    markChildren(childId);
+                }
+            });
+        };
+        affectedGateIds.forEach(id => markChildren(id));
+
+        // step 3: eject all affected gates from deepest first
+        const affectedGates = Array.from(affectedGateIds)
+        .map(id => placedGatesMap.get(id)!)
+        .filter(Boolean)
+        .sort((a, b) => b.depth - a.depth); // NOTE: this is important, deepest first
+        
+        const unaffectedGates = affectedGates.reduce(
+            (acc, gate) => ejectGate(gate, acc),
+            placedGates
+        );
+        
+        // step 4: inject circuit and non-selected affected gates sorted by depth
+        const reconnectedGates = affectedGates
+            .filter(g => !selectedItemIds.has(g.id))
+            .sort((a, b) => a.depth - b.depth)
+            .reduce((acc, gate) => injectGate(gate, acc), unaffectedGates);
+        
+        // step 5: inject circuit
+        setPlacedGates(injectGate(newCircuit, reconnectedGates));
 
         addCircuit({
             id: newCircuit.circuit.id,
