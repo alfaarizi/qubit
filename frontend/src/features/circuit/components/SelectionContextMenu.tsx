@@ -105,13 +105,8 @@ export function SelectionContextMenu({
         const placedGatesMap = new Map(placedGates.map(g => [g.id, g]));
         const circuitSpanQubits = new Set(getSpanQubits(newCircuit));
 
-        // first pass: mark selected items and gates that overlap with circuit at circuit depth
+        // first pass: mark selected items
         selectedItems.forEach(item => affectedGateIds.add(item.id));
-        placedGates.forEach(g => {
-            if (!selectedItemIds.has(g.id) && g.depth >= newCircuit.depth && getSpanQubits(g).some(q => circuitSpanQubits.has(q))) {
-                affectedGateIds.add(g.id);
-            }
-        });
 
         // second pass: mark all children recursively
         const markChildren = (gateId: string) => {
@@ -151,7 +146,8 @@ export function SelectionContextMenu({
             );
 
         // step 5: inject circuit first
-        let reconnectedGates = injectGate(newCircuit, unaffectedGates);
+        const unaffectedGatesMaxDepth = getMaxDepth(unaffectedGates);
+        let reconnectedGates = injectGate(newCircuit, unaffectedGates, unaffectedGatesMaxDepth + 1);
 
         // step 6: inject affected gates within circuit
         let reconnectedGatesMaxDepth = getMaxDepth(reconnectedGates);
