@@ -6,14 +6,13 @@ import type { ImperativePanelHandle } from "react-resizable-panels"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Header } from "@/components/layout/Header"
 import { Layout } from "@/components/layout/Layout"
 import { StatusBar } from "@/components/layout/StatusBar"
 import { Panel } from "@/components/layout/Panel"
 
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
-import { CircuitProvider, useCircuitStateById } from "@/features/circuit/store/CircuitStoreContext";
+import { CircuitProvider } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
@@ -21,19 +20,11 @@ import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
+import { CircuitExecutionProvider } from "@/features/simulation/components/CircuitExecutionProvider";
 
 const DEFAULT_INSPECTOR_SIZE = 30;
 const EXPANDED_INSPECTOR_SIZE = 50;
 const COLLAPSED_INSPECTOR_SIZE = 0;
-
-function CircuitProgressBar({ circuitId }: { circuitId: string }) {
-    const circuitState = useCircuitStateById(circuitId);
-    return circuitState.isExecuting ? (
-        <div className="absolute bottom-0 left-0 right-0">
-            <Progress value={100} className="h-1.5 rounded-none bg-muted/50 [&>div]:bg-green-600" />
-        </div>
-    ) : null;
-}
 
 function ComposerContent() {
     const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit } = useProject()
@@ -124,14 +115,11 @@ function ComposerContent() {
                                         </Button>
                                     </TabsList>
                                     <div className="relative -mb-1.5 pb-1.5">
-                                        {circuits.map(circuit => (
-                                            activeCircuitId === circuit.id && (
-                                                <CircuitProvider key={circuit.id} circuitId={circuit.id}>
-                                                    <CircuitToolbar />
-                                                </CircuitProvider>
-                                            )
-                                        ))}
-                                        {activeCircuitId && <CircuitProgressBar circuitId={activeCircuitId} />}
+                                        {activeCircuitId && (
+                                            <CircuitProvider circuitId={activeCircuitId}>
+                                                <CircuitToolbar />
+                                            </CircuitProvider>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex-1 px-6 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -142,18 +130,18 @@ function ComposerContent() {
                                     ) : (
                                         circuits.map(circuit => (
                                             <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6">
-                                                <div className="h-[385px] overflow-x-auto bg-zinc-200/35 dark:bg-zinc-700/35">
-                                                    <CircuitProvider circuitId={circuit.id}>
+                                                <CircuitProvider circuitId={circuit.id}>
+                                                    <div className="h-[385px] overflow-x-auto bg-zinc-200/35 dark:bg-zinc-700/35">
                                                         <CircuitCanvas />
-                                                    </CircuitProvider>
-                                                </div>
-                                                <div className="mt-4">
-                                                    <ResultsPanel
-                                                        results={mockResults}
-                                                        totalShots={1024}
-                                                        executionTime={0.34}
-                                                    />
-                                                </div>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <ResultsPanel
+                                                            results={mockResults}
+                                                            totalShots={1024}
+                                                            executionTime={0.34}
+                                                        />
+                                                    </div>
+                                                </CircuitProvider>
                                             </TabsContent>
                                         ))
                                     )}
@@ -210,7 +198,9 @@ export default function ComposerPage() {
     return (
         <ProjectProvider>
             <InspectorProvider>
-                <ComposerContent />
+                <CircuitExecutionProvider>
+                    <ComposerContent />
+                </CircuitExecutionProvider>
             </InspectorProvider>
         </ProjectProvider>
     )

@@ -21,9 +21,10 @@ interface QubitLabelsProps {
     numQubits: number;
     onAddQubit: () => void;
     onRemoveQubit: () => void;
+    disabled?: boolean;
 }
 
-function QubitLabels({ numQubits, onAddQubit, onRemoveQubit }: QubitLabelsProps) {
+function QubitLabels({ numQubits, onAddQubit, onRemoveQubit, disabled }: QubitLabelsProps) {
     return (
         <div className="flex flex-col">
             <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
@@ -36,14 +37,15 @@ function QubitLabels({ numQubits, onAddQubit, onRemoveQubit }: QubitLabelsProps)
             <div style={{ height: CIRCUIT_CONFIG.footerHeight }} className="flex items-center gap-1">
                 <button
                         onClick={onRemoveQubit}
-                        disabled={numQubits <= 1}
-                        className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent disabled:opacity-30"
+                        disabled={numQubits <= 1 || disabled}
+                        className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                     −
                 </button>
                 <button
                     onClick={onAddQubit}
-                    className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent"
+                    disabled={disabled}
+                    className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     +
                 </button>
@@ -55,19 +57,21 @@ function QubitLabels({ numQubits, onAddQubit, onRemoveQubit }: QubitLabelsProps)
 interface MeasurementTogglesProps {
     measurements: boolean[];
     onToggle: (index: number) => void;
+    disabled?: boolean;
 }
 
-export function MeasurementToggles({ measurements, onToggle }: MeasurementTogglesProps) {
+export function MeasurementToggles({ measurements, onToggle, disabled }: MeasurementTogglesProps) {
     return (
         <div className="flex flex-col">
             <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
             {measurements.map((isMeasured, i) => (
                 <div key={i} style={{height: GATE_CONFIG.qubitSpacing}} className="flex items-center justify-center">
                     <button
-                        onClick={() => onToggle(i)}
-                        className={`w-6 h-6 flex items-center justify-center cursor-pointer ${
-                            isMeasured ? 'bg-yellow-500/75' : 'bg-gray-400/75'
-                        }`}
+                        onClick={() => !disabled && onToggle(i)}
+                        disabled={disabled}
+                        className={`w-6 h-6 flex items-center justify-center ${
+                            disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                        } ${isMeasured ? 'bg-yellow-500/75' : 'bg-gray-400/75'}`}
                     >
                         <svg className={`w-full h-full fill-foreground`} viewBox="2 2 26 26">
                             <path d="
@@ -118,6 +122,9 @@ export function CircuitCanvas() {
     const placedGates = useCircuitStore((state) => state.placedGates);
     const measurements = useCircuitStore((state) => state.measurements);
     const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
+    const isExecuting = useCircuitStore((state) => state.isExecuting);
+    const executionProgress = useCircuitStore((state) => state.executionProgress);
+    const executionStatus = useCircuitStore((state) => state.executionStatus);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
 
@@ -179,7 +186,7 @@ export function CircuitCanvas() {
     const { selectedGateIds, clearSelection } = useGateSelection({
         svgRef,
         placedGates,
-        isEnabled: !draggableGate,
+        isEnabled: !draggableGate && !isExecuting,
         scrollContainerRef,
         preventClearSelection,
     });
@@ -197,12 +204,12 @@ export function CircuitCanvas() {
         return () => viewport.removeEventListener('scroll', saveScroll);
     }, [selectedGateIds]);
 
-    // clear selection when dragging starts
+    // clear selection when dragging starts or execution begins
     useEffect(() => {
-        if (draggableGate && selectedGateIds.size > 0) {
+        if ((draggableGate || isExecuting) && selectedGateIds.size > 0) {
             clearSelection();
         }
-    }, [draggableGate, selectedGateIds.size, clearSelection]);
+    }, [draggableGate, isExecuting, selectedGateIds.size, clearSelection]);
 
     useCircuitRenderer({
         svgRef,
@@ -212,29 +219,30 @@ export function CircuitCanvas() {
         draggableGateId: draggableGate?.id,
         selectedGateIds,
         scrollContainerWidth,
-        handleMouseDown,
+        handleMouseDown: isExecuting ? undefined : handleMouseDown,
         showNestedCircuit,
     });
 
     return (
-        <div onContextMenu={e => e.preventDefault()}>
+        <div onContextMenu={e => e.preventDefault()} className="relative">
             <Card className="flex flex-col rounded-none border-border/50 bg-card/95 gap-0 p-4 pt-0 h-fit">
                 <CardContent className="flex-1 p-0 flex overflow-hidden">
                     <QubitLabels
                         numQubits={numQubits}
                         onAddQubit={addQubit}
                         onRemoveQubit={removeQubit}
+                        disabled={isExecuting}
                     />
                     <div
                         ref={scrollContainerRef}
-                        className="flex-1"
+                        className="flex-1 relative"
                         style={{ minWidth: GATE_CONFIG.gateSpacing }}
                     >
                         <GateContextMenu
                             svgRef={svgRef}
-                            isEnabled={selectedGateIds.size <= 0}
+                            isEnabled={selectedGateIds.size <= 0 && !isExecuting}
                         />
-                        <SelectionContextMenu 
+                        <SelectionContextMenu
                             selectedGateIds={selectedGateIds}
                             onPreventClearSelection={setPreventClearSelection}
                             onClearSelection={clearSelection}
@@ -242,10 +250,10 @@ export function CircuitCanvas() {
                             <ScrollArea className="h-full w-full">
                                 <svg ref={svgRef}
                                     style={{ display: 'block', minWidth: scrollableDepth * GATE_CONFIG.gateSpacing + 6}}
-                                    onDragEnter={handleDragEnter}
-                                    onDragOver={handleDragOver}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
+                                    onDragEnter={isExecuting ? undefined : handleDragEnter}
+                                    onDragOver={isExecuting ? undefined : handleDragOver}
+                                    onDragLeave={isExecuting ? undefined : handleDragLeave}
+                                    onDrop={isExecuting ? undefined : handleDrop}
                                 />
                                 <ScrollBar orientation="horizontal" className="invisible" />
                             </ScrollArea>
@@ -254,10 +262,26 @@ export function CircuitCanvas() {
                     <MeasurementToggles
                         measurements={measurements}
                         onToggle={toggleMeasurement}
+                        disabled={isExecuting}
                     />
                 </CardContent>
             </Card>
-            {draggableGate && cursorPos && (
+            {isExecuting && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-muted/50 overflow-hidden">
+                        <div
+                            className="h-full bg-green-600 transition-all duration-300"
+                            style={{ width: `${executionProgress}%` }}
+                        />
+                    </div>
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-muted-foreground text-sm font-medium">
+                            {executionStatus || 'Executing circuit...'}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {draggableGate && cursorPos && !isExecuting && (
                 <GateIcon
                     item={'circuit' in draggableGate ? draggableGate.circuit : draggableGate.gate}
                     className="fixed pointer-events-none z-50"

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { type ReactNode, createContext, useContext, useRef, useState, useEffect } from 'react';
+import React, { type ReactNode, createContext, useContext, useState, useEffect } from 'react';
 import { createStore, useStore } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
@@ -15,6 +15,8 @@ interface CircuitState {
     measurements: boolean[];
     showNestedCircuit: boolean;
     isExecuting: boolean;
+    executionProgress: number;
+    executionStatus: string;
 }
 
 interface CircuitActions {
@@ -23,6 +25,8 @@ interface CircuitActions {
     setMeasurements: (measurements: boolean[] | ((prev: boolean[]) => boolean[])) => void;
     setShowNestedCircuit: (show: boolean | ((prev: boolean) => boolean)) => void;
     setIsExecuting: (isExecuting: boolean) => void;
+    setExecutionProgress: (progress: number) => void;
+    setExecutionStatus: (status: string) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;
     addQubit: () => void;
     removeQubit: () => void;
@@ -41,9 +45,12 @@ const initialState: CircuitState = {
     measurements: Array(CIRCUIT_CONFIG.defaultNumQubits).fill(true),
     showNestedCircuit: false,
     isExecuting: false,
+    executionProgress: 0,
+    executionStatus: '',
 };
 
 const circuitStores = new Map<string, CircuitStoreApi>();
+const circuitSvgRefs = new Map<string, React.RefObject<SVGSVGElement | null>>();
 
 // Factory to create store
 const createCircuitStore = (circuitId: string) => {
@@ -73,6 +80,8 @@ const createCircuitStore = (circuitId: string) => {
                             showNestedCircuit: typeof show === 'function' ? show(state.showNestedCircuit) : show,
                         })),
                     setIsExecuting: (isExecuting) => set({ isExecuting }),
+                    setExecutionProgress: (progress) => set({ executionProgress: progress }),
+                    setExecutionStatus: (status) => set({ executionStatus: status }),
                     updateCircuit: (updater) =>
                         set((state) => {
                             return updater({
@@ -81,6 +90,8 @@ const createCircuitStore = (circuitId: string) => {
                                 measurements: state.measurements,
                                 showNestedCircuit: state.showNestedCircuit,
                                 isExecuting: state.isExecuting,
+                                executionProgress: state.executionProgress,
+                                executionStatus: state.executionStatus,
                             });
                         }),
                     addQubit: () =>
@@ -182,6 +193,13 @@ export function getOrCreateCircuitStore(circuitId: string): CircuitStoreApi {
     return circuitStores.get(circuitId)!;
 }
 
+function getOrCreateCircuitSvgRef(circuitId: string): React.RefObject<SVGSVGElement | null> {
+    if (!circuitSvgRefs.has(circuitId)) {
+        circuitSvgRefs.set(circuitId, React.createRef<SVGSVGElement>());
+    }
+    return circuitSvgRefs.get(circuitId)!;
+}
+
 
 
 // Context for store + ref
@@ -195,7 +213,7 @@ const CircuitContext = createContext<CircuitContextValue | null>(null);
 
 export function CircuitProvider({ children, circuitId }: { children: ReactNode; circuitId: string }) {
     const store = React.useMemo(() => getOrCreateCircuitStore(circuitId), [circuitId]);
-    const svgRef = useRef<SVGSVGElement>(null);
+    const svgRef = React.useMemo(() => getOrCreateCircuitSvgRef(circuitId), [circuitId]);
 
     return (
         <CircuitContext.Provider value={{ store, svgRef, circuitId }}>
@@ -219,13 +237,20 @@ export function useCircuitStateById(circuitId: string) {
     const numQubits = useStore(store, s => s.numQubits);
     const measurements = useStore(store, s => s.measurements);
     const isExecuting = useStore(store, s => s.isExecuting);
-    return { placedGates, numQubits, measurements, isExecuting };
+    const executionProgress = useStore(store, s => s.executionProgress);
+    return { placedGates, numQubits, measurements, isExecuting, executionProgress };
 }
 
 export function useCircuitSvgRef() {
     const context = useContext(CircuitContext);
     if (!context) throw new Error('useCircuitSvgRef must be within CircuitProvider');
     return context.svgRef;
+}
+
+export function useCircuitId() {
+    const context = useContext(CircuitContext);
+    if (!context) throw new Error('useCircuitId must be within CircuitProvider');
+    return context.circuitId;
 }
 
 export function useCircuitHistory() {

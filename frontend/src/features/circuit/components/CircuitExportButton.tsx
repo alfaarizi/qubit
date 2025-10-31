@@ -98,6 +98,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
     }, [svgRef, numQubits, placedGates, gateSpacing, defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight]);
 
     const exportAsSVG = useCallback(() => {
+        if (!svgRef.current) return;
         const node = prepareSVG();
         if (!node) return;
 

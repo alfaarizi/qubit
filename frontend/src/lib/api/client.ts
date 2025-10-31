@@ -5,5 +5,5 @@ export const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 2000,
+    timeout: 15000, // 15 seconds to accommodate circuit execution
 });

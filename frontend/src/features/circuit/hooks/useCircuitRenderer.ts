@@ -17,7 +17,7 @@ interface UseCircuitRendererProps {
     selectedGateIds?: Set<string>;
     scrollContainerWidth?: number | null;
     showNestedCircuit?: boolean;
-    handleMouseDown: (gate: Gate | Circuit, event: MouseEvent) => void;
+    handleMouseDown?: (gate: Gate | Circuit, event: MouseEvent) => void;
 }
 
 export function useCircuitRenderer({
@@ -169,7 +169,7 @@ export function useCircuitRenderer({
                     .attr('cursor', 'grab')
                     .on('mousedown', (event) => {
                         event.preventDefault();
-                        handleMouseDown(gate, event);
+                        handleMouseDown?.(gate, event);
                     });
             }
         };
@@ -215,7 +215,7 @@ export function useCircuitRenderer({
             if (isTopCircuit && !isPreview) {
                 group.on('mousedown', (e: MouseEvent) => {
                     e.preventDefault();
-                    handleMouseDown(circ, e);
+                    handleMouseDown?.(circ, e);
                 });
             }
 
