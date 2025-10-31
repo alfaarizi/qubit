@@ -101,15 +101,15 @@ function ComposerContent() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="flex-1 px-6 min-h-0 flex flex-col">
+                                <div className="flex-1 px-6 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     {circuits.map(circuit => (
-                                    <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6 h-full flex flex-col">
-                                        <div className="flex-1 min-h-[385px] overflow-y-auto [scrollbar-width:none] bg-zinc-200/35 dark:bg-zinc-700/35">
+                                    <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6">
+                                        <div className="h-[385px] overflow-x-auto bg-zinc-200/35 dark:bg-zinc-700/35">
                                             <CircuitProvider circuitId={circuit.id}>
                                                 <CircuitCanvas />
                                             </CircuitProvider>
                                         </div>
-                                        <div className="flex-shrink-0 mt-4">
+                                        <div className="mt-4">
                                             <ResultsPanel
                                                 results={mockResults}
                                                 totalShots={1024}

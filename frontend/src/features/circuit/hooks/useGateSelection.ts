@@ -165,26 +165,26 @@ export function useGateSelection({
 
     // auto-scroll during selection
     useEffect(() => {
-        if (!isSelecting || !scrollContainerRef?.current) return;
-
-        const scroll = scrollContainerRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-        if (!scroll) return;
+        if (!isSelecting) return;
 
         let frameId: number;
-        const autoScroll = () => {
-            const rect = scrollContainerRef.current!.getBoundingClientRect();
-            const { x, y } = selectionPosRef.current;
-            
-            let dx = 0, dy = 0;
-            if (x < rect.left + SCROLL_EDGE_THRESHOLD) dx = -SCROLL_SPEED;
-            else if (x > rect.right - SCROLL_EDGE_THRESHOLD) dx = SCROLL_SPEED;
-            if (y < rect.top + SCROLL_EDGE_THRESHOLD) dy = -SCROLL_SPEED;
-            else if (y > rect.bottom - SCROLL_EDGE_THRESHOLD) dy = SCROLL_SPEED;
+        let lastUpdate = 0;
+        const autoScroll = (timestamp: number) => {
+            const viewport = scrollContainerRef?.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            if (!viewport) return;
 
-            if (dx || dy) {
-                scroll.scrollLeft += dx;
-                scroll.scrollTop += dy;
+            const rect = viewport.getBoundingClientRect();
+            const { x, y } = selectionPosRef.current;
+
+            if (x < rect.left + SCROLL_EDGE_THRESHOLD) viewport.scrollLeft -= SCROLL_SPEED;
+            else if (x > rect.right - SCROLL_EDGE_THRESHOLD) viewport.scrollLeft += SCROLL_SPEED;
+
+            if (y < rect.top + SCROLL_EDGE_THRESHOLD) viewport.scrollTop -= SCROLL_SPEED;
+            else if (y > rect.bottom - SCROLL_EDGE_THRESHOLD) viewport.scrollTop += SCROLL_SPEED;
+
+            if (timestamp - lastUpdate > 16) {
                 updateSelection();
+                lastUpdate = timestamp;
             }
 
             frameId = requestAnimationFrame(autoScroll);

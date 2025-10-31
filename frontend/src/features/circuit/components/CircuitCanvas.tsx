@@ -184,6 +184,19 @@ export function CircuitCanvas() {
         preventClearSelection,
     });
 
+    // Preserve scroll position when selection changes
+    const scrollPosRef = useRef(0);
+    useEffect(() => {
+        const viewport = scrollContainerRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+        if (!viewport) return;
+        const saveScroll = () => { scrollPosRef.current = viewport.scrollLeft; };
+        viewport.addEventListener('scroll', saveScroll);
+        if (scrollPosRef.current > 0) {
+            viewport.scrollLeft = scrollPosRef.current;
+        }
+        return () => viewport.removeEventListener('scroll', saveScroll);
+    }, [selectedGateIds]);
+
     // clear selection when dragging starts
     useEffect(() => {
         if (draggableGate && selectedGateIds.size > 0) {
@@ -234,7 +247,7 @@ export function CircuitCanvas() {
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
                                 />
-                                <ScrollBar orientation="horizontal" />
+                                <ScrollBar orientation="horizontal" className="invisible" />
                             </ScrollArea>
                         </SelectionContextMenu>
                     </div>
