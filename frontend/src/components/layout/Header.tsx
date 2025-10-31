@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip"
 import { ModeToggle } from "@/components/common/ModeToggle"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
-import {useProject} from "@/features/project/ProjectContext";
+import {useProject} from "@/features/project/ProjectStoreContext";
 
 interface HeaderProps {
     projectName?: string

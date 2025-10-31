@@ -1,11 +1,11 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 
 import {dragState} from '@/lib/dragState';
-import {GATE_CONFIG, GATES} from '@/features/gates/constants';
+import {GATE_CONFIG, GATE_DEFINITIONS} from '@/features/gates/constants';
 import type {Gate} from '@/features/gates/types';
 import type {Circuit} from '@/features/circuit/types';
 import {createContiguousQubitArrays, getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
-import {useCircuitTemplates} from '@/features/circuit/store/CircuitTemplatesStore';
+import {useGroupCircuits} from '@/features/circuit/store/GroupCircuitStore';
 
 interface UseDraggableGateProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -33,7 +33,7 @@ export function useDraggableGate({
     const dragPosRef = useRef<{ depth: number; qubit: number } | null>(null);
 
     const { gateSpacing } = GATE_CONFIG;
-    const { getCircuit } = useCircuitTemplates();
+    const { getCircuitDefinition } = useGroupCircuits();
 
     const getGridPosition = useCallback((e: { clientX: number; clientY: number }, gateSpan: number = 1) => {
         if (!svgRef.current) return null;
@@ -96,7 +96,7 @@ export function useDraggableGate({
 
         // Handle circuit
         if (dragData.type === 'circuit') {
-            const circuitInfo = getCircuit(dragData.id);
+            const circuitInfo = getCircuitDefinition(dragData.id);
             if (!circuitInfo) return;
 
             const involvedQubits = circuitInfo.gates.flatMap(g => getInvolvedQubits(g));
@@ -115,7 +115,7 @@ export function useDraggableGate({
             dragPosRef.current = pos;
         } else {
             // Handle gate
-            const gate = GATES.find(g => g.id === dragData.id);
+            const gate = GATE_DEFINITIONS.find(g => g.id === dragData.id);
             if (!gate) return;
 
             span = gate.numControlQubits + gate.numTargetQubits;
@@ -135,7 +135,7 @@ export function useDraggableGate({
 
         setDraggableGate(newItem);
         setPlacedGates(prev => injectGate(newItem, prev), { skipHistory: false });
-    }, [draggableGate, getGridPosition, numQubits, setPlacedGates, injectGate, getCircuit])
+    }, [draggableGate, getGridPosition, numQubits, setPlacedGates, injectGate, getCircuitDefinition])
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();

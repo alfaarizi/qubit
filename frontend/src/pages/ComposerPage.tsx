@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-import { ChevronRight, ChevronLeft } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Plus, X } from 'lucide-react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 
@@ -19,15 +19,24 @@ import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
-import { ProjectProvider, useProject } from "@/features/project/ProjectContext";
+import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 
 const DEFAULT_INSPECTOR_SIZE = 30;
 const EXPANDED_INSPECTOR_SIZE = 50;
 const COLLAPSED_INSPECTOR_SIZE = 0;
 
+function CircuitProgressBar({ circuitId }: { circuitId: string }) {
+    const circuitState = useCircuitStateById(circuitId);
+    return circuitState.isExecuting ? (
+        <div className="absolute bottom-0 left-0 right-0">
+            <Progress value={100} className="h-1.5 rounded-none bg-muted/50 [&>div]:bg-green-600" />
+        </div>
+    ) : null;
+}
+
 function ComposerContent() {
-    const { circuits, activeCircuitId, setActiveCircuitId } = useProject()
+    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit } = useProject()
 
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
@@ -73,16 +82,46 @@ function ComposerContent() {
                             <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId} className="h-full flex flex-col gap-0">
                                 <div className="bg-transparent px-6 pt-5 sticky top-0 z-20">
                                     <h2 className="text-md font-semibold pb-6">Quantum Circuit</h2>
-                                    <TabsList className="w-full rounded-none rounded-t-lg !bg-background p-0 ">
+                                    <TabsList className={`w-full justify-start rounded-none rounded-t-lg bg-zinc-200 dark:bg-zinc-900 p-0 ${activeCircuitId ? '' : 'border-2 border-b-0'}`}>
                                         {circuits.map(circuit => (
-                                            <TabsTrigger 
-                                                key={circuit.id} 
-                                                value={circuit.id} 
-                                                className="h-full rounded-none rounded-t-lg !shadow-none !border-b-0 border-border aria-selected:!bg-muted"
+                                            <TabsTrigger
+                                                key={circuit.id}
+                                                value={circuit.id}
+                                                className={`h-full cursor-pointer rounded-none rounded-t-lg !shadow-none !border-b-0 border-border group relative pr-8 ${
+                                                    activeCircuitId === circuit.id ? '!bg-muted' : '!bg-transparent hover:!bg-accent/50'
+                                                }`}
                                             >
                                                 {circuit.symbol}
+                                                <span
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        removeCircuit(circuit.id);
+                                                    }}
+                                                    className="absolute right-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-pointer group/close"
+                                                >
+                                                    <X className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover/close:bg-muted-foreground/20 rounded-full p-0.5 transition-all"/>
+                                                </span>
                                             </TabsTrigger>
                                         ))}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                const nums = circuits.map(c => parseInt(c.symbol.split('(')[1])).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                                                let next = 1;
+                                                for (const n of nums) if (n === next) next++; else break;
+                                                addCircuit({
+                                                    id: `circuit-${crypto.randomUUID()}`,
+                                                    symbol: circuits.length === 0 ? 'Circuit' : `Circuit (${next})`,
+                                                    color: '#3b82f6',
+                                                    gates: [],
+                                                });
+                                            }}
+                                            className='bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted'
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
                                     </TabsList>
                                     <div className="relative -mb-1.5 pb-1.5">
                                         {circuits.map(circuit => (
@@ -92,32 +131,32 @@ function ComposerContent() {
                                                 </CircuitProvider>
                                             )
                                         ))}
-                                        {circuits.map(circuit => (
-                                            activeCircuitId === circuit.id && useCircuitStateById(circuit.id).isExecuting && (
-                                                <div key={circuit.id} className="absolute bottom-0 left-0 right-0">
-                                                    <Progress value={100} className="h-1.5 rounded-none bg-muted/50 [&>div]:bg-green-600" />
-                                                </div>
-                                            )
-                                        ))}
+                                        {activeCircuitId && <CircuitProgressBar circuitId={activeCircuitId} />}
                                     </div>
                                 </div>
                                 <div className="flex-1 px-6 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                    {circuits.map(circuit => (
-                                    <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6">
-                                        <div className="h-[385px] overflow-x-auto bg-zinc-200/35 dark:bg-zinc-700/35">
-                                            <CircuitProvider circuitId={circuit.id}>
-                                                <CircuitCanvas />
-                                            </CircuitProvider>
+                                    {circuits.length === 0 ? (
+                                        <div className="h-full flex items-center justify-center bg-zinc-200/35 dark:bg-zinc-700/35 border border-border">
+                                            <p className="text-muted-foreground">Create a circuit to get started</p>
                                         </div>
-                                        <div className="mt-4">
-                                            <ResultsPanel
-                                                results={mockResults}
-                                                totalShots={1024}
-                                                executionTime={0.34}
-                                            />
-                                        </div>
-                                    </TabsContent>
-                                    ))}
+                                    ) : (
+                                        circuits.map(circuit => (
+                                            <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6">
+                                                <div className="h-[385px] overflow-x-auto bg-zinc-200/35 dark:bg-zinc-700/35">
+                                                    <CircuitProvider circuitId={circuit.id}>
+                                                        <CircuitCanvas />
+                                                    </CircuitProvider>
+                                                </div>
+                                                <div className="mt-4">
+                                                    <ResultsPanel
+                                                        results={mockResults}
+                                                        totalShots={1024}
+                                                        executionTime={0.34}
+                                                    />
+                                                </div>
+                                            </TabsContent>
+                                        ))
+                                    )}
                                 </div>
                             </Tabs>
                             {/* Inspector Toggle Button */}

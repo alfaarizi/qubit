@@ -28,7 +28,7 @@ export const GATE_CONFIG = {
     }
 } as const;
 
-export const GATES: GateInfo[] = [
+export const GATE_DEFINITIONS: GateInfo[] = [
     // Single-Qubit Gates
     {
         id: 'h',

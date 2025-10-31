@@ -10,10 +10,10 @@ import { ChevronLeft, ChevronRight, ChevronDown, Layers, Search } from "lucide-r
 
 import type { GateInfo } from '@/features/gates/types';
 import type { CircuitInfo } from '@/features/circuit/types';
-import { GATE_CONFIG, GATES } from '@/features/gates/constants';
+import { GATE_CONFIG, GATE_DEFINITIONS } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
 import { GateIcon } from "@/features/gates/components/GateIcon";
-import { useCircuitTemplates } from '@/features/circuit/store/CircuitTemplatesStore';
+import { useGroupCircuits } from '@/features/circuit/store/GroupCircuitStore';
 import { useInspector } from '@/features/inspector/InspectorContext';
 
 interface DraggableItemProps {
@@ -110,7 +110,7 @@ export function GatesPanel() {
     const [showExpandedGrid, setShowExpandedGrid] = useState(true);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const { circuits } = useCircuitTemplates();
+    const { circuitDefinitions } = useGroupCircuits();
     const { gateSize } = GATE_CONFIG;
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => {
@@ -140,7 +140,7 @@ export function GatesPanel() {
         }
     };
 
-    const allItems = useMemo(() => [...GATES, ...circuits], [circuits]);
+    const allItems = useMemo(() => [...GATE_DEFINITIONS, ...circuitDefinitions], [circuitDefinitions]);
 
     const fuse = useMemo(() => {
         return new Fuse(allItems, {

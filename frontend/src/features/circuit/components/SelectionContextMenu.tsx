@@ -8,7 +8,7 @@ import {
 import { Package, Trash2 } from "lucide-react";
 import { CreateCircuitDialog } from "@/components/common/CreateCircuitDialog";
 import { useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
-import { useCircuitTemplates } from "@/features/circuit/store/CircuitTemplatesStore";
+import { useGroupCircuits } from "@/features/circuit/store/GroupCircuitStore";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
@@ -41,7 +41,7 @@ export function SelectionContextMenu({
     const placedGates = useCircuitStore((state) => state.placedGates);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const group = useCircuitStore((state) => state.group);
-    const { addCircuit } = useCircuitTemplates();
+    const { defineCircuit } = useGroupCircuits();
     const { ejectGate, injectGate, getItemWidth } = useCircuitDAG();
 
     // update preventClearSelection whenever menu or dialog state changes
@@ -174,7 +174,7 @@ export function SelectionContextMenu({
 
         setPlacedGates(reconnectedGates);
 
-        addCircuit({
+        defineCircuit({
             id: newCircuit.circuit.id,
             symbol: newCircuit.circuit.symbol,
             color: newCircuit.circuit.color,

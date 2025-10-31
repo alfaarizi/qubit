@@ -1,5 +1,5 @@
 import { Separator } from '@/components/ui/separator'
-import { useProject } from "@/features/project/ProjectContext";
+import { useProject } from "@/features/project/ProjectStoreContext";
 import { useCircuitStateById } from "@/features/circuit/store/CircuitStoreContext";
 import {useEffect, useState} from "react";
 
