@@ -82,12 +82,12 @@ function ComposerContent() {
                             <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId} className="h-full flex flex-col gap-0">
                                 <div className="bg-transparent px-6 pt-5 sticky top-0 z-20">
                                     <h2 className="text-md font-semibold pb-6">Quantum Circuit</h2>
-                                    <TabsList className={`w-full justify-start rounded-none rounded-t-lg bg-zinc-200 dark:bg-zinc-900 p-0 ${activeCircuitId ? '' : 'border-2 border-b-0'}`}>
+                                    <TabsList className={`w-full justify-start rounded-none rounded-t-lg bg-zinc-200 dark:bg-zinc-900 p-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${activeCircuitId ? '' : 'border-2 border-b-0'}`}>
                                         {circuits.map(circuit => (
                                             <TabsTrigger
                                                 key={circuit.id}
                                                 value={circuit.id}
-                                                className={`h-full cursor-pointer rounded-none rounded-t-lg !shadow-none !border-b-0 border-border group relative pr-8 ${
+                                                className={`h-full cursor-pointer rounded-none rounded-t-lg !shadow-none !border-b-0 border-border group relative pr-8 shrink-0 ${
                                                     activeCircuitId === circuit.id ? '!bg-muted' : '!bg-transparent hover:!bg-accent/50'
                                                 }`}
                                             >
@@ -118,7 +118,7 @@ function ComposerContent() {
                                                     gates: [],
                                                 });
                                             }}
-                                            className='bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted'
+                                            className='bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted shrink-0'
                                         >
                                             <Plus className="h-4 w-4" />
                                         </Button>

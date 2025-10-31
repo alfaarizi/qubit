@@ -89,13 +89,13 @@ export function CircuitToolbar() {
     };
 
     return (
-        <div className="w-full h-10 bg-muted border-b flex items-center px-4 gap-2">
-            {/* File Menu */}
+        <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {/* File Menu - Hide text on mobile */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2">
+                    <Button variant="ghost" size="sm" className="gap-2 shrink-0">
                         <FolderOpen className="h-4 w-4" />
-                        File
+                        <span className="hidden sm:inline">File</span>
                         <ChevronDown className="h-3 w-3" />
                     </Button>
                 </DropdownMenuTrigger>
@@ -107,7 +107,7 @@ export function CircuitToolbar() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Separator orientation="vertical" className="h-6" />
+            <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
             {/* Undo/Redo */}
             <Button
@@ -115,6 +115,7 @@ export function CircuitToolbar() {
                 size="icon"
                 onClick={() => undo()}
                 disabled={!canUndo}
+                className="shrink-0"
             >
                 <Undo2 className="h-4 w-4" />
             </Button>
@@ -123,29 +124,42 @@ export function CircuitToolbar() {
                 size="icon"
                 onClick={() => redo()}
                 disabled={!canRedo}
+                className="shrink-0"
             >
                 <Redo2 className="h-4 w-4" />
             </Button>
 
-            <Separator orientation="vertical" className="h-6" />
+            <Separator orientation="vertical" className="h-6 hidden md:block" />
 
-            {/* Partition & Clear */}
-            <Button variant="ghost" size="sm" className="gap-2">
+            {/* Partition & Clear - Hide on small screens */}
+            <Button variant="ghost" size="sm" className="gap-2 shrink-0 hidden md:flex">
                 <GitBranch className="h-4 w-4" />
                 Partition
             </Button>
             <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2"
+                className="gap-2 shrink-0 hidden md:flex"
                 onClick={handleClear}
             >
                 <Trash2 className="h-4 w-4" />
                 Clear
             </Button>
 
-            <Separator orientation="vertical" className="h-6" />
-            <div className="flex items-center gap-2 h-9 px-2 rounded-md">
+            {/* Clear icon only on mobile */}
+            <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 md:hidden"
+                onClick={handleClear}
+            >
+                <Trash2 className="h-4 w-4" />
+            </Button>
+
+            <Separator orientation="vertical" className="h-6 hidden lg:block" />
+
+            {/* Show/Hide nested - Hide on smaller screens */}
+            <div className="hidden lg:flex items-center gap-2 h-9 px-2 rounded-md shrink-0">
                 {
                     showNestedCircuit ? (
                         <Eye className="h-4 w-4"/>
@@ -160,19 +174,19 @@ export function CircuitToolbar() {
             </div>
 
             {/* Spacer */}
-            <div className="flex-1" />
+            <div className="flex-1 min-w-2" />
 
-            {/* Export & Run */}
+            {/* Export & Run - Always visible */}
             <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
 
             <Button
                 size="sm"
                 disabled={isExecuting}
-                className="gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                className="gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 shrink-0"
                 onClick={handleRun}
             >
                 {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
-                Run
+                <span className="hidden sm:inline">Run</span>
             </Button>
         </div>
     );
