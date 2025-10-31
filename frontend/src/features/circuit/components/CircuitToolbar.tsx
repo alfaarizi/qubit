@@ -7,7 +7,8 @@ import {
     FolderOpen,
     GitBranch,
     Eye,
-    EyeOff
+    EyeOff,
+    Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -18,10 +19,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory } from "@/features/circuit/store/CircuitStoreContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { circuitsApi } from "@/lib/api/circuits";
 
 export function CircuitToolbar() {
     const svgRef = useCircuitSvgRef();
@@ -30,7 +33,9 @@ export function CircuitToolbar() {
     const measurements = useCircuitStore((state) => state.measurements);
     const placedGates = useCircuitStore((state) => state.placedGates);
     const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
+    const isExecuting = useCircuitStore((state) => state.isExecuting);
     const setShowNestedCircuit = useCircuitStore((state) => state.setShowNestedCircuit);
+    const setIsExecuting = useCircuitStore((state) => state.setIsExecuting);
     const reset = useCircuitStore((state) => state.reset);
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
@@ -60,17 +65,31 @@ export function CircuitToolbar() {
             numQubits: numQubits,
             measurements: measurements.map(() => true),
             showNestedCircuit: showNestedCircuit,
+            isExecuting: false,
         });
     };
 
-    const handleRun = () => {
-        // TODO: Implement circuit execution
-        // console.log('Running circuit with', placedGates.length, 'gates');
-        console.log(placedGates.sort((a, b) => a.depth - b.depth));
+    const handleRun = async () => {
+        if (placedGates.length === 0) {
+            toast.error("No gates to execute");
+            return;
+        }
+
+        setIsExecuting(true);
+
+        toast.promise(
+            async () => await circuitsApi.execute("current-circuit", placedGates),
+            {
+                loading: "Executing circuit...",
+                success: "Circuit executed successfully",
+                error: "Failed to execute circuit",
+                finally: () => setIsExecuting(false)
+            }
+        );
     };
 
     return (
-        <div className="w-full h-10 bg-muted/80 border-b flex items-center px-4 gap-2">
+        <div className="w-full h-10 bg-muted border-b flex items-center px-4 gap-2">
             {/* File Menu */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -148,10 +167,11 @@ export function CircuitToolbar() {
 
             <Button
                 size="sm"
-                className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                disabled={isExecuting}
+                className="gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                 onClick={handleRun}
             >
-                <Play className="h-4 w-4"/>
+                {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
                 Run
             </Button>
         </div>

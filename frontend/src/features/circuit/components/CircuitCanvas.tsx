@@ -1,9 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 import { GateIcon } from "@/features/gates/components/GateIcon";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { CircuitBoard } from "lucide-react";
 
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
@@ -206,13 +205,7 @@ export function CircuitCanvas() {
 
     return (
         <div onContextMenu={e => e.preventDefault()}>
-            <Card className="flex flex-col rounded-none border-border/50 bg-card/95 p-4">
-                <CardHeader className="flex flex-row items-center space-y-0 min-h-[2rem]">
-                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                        <CircuitBoard className="h-4 w-4 shrink-0" />
-                        <CardTitle className="truncate">Quantum Circuit</CardTitle>
-                    </div>
-                </CardHeader>
+            <Card className="flex flex-col rounded-none border-border/50 bg-card/95 gap-0 p-4 pt-0 h-fit">
                 <CardContent className="flex-1 p-0 flex overflow-hidden">
                     <QubitLabels
                         numQubits={numQubits}

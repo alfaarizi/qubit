@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/react"
+import { Toaster } from "@/components/ui/sonner"
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
@@ -20,6 +21,7 @@ function App() {
                     </Routes>
                 </Suspense>
             </Router>
+            <Toaster position="top-center" />
             <Analytics />
             <SpeedInsights/>
         </ThemeProvider>

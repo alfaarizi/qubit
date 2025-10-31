@@ -14,6 +14,7 @@ interface CircuitState {
     numQubits: number;
     measurements: boolean[];
     showNestedCircuit: boolean;
+    isExecuting: boolean;
 }
 
 interface CircuitActions {
@@ -21,6 +22,7 @@ interface CircuitActions {
     setNumQubits: (qubits: number | ((prev: number) => number)) => void;
     setMeasurements: (measurements: boolean[] | ((prev: boolean[]) => boolean[])) => void;
     setShowNestedCircuit: (show: boolean | ((prev: boolean) => boolean)) => void;
+    setIsExecuting: (isExecuting: boolean) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;
     addQubit: () => void;
     removeQubit: () => void;
@@ -38,6 +40,7 @@ const initialState: CircuitState = {
     numQubits: CIRCUIT_CONFIG.defaultNumQubits,
     measurements: Array(CIRCUIT_CONFIG.defaultNumQubits).fill(true),
     showNestedCircuit: false,
+    isExecuting: false,
 };
 
 const circuitStores = new Map<string, CircuitStoreApi>();
@@ -69,6 +72,7 @@ const createCircuitStore = (circuitId: string) => {
                         set((state) => ({
                             showNestedCircuit: typeof show === 'function' ? show(state.showNestedCircuit) : show,
                         })),
+                    setIsExecuting: (isExecuting) => set({ isExecuting }),
                     updateCircuit: (updater) =>
                         set((state) => {
                             return updater({
@@ -76,6 +80,7 @@ const createCircuitStore = (circuitId: string) => {
                                 numQubits: state.numQubits,
                                 measurements: state.measurements,
                                 showNestedCircuit: state.showNestedCircuit,
+                                isExecuting: state.isExecuting,
                             });
                         }),
                     addQubit: () =>
@@ -213,7 +218,8 @@ export function useCircuitStateById(circuitId: string) {
     const placedGates = useStore(store, s => s.placedGates);
     const numQubits = useStore(store, s => s.numQubits);
     const measurements = useStore(store, s => s.measurements);
-    return { placedGates, numQubits, measurements };
+    const isExecuting = useStore(store, s => s.isExecuting);
+    return { placedGates, numQubits, measurements, isExecuting };
 }
 
 export function useCircuitSvgRef() {

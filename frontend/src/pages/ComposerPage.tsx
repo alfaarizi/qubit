@@ -6,13 +6,14 @@ import type { ImperativePanelHandle } from "react-resizable-panels"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { Header } from "@/components/layout/Header"
 import { Layout } from "@/components/layout/Layout"
 import { StatusBar } from "@/components/layout/StatusBar"
 import { Panel } from "@/components/layout/Panel"
 
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
-import { CircuitProvider } from "@/features/circuit/store/CircuitStoreContext";
+import { CircuitProvider, useCircuitStateById } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
@@ -69,31 +70,53 @@ function ComposerContent() {
                     <GatesPanel />
                     <ResizablePanelGroup direction="horizontal">
                         <ResizablePanel defaultSize={70} minSize={30} className="relative overflow-hidden">
-                            <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId} className="h-full">
-                                <div className="h-full overflow-y-auto p-6 flex flex-col gap-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                                    <TabsList>
+                            <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId} className="h-full flex flex-col gap-0">
+                                <div className="bg-transparent px-6 pt-5 sticky top-0 z-20">
+                                    <h2 className="text-md font-semibold pb-6">Quantum Circuit</h2>
+                                    <TabsList className="w-full rounded-none rounded-t-lg !bg-background p-0 ">
                                         {circuits.map(circuit => (
-                                            <TabsTrigger key={circuit.id} value={circuit.id}>
+                                            <TabsTrigger 
+                                                key={circuit.id} 
+                                                value={circuit.id} 
+                                                className="h-full rounded-none rounded-t-lg !shadow-none !border-b-0 border-border aria-selected:!bg-muted"
+                                            >
                                                 {circuit.symbol}
                                             </TabsTrigger>
                                         ))}
                                     </TabsList>
-                                    {circuits.map(circuit => (
-                                        <TabsContent key={circuit.id} value={circuit.id} className="mt-0 flex flex-col gap-4">
-                                            <div className="flex-shrink-0">
-                                                <CircuitProvider circuitId={circuit.id}>
+                                    <div className="relative -mb-1.5 pb-1.5">
+                                        {circuits.map(circuit => (
+                                            activeCircuitId === circuit.id && (
+                                                <CircuitProvider key={circuit.id} circuitId={circuit.id}>
                                                     <CircuitToolbar />
-                                                    <CircuitCanvas />
                                                 </CircuitProvider>
-                                            </div>
-                                            <div className="flex-shrink-0">
-                                                <ResultsPanel
-                                                    results={mockResults}
-                                                    totalShots={1024}
-                                                    executionTime={0.34}
-                                                />
-                                            </div>
-                                        </TabsContent>
+                                            )
+                                        ))}
+                                        {circuits.map(circuit => (
+                                            activeCircuitId === circuit.id && useCircuitStateById(circuit.id).isExecuting && (
+                                                <div key={circuit.id} className="absolute bottom-0 left-0 right-0">
+                                                    <Progress value={100} className="h-1.5 rounded-none bg-muted/50 [&>div]:bg-green-600" />
+                                                </div>
+                                            )
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex-1 px-6 min-h-0 flex flex-col">
+                                    {circuits.map(circuit => (
+                                    <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6 h-full flex flex-col">
+                                        <div className="flex-1 min-h-[385px] overflow-y-auto [scrollbar-width:none] bg-zinc-200/35 dark:bg-zinc-700/35">
+                                            <CircuitProvider circuitId={circuit.id}>
+                                                <CircuitCanvas />
+                                            </CircuitProvider>
+                                        </div>
+                                        <div className="flex-shrink-0 mt-4">
+                                            <ResultsPanel
+                                                results={mockResults}
+                                                totalShots={1024}
+                                                executionTime={0.34}
+                                            />
+                                        </div>
+                                    </TabsContent>
                                     ))}
                                 </div>
                             </Tabs>
