@@ -7,50 +7,61 @@ interface CircuitExecutionContextValue {
     isConnected: boolean;
     startExecution: (circuitId: string, toastId: string | number, abortController: AbortController) => void;
     abortExecution: (circuitId: string) => void;
+    requestCircuitClose: (circuitId: string, circuitSymbol: string, onConfirm: () => void) => void;
 }
 
 const CircuitExecutionContext = createContext<CircuitExecutionContextValue | null>(null);
 
 export function CircuitExecutionProvider({ children }: { children: ReactNode }) {
-    const activeExecutionsRef = useRef<Map<string, { toastId: string | number; completed: boolean; abortController: AbortController }>>(new Map());
+    const activeExecutionsRef = useRef<Map<string, { 
+        toastId: string | number; 
+        completed: boolean; 
+        abortController: AbortController;
+        closeRequestToastId?: string | number; // Add this
+    }>>(new Map());
 
-    // Single WebSocket connection shared across all circuits
+    // WebSocket connection shared across all circuits
     const { isConnected, joinRoom } = useWebSocket({
         onMessage: (message: WebSocketMessage) => {
-            console.log('[CircuitExecution] WebSocket message received:', message);
+            if (message.type === 'circuit_execution_status') {
+                const circuitId = message.circuit_id as string;
+                const status = message.status as string;
+                const progress = message.progress as number;
 
-            if (message.type === 'circuit_execution_progress') {
+                const store = getOrCreateCircuitStore(circuitId);
+                const state = store.getState();
+                state.setExecutionStatus(status);
+                state.setExecutionProgress(progress);
+            } else if (message.type === 'circuit_execution_progress') {
                 const circuitId = message.circuit_id as string;
                 const progress = message.progress as number;
 
-                console.log(`[CircuitExecution] Progress update: ${progress}% for circuit ${circuitId}`);
-
-                // Update the specific circuit's progress
                 const store = getOrCreateCircuitStore(circuitId);
-                store.getState().setExecutionProgress(progress);
+                const state = store.getState();
+                state.setExecutionProgress(progress);
             } else if (message.type === 'circuit_execution_complete') {
                 const circuitId = message.circuit_id as string;
                 const result = message.result as { gates: unknown[]; num_gates: number; execution_time: number };
 
-                console.log(`[CircuitExecution] Completion for circuit ${circuitId}`, result);
-
-                // Check if this execution is active and not already completed
                 const execution = activeExecutionsRef.current.get(circuitId);
                 if (!execution || execution.completed) {
-                    console.log('[CircuitExecution] Skipping - already completed or not tracked');
-                    return; // Skip if already completed or not tracked
+                    return; // skip if already completed or not tracked
                 }
 
                 // Mark as completed to prevent duplicate handling
                 execution.completed = true;
 
-                // Update the specific circuit's state
                 const store = getOrCreateCircuitStore(circuitId);
-                store.getState().setIsExecuting(false);
-                store.getState().setExecutionProgress(0);
+                const state = store.getState();
+                state.setIsExecuting(false);
+                state.setExecutionProgress(0);
+                state.setExecutionStatus('');
 
-                // Show success toast
                 toast.success("Circuit executed successfully", { id: execution.toastId });
+
+                if (execution.closeRequestToastId) {
+                    toast.dismiss(execution.closeRequestToastId);
+                }
 
                 // Download result as JSON
                 const dataStr = JSON.stringify(result, null, 2);
@@ -66,15 +77,33 @@ export function CircuitExecutionProvider({ children }: { children: ReactNode }) 
 
                 // Clean up after completion
                 activeExecutionsRef.current.delete(circuitId);
+            } else if (message.type === 'circuit_execution_aborted') {
+                const circuitId = message.circuit_id as string;
+                
+                const execution = activeExecutionsRef.current.get(circuitId);
+                if (!execution || execution.completed) {
+                    return; // skip if already completed or not tracked
+                }
+                
+                // Mark as completed to prevent further processing
+                execution.completed = true;
+                
+                const store = getOrCreateCircuitStore(circuitId);
+                const state = store.getState();
+                state.setIsExecuting(false);
+                state.setExecutionProgress(0);
+                state.setExecutionStatus('');
+                
+                // Clean up
+                activeExecutionsRef.current.delete(circuitId);
             }
         }
     });
 
     const startExecution = (circuitId: string, toastId: string | number, abortController: AbortController) => {
         activeExecutionsRef.current.set(circuitId, { toastId, completed: false, abortController });
-        // Join the circuit-specific room
+        // join the circuit-specific room
         if (isConnected) {
-            console.log(`[CircuitExecution] Joining room: circuit-${circuitId}`);
             joinRoom(`circuit-${circuitId}`);
         }
     };
@@ -82,27 +111,59 @@ export function CircuitExecutionProvider({ children }: { children: ReactNode }) 
     const abortExecution = (circuitId: string) => {
         const execution = activeExecutionsRef.current.get(circuitId);
         if (execution) {
-            // Abort the HTTP request
             execution.abortController.abort();
 
-            // Mark as completed to prevent further processing
             execution.completed = true;
 
-            // Update the circuit's state
             const store = getOrCreateCircuitStore(circuitId);
-            store.getState().setIsExecuting(false);
-            store.getState().setExecutionProgress(0);
+            const state = store.getState();
+            state.setIsExecuting(false);
+            state.setExecutionProgress(0);
+            state.setExecutionStatus('');
 
-            // Show abort toast
             toast.error("Circuit execution aborted", { id: execution.toastId });
 
-            // Clean up
             activeExecutionsRef.current.delete(circuitId);
         }
     };
 
+    const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
+        const execution = activeExecutionsRef.current.get(circuitId);
+        
+        if (execution && !execution.completed) {
+            // Circuit is executing, show confirmation toast
+            const toastId = toast(`Close ${circuitSymbol}?`, {
+                description: 'This circuit is currently executing. Closing it will abort the execution.',
+                duration: Infinity,
+                action: {
+                label: 'Close & Abort',
+                onClick: () => {
+                    abortExecution(circuitId);
+                    onConfirm();
+                },
+                },
+                cancel: {
+                    label: 'Cancel',
+                    onClick: () => {
+                        const exec = activeExecutionsRef.current.get(circuitId);
+                        if (exec) {
+                            exec.closeRequestToastId = undefined;
+                        }
+                    },
+                },
+                classNames: {
+                    actionButton: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+                },
+            });
+            execution.closeRequestToastId = toastId;
+        } else {
+            // not executing, close immediately
+            onConfirm();
+        }
+    };
+
     return (
-        <CircuitExecutionContext.Provider value={{ isConnected, startExecution, abortExecution }}>
+        <CircuitExecutionContext.Provider value={{ isConnected, startExecution, abortExecution, requestCircuitClose }}>
             {children}
         </CircuitExecutionContext.Provider>
     );

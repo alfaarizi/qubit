@@ -127,17 +127,27 @@ export function CircuitToolbar() {
             return;
         }
 
+        // Force reset execution
+        setIsExecuting(false);
+        setExecutionProgress(0);
+        setExecutionStatus('');
+
+        // Small delay to ensure state is reset
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         setIsExecuting(true);
         setExecutionProgress(0);
         setExecutionStatus('Submitting circuit to backend...');
 
         const toastId = toast.loading(`Executing ${circuitSymbol}...`);
         const abortController = new AbortController();
+
+        // Start execution (this sets up WebSocket listeners)
         startExecution(circuitId, toastId, abortController);
 
         try {
-            setExecutionStatus('Processing circuit topology...');
-            setExecutionProgress(25);
+            // Send execution request to backend
+            // Backend will send real-time updates via WebSocket
             await circuitsApi.execute(circuitId, placedGates, abortController.signal);
         } catch (error: unknown) {
             // Don't show error if it was aborted by user

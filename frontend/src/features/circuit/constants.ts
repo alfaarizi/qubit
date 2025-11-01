@@ -1,5 +1,5 @@
 export const CIRCUIT_CONFIG = {
-    defaultNumQubits: 3,
+    defaultNumQubits: 5,
     defaultMaxDepth: 0,
     defaultScrollPaddingDepth: 10,
     qubitLabelWidth: 50,

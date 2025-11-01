@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, memo } from 'react'
 
 import { ChevronRight, ChevronLeft, Plus, X } from 'lucide-react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -12,7 +12,7 @@ import { StatusBar } from "@/components/layout/StatusBar"
 import { Panel } from "@/components/layout/Panel"
 
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
-import { CircuitProvider } from "@/features/circuit/store/CircuitStoreContext";
+import { CircuitProvider, useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
@@ -22,12 +22,59 @@ import { ProjectProvider, useProject } from "@/features/project/ProjectStoreCont
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { CircuitExecutionProvider } from "@/features/simulation/components/CircuitExecutionProvider";
 
+import { useCircuitExecution } from "@/features/simulation/components/CircuitExecutionProvider";
+
+
 const DEFAULT_INSPECTOR_SIZE = 30;
 const EXPANDED_INSPECTOR_SIZE = 50;
 const COLLAPSED_INSPECTOR_SIZE = 0;
 
+const ExecutionProgressBar = memo(function ExecutionProgressBar() {
+    const isExecuting = useCircuitStore((state) => state.isExecuting);
+    const executionProgress = useCircuitStore((state) => state.executionProgress);
+
+    if (!isExecuting) return null;
+
+    return (
+        <div className="sticky top-0 z-[60] h-1.5 bg-muted/50 overflow-hidden">
+            <div
+                className="h-full bg-green-600 transition-all duration-500 ease-out will-change-[width]"
+                style={{ width: `${executionProgress}%` }}
+            />
+        </div>
+    );
+});
+
+function CircuitTabContent() {
+    const isExecuting = useCircuitStore((state) => state.isExecuting);
+    
+    const mockResults = [
+        { state: '|000⟩', count: 512, probability: 0.5 },
+        { state: '|101⟩', count: 307, probability: 0.3 },
+        { state: '|110⟩', count: 205, probability: 0.2 },
+    ];
+
+    return (
+        <>
+            <ExecutionProgressBar />
+            <div className={`h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
+                <CircuitCanvas />
+            </div>
+            <div className="mt-4">
+                <ResultsPanel
+                    results={mockResults}
+                    totalShots={1024}
+                    executionTime={0.34}
+                />
+            </div>
+        </>
+    );
+}
+
+
 function ComposerContent() {
     const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit } = useProject()
+    const { requestCircuitClose } = useCircuitExecution() 
 
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
@@ -44,12 +91,6 @@ function ComposerContent() {
         }
         setTimeout(() => setIsAnimDelayed(false), 300)
     }
-
-    const mockResults = [
-        { state: '|000⟩', count: 512, probability: 0.5 },
-        { state: '|101⟩', count: 307, probability: 0.3 },
-        { state: '|110⟩', count: 205, probability: 0.2 },
-    ];
 
     return (
         <Layout>
@@ -86,8 +127,9 @@ function ComposerContent() {
                                                 <span
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        e.preventDefault();
-                                                        removeCircuit(circuit.id);
+                                                        requestCircuitClose(circuit.id, circuit.symbol, () => {
+                                                            removeCircuit(circuit.id);
+                                                        });
                                                     }}
                                                     className="absolute right-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-pointer group/close"
                                                 >
@@ -131,16 +173,7 @@ function ComposerContent() {
                                         circuits.map(circuit => (
                                             <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6">
                                                 <CircuitProvider circuitId={circuit.id}>
-                                                    <div className="h-[385px] overflow-x-auto bg-zinc-200/35 dark:bg-zinc-700/35">
-                                                        <CircuitCanvas />
-                                                    </div>
-                                                    <div className="mt-4">
-                                                        <ResultsPanel
-                                                            results={mockResults}
-                                                            totalShots={1024}
-                                                            executionTime={0.34}
-                                                        />
-                                                    </div>
+                                                    <CircuitTabContent />
                                                 </CircuitProvider>
                                             </TabsContent>
                                         ))

@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { useEffect, useState, useRef, type RefObject } from 'react'
 
 export function useResizeObserver<T extends HTMLElement>(
     ref: RefObject<T | null>,
@@ -6,19 +6,32 @@ export function useResizeObserver<T extends HTMLElement>(
 ) {
     const [width, setWidth] = useState(0)
     const [height, setHeight] = useState(0)
+    const rafIdRef = useRef<number | null>(null)
 
     useEffect(() => {
-        if (!enabled || !ref.current) return
+        const element = ref.current
+        if (!enabled || !element) return
 
         const observer = new ResizeObserver((entries) => {
-            const { width, height } = entries[0].contentRect
-            setWidth(width)
-            setHeight(height)
+            // Cancel any pending update
+            if (rafIdRef.current !== null) {
+                cancelAnimationFrame(rafIdRef.current)
+            }
+            // Debounce using requestAnimationFrame for smooth 60fps updates
+            rafIdRef.current = requestAnimationFrame(() => {
+                const { width, height } = entries[0].contentRect
+                setWidth(width)
+                setHeight(height)
+                rafIdRef.current = null
+            })
         })
-
-        observer.observe(ref.current)
-        return () => observer.disconnect()
-    }, [ref, enabled])
-
+        observer.observe(element)
+        return () => {
+            observer.disconnect()
+            if (rafIdRef.current !== null) {
+                cancelAnimationFrame(rafIdRef.current)
+            }
+        }
+    }, [enabled])
     return { width, height }
 }

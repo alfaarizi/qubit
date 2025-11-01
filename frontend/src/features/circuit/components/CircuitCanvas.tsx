@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 
 import { GateIcon } from "@/features/gates/components/GateIcon";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,24 @@ import { GATE_CONFIG } from '@/features/gates/constants';
 import { useCircuitStore, useCircuitSvgRef } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 
+// This prevents CircuitCanvas from re-rendering on every progress update
+const CanvasExecutionOverlay = memo(function CanvasExecutionOverlay() {
+    const isExecuting = useCircuitStore((state) => state.isExecuting);
+    const executionStatus = useCircuitStore((state) => state.executionStatus);
+
+    if (!isExecuting) return null;
+
+    return (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
+            <div className="flex items-center justify-center h-full">
+                <div className="text-muted-foreground text-sm font-medium">
+                    {executionStatus || 'Executing circuit...'}
+                </div>
+            </div>
+        </div>
+    );
+});
+
 interface QubitLabelsProps {
     numQubits: number;
     onAddQubit: () => void;
@@ -24,16 +42,21 @@ interface QubitLabelsProps {
     disabled?: boolean;
 }
 
-function QubitLabels({ numQubits, onAddQubit, onRemoveQubit, disabled }: QubitLabelsProps) {
+const QubitLabels = memo(function QubitLabels({ numQubits, onAddQubit, onRemoveQubit, disabled }: QubitLabelsProps) {
+    const qubitRows = useMemo(() =>
+        Array.from({ length: numQubits }, (_, i) => (
+            <div key={i} style={{ height: GATE_CONFIG.qubitSpacing }}
+                 className="flex items-center justify-center font-mono text-sm">
+                q[{i}]
+            </div>
+        )),
+        [numQubits]
+    );
+
     return (
         <div className="flex flex-col">
             <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
-            {Array.from({ length: numQubits }, (_, i) => (
-                <div key={i} style={{ height: GATE_CONFIG.qubitSpacing }}
-                     className="flex items-center justify-center font-mono text-sm">
-                    q[{i}]
-                </div>
-            ))}
+            {qubitRows}
             <div style={{ height: CIRCUIT_CONFIG.footerHeight }} className="flex items-center gap-1">
                 <button
                         onClick={onRemoveQubit}
@@ -52,7 +75,7 @@ function QubitLabels({ numQubits, onAddQubit, onRemoveQubit, disabled }: QubitLa
             </div>
         </div>
     );
-}
+});
 
 interface MeasurementTogglesProps {
     measurements: boolean[];
@@ -60,60 +83,65 @@ interface MeasurementTogglesProps {
     disabled?: boolean;
 }
 
-export function MeasurementToggles({ measurements, onToggle, disabled }: MeasurementTogglesProps) {
+export const MeasurementToggles = memo(function MeasurementToggles({ measurements, onToggle, disabled }: MeasurementTogglesProps) {
+    const toggleRows = useMemo(() =>
+        measurements.map((isMeasured, i) => (
+            <div key={i} style={{height: GATE_CONFIG.qubitSpacing}} className="flex items-center justify-center">
+                <button
+                    onClick={() => !disabled && onToggle(i)}
+                    disabled={disabled}
+                    className={`w-6 h-6 flex items-center justify-center ${
+                        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                    } ${isMeasured ? 'bg-yellow-500/75' : 'bg-gray-400/75'}`}
+                >
+                    <svg className={`w-full h-full fill-foreground`} viewBox="2 2 26 26">
+                        <path d="
+                            M 25.2941 11.584
+                            H 22.7981
+                            L 25.2301 8.008
+                            V 7
+                            H 21.6141
+                            V 8
+                            H 23.9101
+                            L 21.4861 11.576
+                            V 12.584
+                            H 25.2941
+                            V 11.584
+                            Z
+                        "/>
+                        <path d="
+                            M 15.5662 23.4664
+                            C 15.5662 24.0836 15.0658 24.584 14.4485 24.584
+                            C 13.8313 24.584 13.3309 24.0836 13.3309 23.4664
+                            C 13.3309 22.8621 13.8104 22.3699 14.4096 22.3494
+                            L 17.1775 17.9208
+                            C 16.3359 17.5757 15.4144 17.3855 14.4485 17.3855
+                            C 10.4729 17.3855 7.25 20.6084 7.25 24.584
+                            H 6
+                            C 6 19.918 9.78254 16.1355 14.4485 16.1355
+                            C 15.658 16.1355 16.8081 16.3896 17.8483 16.8474
+                            L 19.5068 14.1939
+                            L 20.5668 14.8564
+                            L 18.9545 17.4361C21.3236 18.9327 22.8971 21.5746 22.8971 24.584
+                            H 21.6471
+                            C 21.6471 22.0216 20.3082 19.7719 18.2919 18.4962
+                            L 15.4698 23.0116
+                            C 15.5317 23.1505 15.5662 23.3044 15.5662 23.4664Z
+                        "/>
+                    </svg>
+                </button>
+            </div>
+        )),
+        [measurements, onToggle, disabled]
+    );
+
     return (
         <div className="flex flex-col">
             <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
-            {measurements.map((isMeasured, i) => (
-                <div key={i} style={{height: GATE_CONFIG.qubitSpacing}} className="flex items-center justify-center">
-                    <button
-                        onClick={() => !disabled && onToggle(i)}
-                        disabled={disabled}
-                        className={`w-6 h-6 flex items-center justify-center ${
-                            disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                        } ${isMeasured ? 'bg-yellow-500/75' : 'bg-gray-400/75'}`}
-                    >
-                        <svg className={`w-full h-full fill-foreground`} viewBox="2 2 26 26">
-                            <path d="
-                                M 25.2941 11.584
-                                H 22.7981
-                                L 25.2301 8.008
-                                V 7
-                                H 21.6141
-                                V 8
-                                H 23.9101
-                                L 21.4861 11.576
-                                V 12.584
-                                H 25.2941
-                                V 11.584
-                                Z
-                            "/>
-                            <path d="
-                                M 15.5662 23.4664
-                                C 15.5662 24.0836 15.0658 24.584 14.4485 24.584
-                                C 13.8313 24.584 13.3309 24.0836 13.3309 23.4664
-                                C 13.3309 22.8621 13.8104 22.3699 14.4096 22.3494
-                                L 17.1775 17.9208
-                                C 16.3359 17.5757 15.4144 17.3855 14.4485 17.3855
-                                C 10.4729 17.3855 7.25 20.6084 7.25 24.584
-                                H 6
-                                C 6 19.918 9.78254 16.1355 14.4485 16.1355
-                                C 15.658 16.1355 16.8081 16.3896 17.8483 16.8474
-                                L 19.5068 14.1939
-                                L 20.5668 14.8564
-                                L 18.9545 17.4361C21.3236 18.9327 22.8971 21.5746 22.8971 24.584
-                                H 21.6471
-                                C 21.6471 22.0216 20.3082 19.7719 18.2919 18.4962
-                                L 15.4698 23.0116
-                                C 15.5317 23.1505 15.5662 23.3044 15.5662 23.4664Z
-                            "/>
-                        </svg>
-                    </button>
-                </div>
-            ))}
+            {toggleRows}
         </div>
     );
-}
+});
 
 export function CircuitCanvas() {
     const svgRef = useCircuitSvgRef();
@@ -123,8 +151,6 @@ export function CircuitCanvas() {
     const measurements = useCircuitStore((state) => state.measurements);
     const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
     const isExecuting = useCircuitStore((state) => state.isExecuting);
-    const executionProgress = useCircuitStore((state) => state.executionProgress);
-    const executionStatus = useCircuitStore((state) => state.executionStatus);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
 
@@ -137,17 +163,20 @@ export function CircuitCanvas() {
             numQubits: prev.numQubits + 1,
             measurements: [...prev.measurements, true],
         }));
-    }, [updateCircuit])
+    }, [updateCircuit]);
 
     const removeQubit = useCallback(() => {
         if (numQubits > 1) {
-            updateCircuit(prev => ({
-                numQubits: prev.numQubits - 1,
-                measurements: prev.measurements.slice(0, -1),
-                placedGates: prev.placedGates.filter(g => {
-                    return !getInvolvedQubits(g).includes(prev.numQubits - 1);
-                }),
-            }));
+            updateCircuit(prev => {
+                const qubitToRemove = prev.numQubits - 1;
+                return {
+                    numQubits: prev.numQubits - 1,
+                    measurements: prev.measurements.slice(0, -1),
+                    placedGates: prev.placedGates.filter(g => {
+                        return !getInvolvedQubits(g).includes(qubitToRemove);
+                    }),
+                };
+            });
         }
     }, [numQubits, updateCircuit]);
 
@@ -183,7 +212,7 @@ export function CircuitCanvas() {
     });
 
     const [preventClearSelection, setPreventClearSelection] = useState(false);
-    const { selectedGateIds, clearSelection } = useGateSelection({
+    const { selectedGateIds, selectedGateIdsKey, clearSelection } = useGateSelection({
         svgRef,
         placedGates,
         isEnabled: !draggableGate && !isExecuting,
@@ -217,10 +246,11 @@ export function CircuitCanvas() {
         maxDepth,
         placedGates,
         draggableGateId: draggableGate?.id,
-        selectedGateIds,
+        selectedGateIdsKey,
         scrollContainerWidth,
-        handleMouseDown: isExecuting ? undefined : handleMouseDown,
         showNestedCircuit,
+        isExecuting,
+        handleMouseDown: isExecuting ? undefined : handleMouseDown,
     });
 
     return (
@@ -247,7 +277,9 @@ export function CircuitCanvas() {
                             onPreventClearSelection={setPreventClearSelection}
                             onClearSelection={clearSelection}
                         >
-                            <ScrollArea className="h-full w-full">
+                            <ScrollArea 
+                                className={`h-full w-full ${isExecuting ? 'pointer-events-none' : ''}`}
+                            >
                                 <svg ref={svgRef}
                                     style={{ display: 'block', minWidth: scrollableDepth * GATE_CONFIG.gateSpacing + 6}}
                                     onDragEnter={isExecuting ? undefined : handleDragEnter}
@@ -266,21 +298,7 @@ export function CircuitCanvas() {
                     />
                 </CardContent>
             </Card>
-            {isExecuting && (
-                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
-                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-muted/50 overflow-hidden">
-                        <div
-                            className="h-full bg-green-600 transition-all duration-300"
-                            style={{ width: `${executionProgress}%` }}
-                        />
-                    </div>
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-muted-foreground text-sm font-medium">
-                            {executionStatus || 'Executing circuit...'}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <CanvasExecutionOverlay />
             {draggableGate && cursorPos && !isExecuting && (
                 <GateIcon
                     item={'circuit' in draggableGate ? draggableGate.circuit : draggableGate.gate}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
@@ -44,16 +44,22 @@ export function useGateSelection({
     preventClearSelection = false,
 }: UseGateSelectionProps) {
     const { headerHeight } = CIRCUIT_CONFIG;
+    const { gateSize, gateSpacing } = GATE_CONFIG;
 
     const [selectedGateIds, setSelectedGateIds] = useState<Set<string>>(new Set());
     const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
     const [isSelecting, setIsSelecting] = useState(false);
-    const selectionRectRef = useRef<d3.Selection<SVGRectElement, unknown, null, undefined> | null>(null);
+    const svgSelectionRef = useRef<d3.Selection<SVGSVGElement, unknown, null, undefined> | null>(null);
     const selectionStartPosRef = useRef<{ x: number; y: number } | null>(null);
     const selectionPosRef = useRef({ x: 0, y: 0 });
 
+    // Memoize selectedGateIds to prevent unnecessary re-renders
+    const selectedGateIdsKey = useMemo(
+        () => Array.from(selectedGateIds).sort().join(','),
+        [selectedGateIds]
+    );
+
     const isGateInSelectionRect = useCallback((item: Gate | Circuit, rect: SelectionRect) => {
-        const { gateSize, gateSpacing } = GATE_CONFIG;
         const [rectLeft, rectRight, rectTop, rectBottom] = [
             Math.min(rect.startX, rect.startX + rect.width),
             Math.max(rect.startX, rect.startX + rect.width),
@@ -81,7 +87,7 @@ export function useGateSelection({
         }
         // check if rectangles overlap
         return itemRight >= rectLeft && itemLeft <= rectRight && itemBottom >= rectTop && itemTop <= rectBottom;
-    }, [headerHeight]);
+    }, [headerHeight, gateSize, gateSpacing]);
 
     const clearSelection = useCallback(() => {
         setSelectedGateIds(new Set());
@@ -115,12 +121,12 @@ export function useGateSelection({
         if (!isEnabled || !svgRef.current || event.button !== 0) return;
 
         const target = event.target as HTMLElement;
-        const isSelectingGate = target.closest('.gate-element');
+        const isSelectingGate = target.closest('.gate-element, .circuit-element');
         const isInsideSvg = svgRef.current.contains(target);
 
         if (preventClearSelection) return;
 
-        // clear selection if clicking outside SVG or on empty space
+        // Clear selection if clicking outside SVG or on empty space
         if (!isInsideSvg || (!isSelectingGate && selectedGateIds.size > 0)) {
             clearSelection();
         }
@@ -152,26 +158,29 @@ export function useGateSelection({
 
     // handle keyboard events
     useEffect(() => {
+        if (!isEnabled) return;
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 clearSelection();
             }
         };
-        if (isEnabled) {
-            window.addEventListener('keydown', handleKeyDown);
-            return () => window.removeEventListener('keydown', handleKeyDown);
-        }
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isEnabled, clearSelection]);
 
-    // auto-scroll during selection
+    // Auto-scroll during selection
     useEffect(() => {
         if (!isSelecting) return;
 
         let frameId: number;
         let lastUpdate = 0;
+        
         const autoScroll = (timestamp: number) => {
             const viewport = scrollContainerRef?.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-            if (!viewport) return;
+            if (!viewport) {
+                frameId = requestAnimationFrame(autoScroll);
+                return;
+            }
 
             const rect = viewport.getBoundingClientRect();
             const { x, y } = selectionPosRef.current;
@@ -194,7 +203,7 @@ export function useGateSelection({
         return () => cancelAnimationFrame(frameId);
     }, [isSelecting, scrollContainerRef, updateSelection]);
 
-    // handle mouse events
+    // Mouse events
     useEffect(() => {
         if (!isEnabled) return;
 
@@ -209,28 +218,27 @@ export function useGateSelection({
         };
     }, [isEnabled, handleMouseDown, handleMouseMove, handleMouseUp]);
 
-    // Render selection rectangle
     useEffect(() => {
         if (!svgRef.current) return;
 
-        const svg = d3.select(svgRef.current);
+        if (!svgSelectionRef.current || svgSelectionRef.current.node() !== svgRef.current) {
+            svgSelectionRef.current = d3.select(svgRef.current);
+        }
 
-        if (!selectionRectRef.current) {
-            selectionRectRef.current = svg.append('rect')
+        let rect = svgSelectionRef.current.select<SVGRectElement>('.selection-rect');
+
+        if (rect.empty()) {
+            rect = svgSelectionRef.current.append('rect')
                 .attr('class', 'selection-rect')
                 .attr('pointer-events', 'none')
                 .style('display', 'none');
         }
 
-        const rect = selectionRectRef.current;
-
         if (selectionRect && isSelecting) {
             const { startX, startY, width, height } = selectionRect;
-            
             const isDarkMode = document.documentElement.classList.contains('dark');
             
-            rect
-                .style('display', 'block')
+            rect.style('display', 'block')
                 .attr('x', width >= 0 ? startX : startX + width)
                 .attr('y', height >= 0 ? startY : startY + height)
                 .attr('width', Math.abs(width))
@@ -241,17 +249,19 @@ export function useGateSelection({
         } else {
             rect.style('display', 'none');
         }
-
-        return () => {
-            if (selectionRectRef.current) {
-                selectionRectRef.current.remove();
-                selectionRectRef.current = null;
-            }
-        };
     }, [svgRef, selectionRect, isSelecting]);
+
+    // Cleanup only on unmount
+    useEffect(() => {
+        return () => {
+            svgSelectionRef.current?.select('.selection-rect').remove();
+            svgSelectionRef.current = null;
+        };
+    }, []);
 
     return {
         selectedGateIds,
+        selectedGateIdsKey,
         clearSelection,
         isSelecting,
     };

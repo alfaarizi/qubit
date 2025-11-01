@@ -21,7 +21,18 @@ function App() {
                     </Routes>
                 </Suspense>
             </Router>
-            <Toaster position="top-center" />
+            <Toaster 
+                position="top-center"
+                richColors
+                toastOptions={{
+                    classNames: {
+                        toast: 'bg-background text-foreground border border-border',
+                        description: 'text-muted-foreground',
+                        actionButton: 'bg-primary text-primary-foreground hover:bg-primary/90',
+                        cancelButton: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                    },
+                }}
+            />
             <Analytics />
             <SpeedInsights/>
         </ThemeProvider>
