@@ -350,13 +350,27 @@ partitions = []
 for i, partition in enumerate(partitioned_circ.get_Gates()):
     gates = partition.get_Gates()
     qubits = set()
+    gate_details = []
+    
     for gate in gates:
         qubits.update(gate.get_Involved_Qbits())
+        gate_name = gate.get_Name()
+        target_qbit = gate.get_Target_Qbit()
+        control_qbit = gate.get_Control_Qbit()
+        
+        gate_details.append({{
+            'id': gate_name.lower(),
+            'name': gate_name,
+            'targetQubits': [target_qbit] if target_qbit >= 0 else [],
+            'controlQubits': [control_qbit] if control_qbit >= 0 else []
+        }})
+    
     partitions.append({{
         'index': i,
         'numGates': len(gates),
         'qubits': sorted(list(qubits)),
-        'numQubits': len(qubits)
+        'numQubits': len(qubits),
+        'gates': gate_details
     }})
 
 result = {{

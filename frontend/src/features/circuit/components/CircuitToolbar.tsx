@@ -6,6 +6,7 @@ import {
     Play,
     ChevronDown,
     FolderOpen,
+    Upload,
     Eye,
     EyeOff,
     Square,
@@ -26,10 +27,13 @@ import { toast } from "sonner";
 
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory, useCircuitId } from "@/features/circuit/store/CircuitStoreContext";
+import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { circuitsApi } from "@/lib/api/circuits";
 import { useProject } from "@/features/project/ProjectStoreContext";
 import { usePartitionStore } from "@/stores/partitionStore";
+import { parseQASM } from "@/lib/qasm/parser";
+import type { Gate } from "@/features/gates/types";
 
 const ESTIMATED_TOTAL_PHASES = 8;
 
@@ -73,6 +77,12 @@ export function CircuitToolbar() {
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
     const [maxPartitionSize, setMaxPartitionSize] = useState<number>(4);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const setNumQubits = useCircuitStore((state) => state.setNumQubits);
+    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
+    const setMeasurements = useCircuitStore((state) => state.setMeasurements);
+    const { injectGate } = useCircuitDAG();
 
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
@@ -204,6 +214,85 @@ export function CircuitToolbar() {
         { key: 'z', ctrl: true, shift: true, handler: () => canRedo && redo() }
     ]);
 
+    const handleImportQASM = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.endsWith('.qasm')) {
+            toast.error('Please select a .qasm file');
+            return;
+        }
+
+        // Show loading toast
+        const loadingToast = toast.loading(`Importing ${file.name}...`);
+
+        try {
+            const text = await file.text();
+            
+            // Parse in next tick to avoid blocking UI
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const parsed = parseQASM(text);
+
+            if (parsed.errors.length > 0) {
+                toast.error(`Parse error: ${parsed.errors.join(', ')}`, { id: loadingToast });
+                return;
+            }
+
+            if (parsed.numQubits === 0) {
+                toast.error('No qubits found in QASM file', { id: loadingToast });
+                return;
+            }
+
+            // Clear existing circuit first
+            setPlacedGates([]);
+
+            // Set number of qubits
+            setNumQubits(parsed.numQubits);
+
+            // Process gates in batches to avoid blocking UI
+            const BATCH_SIZE = 100;
+            let processedGates: Gate[] = [];
+            
+            for (let i = 0; i < parsed.gates.length; i += BATCH_SIZE) {
+                // Process batch
+                const batch = parsed.gates.slice(i, i + BATCH_SIZE);
+                for (const gate of batch) {
+                    processedGates = injectGate(gate, processedGates) as Gate[];
+                }
+                
+                // Update progress
+                const progress = Math.min(100, Math.round(((i + BATCH_SIZE) / parsed.gates.length) * 100));
+                toast.loading(`Processing gates... ${progress}%`, { id: loadingToast });
+                
+                // Yield to UI every batch
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            // Update the circuit with the imported gates
+            setPlacedGates(processedGates);
+
+            // Set measurements
+            if (parsed.measurements.length > 0) {
+                setMeasurements(parsed.measurements);
+            }
+
+            toast.success(
+                `Successfully imported ${parsed.gates.length} gate${parsed.gates.length !== 1 ? 's' : ''} from ${file.name}`,
+                { id: loadingToast }
+            );
+        } catch (err) {
+            toast.error(
+                err instanceof Error ? err.message : 'Failed to import QASM file',
+                { id: loadingToast }
+            );
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }, [setPlacedGates, setNumQubits, injectGate, setMeasurements]);
+
     const handleRun = useCallback(async () => {
         if (!placedGates.length) {
             toast.error("No gates to execute");
@@ -273,6 +362,13 @@ export function CircuitToolbar() {
         <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {/* Group 1: File Operations */}
             <div className="flex items-center gap-1 shrink-0">
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".qasm"
+                    onChange={handleImportQASM}
+                    className="hidden"
+                />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="gap-2 shrink-0" disabled={isExecuting}>
@@ -283,7 +379,10 @@ export function CircuitToolbar() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                         <DropdownMenuItem>New Circuit</DropdownMenuItem>
-                        <DropdownMenuItem>Open...</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                            Import from QASM
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem>Save</DropdownMenuItem>
                         <DropdownMenuItem>Save As...</DropdownMenuItem>
                     </DropdownMenuContent>

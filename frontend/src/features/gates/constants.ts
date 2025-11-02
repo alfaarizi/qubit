@@ -178,7 +178,7 @@ export const GATE_DEFINITIONS: GateInfo[] = [
     {
         id: 'cnot',
         name: 'CNOT',
-        symbol: 'CX',
+        symbol: 'CNOT',
         color: '#f97316',
         description: 'Controlled NOT gate',
         longDescription: 'The CNOT (Controlled-X) gate performs a NOT operation on the target qubit only when the control qubit is in state |1⟩. This gate is essential for creating entanglement and is a universal two-qubit gate when combined with single-qubit gates.',

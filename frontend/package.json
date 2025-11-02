@@ -37,7 +37,7 @@
     "lucide-react": "^0.544.0",
     "monaco-editor": "0.53.0",
     "next-themes": "^0.4.6",
-    "qasm-ts": "^2.1.2",
+    "quantum-circuit": "^0.9.242",
     "react": "^19.1.1",
     "react-colorful": "^5.6.1",
     "react-dom": "^19.1.1",

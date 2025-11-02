@@ -1,6 +1,7 @@
 import { Card, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Layers } from 'lucide-react';
+import { PartitionCircuitViewer } from './PartitionCircuitViewer';
 
 interface MeasurementResult {
     state: string;
@@ -8,11 +9,19 @@ interface MeasurementResult {
     probability: number;
 }
 
+interface GateDetail {
+    id: string;
+    name: string;
+    targetQubits: number[];
+    controlQubits: number[];
+}
+
 interface PartitionInfo {
     index: number;
     numGates: number;
     qubits: number[];
     numQubits: number;
+    gates: GateDetail[];
 }
 
 interface PartitionResult {
@@ -156,6 +165,9 @@ export function ResultsPanel({
                             </div>
                         ) : (
                             <div className="space-y-4">
+                                {/* Partition Circuit Viewer - Placed before summary */}
+                                <PartitionCircuitViewer partitions={partitionResult.partitions} />
+
                                 {/* Partition Summary */}
                                 <div className="bg-muted/30 rounded-lg p-4">
                                     <h3 className="text-sm font-semibold mb-3">Partition Summary</h3>
