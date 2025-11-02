@@ -17,6 +17,7 @@ interface CircuitState {
     isExecuting: boolean;
     executionProgress: number;
     executionStatus: string;
+    partitionJobId: string | null;
 }
 
 interface CircuitActions {
@@ -27,6 +28,7 @@ interface CircuitActions {
     setIsExecuting: (isExecuting: boolean) => void;
     setExecutionProgress: (progress: number) => void;
     setExecutionStatus: (status: string) => void;
+    setPartitionJobId: (jobId: string | null) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;
     addQubit: () => void;
     removeQubit: () => void;
@@ -47,12 +49,12 @@ const initialState: CircuitState = {
     isExecuting: false,
     executionProgress: 0,
     executionStatus: '',
+    partitionJobId: null,
 };
 
 const circuitStores = new Map<string, CircuitStoreApi>();
 const circuitSvgRefs = new Map<string, React.RefObject<SVGSVGElement | null>>();
 
-// Factory to create store
 const createCircuitStore = (circuitId: string) => {
     let skipHistory = false;
     return createStore<CircuitStore>()(
@@ -82,6 +84,7 @@ const createCircuitStore = (circuitId: string) => {
                     setIsExecuting: (isExecuting) => set({ isExecuting }),
                     setExecutionProgress: (progress) => set({ executionProgress: progress }),
                     setExecutionStatus: (status) => set({ executionStatus: status }),
+                    setPartitionJobId: (jobId) => set({ partitionJobId: jobId }),
                     updateCircuit: (updater) =>
                         set((state) => {
                             return updater({
@@ -92,6 +95,7 @@ const createCircuitStore = (circuitId: string) => {
                                 isExecuting: state.isExecuting,
                                 executionProgress: state.executionProgress,
                                 executionStatus: state.executionStatus,
+                                partitionJobId: state.partitionJobId,
                             });
                         }),
                     addQubit: () =>
@@ -200,9 +204,6 @@ function getOrCreateCircuitSvgRef(circuitId: string): React.RefObject<SVGSVGElem
     return circuitSvgRefs.get(circuitId)!;
 }
 
-
-
-// Context for store + ref
 interface CircuitContextValue {
     store: CircuitStoreApi;
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -222,9 +223,6 @@ export function CircuitProvider({ children, circuitId }: { children: ReactNode; 
     );
 }
 
-
-
-// Hooks
 export function useCircuitStore<T>(selector: (state: CircuitStore) => T): T {
     const context = useContext(CircuitContext);
     if (!context) throw new Error('useCircuitStore must be within CircuitProvider');

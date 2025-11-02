@@ -17,7 +17,6 @@ import { GATE_CONFIG } from '@/features/gates/constants';
 import { useCircuitStore, useCircuitSvgRef } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 
-// This prevents CircuitCanvas from re-rendering on every progress update
 const CanvasExecutionOverlay = memo(function CanvasExecutionOverlay() {
     const isExecuting = useCircuitStore((state) => state.isExecuting);
     const executionStatus = useCircuitStore((state) => state.executionStatus);
@@ -220,7 +219,6 @@ export function CircuitCanvas() {
         preventClearSelection,
     });
 
-    // Preserve scroll position when selection changes
     const scrollPosRef = useRef(0);
     useEffect(() => {
         const viewport = scrollContainerRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
@@ -233,7 +231,6 @@ export function CircuitCanvas() {
         return () => viewport.removeEventListener('scroll', saveScroll);
     }, [selectedGateIds]);
 
-    // clear selection when dragging starts or execution begins
     useEffect(() => {
         if ((draggableGate || isExecuting) && selectedGateIds.size > 0) {
             clearSelection();

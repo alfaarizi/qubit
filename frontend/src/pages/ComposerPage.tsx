@@ -21,6 +21,7 @@ import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
+import { usePartitionStore } from "@/stores/partitionStore";
 
 
 const DEFAULT_INSPECTOR_SIZE = 30;
@@ -54,7 +55,6 @@ function CircuitTabContent() {
 
     return (
         <>
-            <ExecutionProgressBar />
             <div className={`h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
                 <CircuitCanvas />
             </div>
@@ -78,19 +78,28 @@ function ComposerContent() {
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
 
     const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
-        const store = getOrCreateCircuitStore(circuitId);
-        const state = store.getState();
+        const jobs = usePartitionStore.getState().getCircuitJobs(circuitId);
+        const hasRunningJob = jobs.some((job) => job.status === 'running' || job.status === 'pending');
         
-        if (state.isExecuting) {
+        if (hasRunningJob) {
             toast(`Close ${circuitSymbol}?`, {
                 description: 'This circuit is executing. Closing will abort it.',
                 duration: Infinity,
                 action: {
                     label: 'Close & Abort',
                     onClick: () => {
-                        state.setIsExecuting(false);
-                        state.setExecutionProgress(0);
-                        state.setExecutionStatus('');
+                        jobs.forEach((job) => {
+                            if (job.status === 'running' || job.status === 'pending') {
+                                if (job.toastId) toast.dismiss(job.toastId);
+                                usePartitionStore.getState().dequeueJob(job.jobId);
+                            }
+                        });
+                        
+                        const store = getOrCreateCircuitStore(circuitId);
+                        store.getState().setIsExecuting(false);
+                        store.getState().setExecutionProgress(0);
+                        store.getState().setExecutionStatus('');
+                        
                         toast.dismiss();
                         toast.error('Execution aborted');
                         onConfirm();
@@ -127,11 +136,6 @@ function ComposerContent() {
                 <Header
                     githubUrl="https://github.com/alfaarizi/qubit"
                     emailUrl="mailto:ocswom@inf.elte.hu"
-                    // breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Workspace' }]}
-                    // externalLinks={[
-                    //     { href: 'mailto:ocswom@inf.elte.hu', icon: Mail, label: 'Email' },
-                    //     { href: 'https://github.com/alfaarizi/qubit', icon: GitHub, label: 'GitHub' }
-                    // ]}
                 />
             </Layout.Header>
 
@@ -185,13 +189,6 @@ function ComposerContent() {
                                             <Plus className="h-4 w-4" />
                                         </Button>
                                     </TabsList>
-                                    <div className="relative -mb-1.5 pb-1.5">
-                                        {activeCircuitId && (
-                                            <CircuitProvider circuitId={activeCircuitId}>
-                                                <CircuitToolbar />
-                                            </CircuitProvider>
-                                        )}
-                                    </div>
                                 </div>
                                 <div className="flex-1 px-6 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     {circuits.length === 0 ? (
@@ -200,8 +197,16 @@ function ComposerContent() {
                                         </div>
                                     ) : (
                                         circuits.map(circuit => (
-                                            <TabsContent key={circuit.id} value={circuit.id} className="mt-0 pb-6">
+                                            <TabsContent 
+                                                key={circuit.id} 
+                                                value={circuit.id} 
+                                                className="mt-0 pb-6 data-[state=inactive]:hidden data-[state=active]:block"
+                                            >
                                                 <CircuitProvider circuitId={circuit.id}>
+                                                    <div className="sticky top-0 z-[60] bg-background will-change-transform">
+                                                        <CircuitToolbar />
+                                                        <ExecutionProgressBar />
+                                                    </div>
                                                     <CircuitTabContent />
                                                 </CircuitProvider>
                                             </TabsContent>

@@ -6,20 +6,31 @@ import { Toaster } from "@/components/ui/sonner"
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
+import { usePartitionJobManager } from '@/hooks/usePartitionJobManager';
 
 const Home = lazy(() => import('@/pages/HomePage'));
 const Composer = lazy(() => import('@/pages/ComposerPage'));
+
+function AppContent() {
+    usePartitionJobManager();
+
+    return (
+        <>
+            <Suspense fallback={<FullScreenSpinner />}>
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/composer" element={<Composer />} />
+                </Routes>
+            </Suspense>
+        </>
+    );
+}
 
 function App() {
     return (
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
             <Router>
-                <Suspense fallback={<FullScreenSpinner />}>
-                    <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/composer" element={<Composer />} />
-                    </Routes>
-                </Suspense>
+                <AppContent />
             </Router>
             <Toaster 
                 position="top-center"

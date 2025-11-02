@@ -65,13 +65,15 @@ async def run_partition_job(
     client = SquanderClient()
     room = f"partition-{job_id}"
     
-    # Wait for client to join the room (up to 10 seconds)
+    logger.info(f"[run_partition_job] Starting job {job_id} in room {room}")
+    
     max_wait = 10
     wait_interval = 0.1
     elapsed = 0
     while elapsed < max_wait:
         room_members = manager.get_room_connections(room)
         if room_members:
+            logger.info(f"[run_partition_job] Room {room} has members: {room_members}")
             break
         await asyncio.sleep(wait_interval)
         elapsed += wait_interval
@@ -79,20 +81,28 @@ async def run_partition_job(
         logger.warning(f"[run_partition_job] Timeout waiting for client to join room {room}")
     
     try:
+        logger.info(f"[run_partition_job] Broadcasting connecting phase for job {job_id}")
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connecting",
-            "message": "Connecting to SQUANDER..."
+            "message": "Connecting to SQUANDER...",
+            "jobId": job_id,
+            "circuitId": circuit_id
         })
         
+        logger.info(f"[run_partition_job] Connecting SSH client for job {job_id}")
         await client.connect()
+        logger.info(f"[run_partition_job] SSH connected for job {job_id}")
         
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connected",
-            "message": "Connected to SQUANDER"
+            "message": "Connected to SQUANDER",
+            "jobId": job_id,
+            "circuitId": circuit_id
         })
         
+        logger.info(f"[run_partition_job] Starting partition for job {job_id}")
         async for update in client.run_partition(
             job_id=job_id,
             num_qubits=num_qubits,
@@ -100,12 +110,13 @@ async def run_partition_job(
             measurements=measurements,
             options=options or {},
         ):
-            await manager.broadcast_to_room(room, {**update, "circuitId": circuit_id})
+            await manager.broadcast_to_room(room, {**update, "jobId": job_id, "circuitId": circuit_id})
     except Exception as e:
         logger.error(f"[run_partition_job] Job {job_id} error: {str(e)}", exc_info=True)
         await manager.broadcast_to_room(room, {
             "type": "error",
             "circuitId": circuit_id,
+            "jobId": job_id,
             "message": str(e)
         })
     finally:

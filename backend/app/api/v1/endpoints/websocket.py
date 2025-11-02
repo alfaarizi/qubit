@@ -18,7 +18,6 @@ class BroadcastMessage(BaseModel):
     content: str = ""
     metadata: Dict[str, Any] = {}
 
-# WebSocket message handlers
 async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> None:
     session = manager.get_session(connection_id)
     if session:
@@ -36,28 +35,31 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
 
         elif message_type == ClientMessage.JOIN_ROOM:
             room = message_data.get("room")
+            job_id = message_data.get("jobId")
             if room:
                 success = await manager.join_room(connection_id, room)
                 await manager.send_message(connection_id, {
                     "type": ServerMessage.ROOM_JOINED,
                     "room": room,
+                    "jobId": job_id,
                     "success": success,
                     "timestamp": datetime.now(UTC).isoformat()
                 })
 
         elif message_type == ClientMessage.LEAVE_ROOM:
             room = message_data.get("room")
+            job_id = message_data.get("jobId")
             if room:
                 success = await manager.leave_room(connection_id, room)
                 await manager.send_message(connection_id, {
                     "type": ServerMessage.ROOM_LEFT,
                     "room": room,
+                    "jobId": job_id,
                     "success": success,
                     "timestamp": datetime.now(UTC).isoformat()
                 })
 
         elif message_type == ClientMessage.BROADCAST:
-            # Broadcast message to all connections
             content = message_data.get("content", "")
             await manager.broadcast_to_all({
                 "type": ServerMessage.NOTIFICATION,
@@ -67,7 +69,6 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
             }, exclude_connection=connection_id)
 
         elif message_type == ClientMessage.ROOM_BROADCAST:
-            # Broadcast message to specific room
             room = message_data.get("room")
             content = message_data.get("content", "")
             if room:
@@ -80,7 +81,6 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
                 }, exclude_connection=connection_id)
 
         elif message_type == ClientMessage.GET_STATS:
-            # Send connection statistics
             stats = manager.get_stats()
             await manager.send_message(connection_id, {
                 "type": ServerMessage.STATS,
@@ -89,7 +89,6 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
             })
 
         else:
-            # Handle unknown message type
             await manager.send_message(connection_id, {
                 "type": ServerMessage.ERROR,
                 "message": f"unknown message type: {message_type}",
@@ -118,7 +117,6 @@ async def websocket_endpoint(
     logger.info(f"[WebSocket] Connection established: {connection_id}")
 
     try:
-        # Send welcome message
         try:
             await manager.send_message(connection_id, {
                 "type": ServerMessage.CONNECTION_ESTABLISHED,
@@ -131,7 +129,6 @@ async def websocket_endpoint(
             logger.error(f"[WebSocket] Failed to send welcome message: {connection_id} - {e}", exc_info=True)
             raise
             
-        # Message loop
         while True:
             data = await websocket.receive_text()
             logger.debug(f"[WebSocket] Message received: {connection_id} - {data}")
@@ -163,10 +160,8 @@ async def room_websocket_endpoint(
     """WebSocket endpoint that automatically joins a specific room."""
     connection_id = await manager.connect(websocket, client_id)
 
-    # Automatically join the specified room
     await manager.join_room(connection_id, room_name)
 
-    # Send welcome message
     await manager.send_message(connection_id, {
         "type": ServerMessage.CONNECTION_ESTABLISHED,
         "connection_id": connection_id,
@@ -196,8 +191,6 @@ async def room_websocket_endpoint(
         logger.error("Connection error in the room", extra={"connection_id": connection_id, "error": str(e), "room": room_name})
         manager.disconnect(connection_id)
 
-
-# HTTP endpoints for WebSocket management
 
 @router.get("/stats")
 async def get_websocket_stats():

@@ -19,21 +19,15 @@ class ClientMessage(str, Enum):
     GET_STATS = "get_stats"
 
 class ServerMessage(str, Enum):
-    # Connection lifecycle
     CONNECTION_ESTABLISHED = "connection_established"
     CONNECTION_UPDATE = "connection_update"
-    # Ping/Pong
     PONG = "pong"
-    # Room operations responses
     ROOM_JOINED = "room_joined"
     ROOM_LEFT = "room_left"
-    # Content messages
     NOTIFICATION = "notification"
     ROOM_NOTIFICATION = "room_notification"
-    # System messages
     STATS = "stats"
     ERROR = "error"
-    # HTTP-triggered broadcasts
     HTTP_BROADCAST = "http_broadcast"
     HTTP_ROOM_BROADCAST = "http_room_broadcast"
 
@@ -59,10 +53,10 @@ class ConnectionManager:
             "user": {},
             "client": {},
             "activity": {
-                "last_seen_inbound": datetime.now(UTC), # client -> server
-                "last_seen_outbound": datetime.now(UTC), # server -> client
-                "messages_received": 0, # client -> server
-                "messages_sent": 0 # server -> client
+                "last_seen_inbound": datetime.now(UTC),
+                "last_seen_outbound": datetime.now(UTC),
+                "messages_received": 0,
+                "messages_sent": 0
             }
         }
         logger.info("WebSocket connection established", extra={"connection_id": connection_id})
@@ -98,7 +92,7 @@ class ConnectionManager:
                 "timestamp": datetime.now(UTC).isoformat()
             }))
         except RuntimeError:
-            pass # No event loop, skip notifications
+            pass
 
     async def join_room(self, connection_id: str, room: str) -> bool:
         if connection_id not in self.connections:

@@ -1,4 +1,3 @@
-// src/components/HealthCheck.tsx
 import React, { useState } from "react";
 import { useWebSocketHealth } from "@/hooks/useWebSocketHealth.ts";
 import { Card, CardContent } from "@/components/ui/card.tsx";
@@ -22,7 +21,7 @@ const HealthCheck: React.FC = () => {
         setIsLoading(true);
         await Promise.all([
             checkHealth(),
-            new Promise(resolve => setTimeout(resolve, 200)) // UX delay
+            new Promise(resolve => setTimeout(resolve, 200))
         ]);
         setIsLoading(false);
     };

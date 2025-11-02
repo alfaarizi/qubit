@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import {
     Undo2,
     Redo2,
@@ -27,17 +27,16 @@ import { CircuitExportButton } from "@/features/circuit/components/CircuitExport
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory, useCircuitId } from "@/features/circuit/store/CircuitStoreContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { circuitsApi } from "@/lib/api/circuits";
-import { usePartition } from "@/hooks/usePartition";
 import { useProject } from "@/features/project/ProjectStoreContext";
+import { usePartitionStore } from "@/stores/partitionStore";
+
+const ESTIMATED_TOTAL_PHASES = 8;
 
 export function CircuitToolbar() {
     const svgRef = useCircuitSvgRef();
     const { circuits } = useProject();
     const circuitId = useCircuitId();
     const circuit = circuits.find(c => c.id === circuitId);
-
-    const [partitionJobId, setPartitionJobId] = useState<string | null>(null);
-    const { updates: partitionUpdates, error: partitionError } = usePartition(partitionJobId);
 
     const numQubits = useCircuitStore((state) => state.numQubits);
     const measurements = useCircuitStore((state) => state.measurements);
@@ -50,40 +49,66 @@ export function CircuitToolbar() {
     const setExecutionStatus = useCircuitStore((state) => state.setExecutionStatus);
     const reset = useCircuitStore((state) => state.reset);
 
+    usePartitionStore((state) => state.version);
+    const queue = usePartitionStore((state) => state.queue);
+    const job = Array.from(queue.values()).find(j => j.circuitId === circuitId);
+    const jobId = job?.jobId || null;
+
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
 
     const abortToastId = useRef<string | number | null>(null);
-    const executingToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
-    const successToastShown = useRef(false);
     const executionStartTimeRef = useRef<number | null>(null);
     const phasesRef = useRef<Map<string, { timestamp: number; message: string }>>(new Map());
 
     useEffect(() => {
-        if (!partitionUpdates.length) return;
-        if (processedUpdatesCount.current >= partitionUpdates.length) return;
-        
-        const latest = partitionUpdates[partitionUpdates.length - 1];
-        processedUpdatesCount.current = partitionUpdates.length;
-        
-        // Track execution start time on first phase
+        if (!job) {
+            setIsExecuting(false);
+            return;
+        }
+        switch (job.status) {
+            case 'complete': {
+                setExecutionStatus('Complete!');
+                setExecutionProgress(100);
+                setIsExecuting(false);
+                break;
+            }
+            case 'error': {
+                setExecutionStatus(`Error: ${job.error}`);
+                setIsExecuting(false);
+                break;
+            }
+            case 'running':
+            case 'pending': {
+                setIsExecuting(true);
+                if (job.status === 'pending') {
+                    setExecutionStatus('Connecting to SQUANDER...');
+                    setExecutionProgress(0);
+                }
+                break;
+            }
+        }
+    }, [job?.status, jobId, setExecutionStatus, setExecutionProgress, setIsExecuting]);
+
+    useEffect(() => {
+        if (!job?.updates.length || processedUpdatesCount.current >= job.updates.length) return;
+
+        const latest = job.updates[job.updates.length - 1];
+        processedUpdatesCount.current = job.updates.length;
+
         if (!executionStartTimeRef.current && latest.type === 'phase') {
             executionStartTimeRef.current = latest.timestamp || Date.now();
         }
 
-        // Calculate progress based on number of phases
-        const phaseCount = partitionUpdates.filter(u => u.type === 'phase').length;
-        const estimatedTotalPhases = 8; // connecting, connected, preparing, uploading, building, downloading, cleanup, complete (if complete is a phase)
-        const progress = Math.min((phaseCount / estimatedTotalPhases) * 100, 100);
-        
-        // Format timestamp if available
+        const phaseCount = job.updates.filter((u) => u.type === 'phase').length;
+        const progress = Math.min((phaseCount / ESTIMATED_TOTAL_PHASES) * 100, 100);
+
         let statusText = latest.message || `Phase: ${latest.phase}`;
         if (latest.timestamp && executionStartTimeRef.current) {
-            const elapsedMs = latest.timestamp - executionStartTimeRef.current;
-            const elapsedSec = (elapsedMs / 1000).toFixed(1);
+            const elapsedSec = ((latest.timestamp - executionStartTimeRef.current) / 1000).toFixed(1);
             statusText += ` (${elapsedSec}s)`;
         }
-        
+
         switch (latest.type) {
             case 'phase':
                 setExecutionStatus(statusText);
@@ -100,38 +125,8 @@ export function CircuitToolbar() {
                     setExecutionProgress(latest.progress);
                 }
                 break;
-            case 'complete':
-                setExecutionStatus('Complete!');
-                setExecutionProgress(100);
-                setIsExecuting(false);
-                if (executingToastId.current) toast.dismiss(executingToastId.current);
-                if (abortToastId.current) toast.dismiss(abortToastId.current);
-                executingToastId.current = null;
-                abortToastId.current = null;
-                if (!successToastShown.current) {
-                    successToastShown.current = true;
-                    toast.success('Partition completed successfully!');
-                }
-                break;
-            case 'error':
-                setExecutionStatus(`Error: ${latest.message}`);
-                setIsExecuting(false);
-                if (executingToastId.current) toast.dismiss(executingToastId.current);
-                if (abortToastId.current) toast.dismiss(abortToastId.current);
-                executingToastId.current = null;
-                abortToastId.current = null;
-                toast.error('Partition failed', { description: latest.message });
-                break;
         }
-    }, [partitionUpdates, setExecutionStatus, setExecutionProgress, setIsExecuting]);
-
-    useEffect(() => {
-        if (partitionError) {
-            setExecutionStatus(`Connection error: ${partitionError}`);
-            setIsExecuting(false);
-            toast.error(`Connection error: ${partitionError}`);
-        }
-    }, [partitionError, setExecutionStatus, setIsExecuting]);
+    }, [job?.updates.length, setExecutionStatus, setExecutionProgress]);
 
     useEffect(() => {
         if (!isExecuting && abortToastId.current) {
@@ -140,7 +135,7 @@ export function CircuitToolbar() {
         }
     }, [isExecuting]);
 
-    const handleAbortClick = () => {
+    const handleAbortClick = useCallback(() => {
         if (!isExecuting) return;
 
         if (abortToastId.current) {
@@ -158,12 +153,16 @@ export function CircuitToolbar() {
                     setIsExecuting(false);
                     setExecutionProgress(0);
                     setExecutionStatus('Aborted');
-                    setPartitionJobId(null);
                     
-                    if (executingToastId.current) toast.dismiss(executingToastId.current);
                     if (abortToastId.current) toast.dismiss(abortToastId.current);
-                    executingToastId.current = null;
                     abortToastId.current = null;
+                    
+                    if (jobId) {
+                        if (job?.toastId) {
+                            toast.dismiss(job.toastId);
+                        }
+                        usePartitionStore.getState().dequeueJob(jobId);
+                    }
                     
                     toast.error('Execution aborted');
                 },
@@ -179,49 +178,29 @@ export function CircuitToolbar() {
             },
             classNames: { actionButton: 'bg-red-600 hover:bg-red-700 text-white' },
         });
-    };
+    }, [isExecuting, circuit?.symbol, jobId, job?.toastId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
     useKeyboardShortcuts([
-        {
-            key: 'z',
-            ctrl: true,
-            handler: () => canUndo && undo()
-        },
-        {
-            key: 'y',
-            ctrl: true,
-            handler: () => canRedo && redo()
-        },
-        {
-            key: 'z',
-            ctrl: true,
-            shift: true,
-            handler: () => canRedo && redo()
-        }
+        { key: 'z', ctrl: true, handler: () => canUndo && undo() },
+        { key: 'y', ctrl: true, handler: () => canRedo && redo() },
+        { key: 'z', ctrl: true, shift: true, handler: () => canRedo && redo() }
     ]);
 
-    const handleRun = async () => {
+    const handleRun = useCallback(async () => {
         if (!placedGates.length) {
             toast.error("No gates to execute");
             return;
         }
 
-        // Reset state
         setIsExecuting(false);
         setExecutionProgress(0);
         setExecutionStatus('');
-        setPartitionJobId(null);
         processedUpdatesCount.current = 0;
-        successToastShown.current = false;
         executionStartTimeRef.current = null;
         phasesRef.current.clear();
-        await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Start execution
         setIsExecuting(true);
-        executingToastId.current = toast.loading(`Executing ${circuit?.symbol || 'Circuit'}...`);
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const toastId = toast.loading(`Executing ${circuit?.symbol || 'Circuit'}...`);
 
         try {
             const response = await circuitsApi.partition(
@@ -232,34 +211,39 @@ export function CircuitToolbar() {
                 {},
                 new AbortController().signal
             );
-            
-            setPartitionJobId(response.jobId);
-            
+
+            if (jobId) {
+                usePartitionStore.getState().dequeueJob(jobId);
+            }
+
+            usePartitionStore.getState().enqueueJob(response.jobId, circuitId);
+            usePartitionStore.getState().setJobToastId(response.jobId, toastId);
         } catch (error) {
             const err = error as { name?: string };
             if (err.name === 'AbortError' || err.name === 'CanceledError') return;
+
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
-            if (executingToastId.current) toast.dismiss(executingToastId.current);
-            executingToastId.current = null;
+            toast.dismiss(toastId);
             toast.error('Connection failed', { 
                 description: 'Backend is not running'
             });
         }
-    };
+    }, [placedGates, circuit?.symbol, circuitId, numQubits, measurements, jobId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
-    const handleClear = () => {
+    const handleClear = useCallback(() => {
         reset({
             placedGates: [],
-            numQubits: numQubits,
+            numQubits,
             measurements: measurements.map(() => true),
-            showNestedCircuit: showNestedCircuit,
+            showNestedCircuit,
             isExecuting: false,
             executionProgress: 0,
             executionStatus: '',
+            partitionJobId: null,
         });
-    };
+    }, [reset, numQubits, measurements, showNestedCircuit]);
 
     return (
         <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

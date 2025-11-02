@@ -3,11 +3,17 @@ import re
 import json
 from typing import AsyncGenerator, Dict, Any, Optional
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+from threading import Semaphore
+import asyncio
 import paramiko
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+_thread_pool = ThreadPoolExecutor(max_workers=10)
+_ssh_semaphore = Semaphore(3)
 
 
 class SquanderExecutionError(Exception):
@@ -26,26 +32,38 @@ class SquanderClient:
 
     async def connect(self) -> None:
         try:
-            self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            
-            key_path = Path(settings.SSH_KEY_PATH).expanduser()
-            if not key_path.exists():
-                raise SSHConnectionError(f"SSH key not found at {key_path}")
+            def _connect():
+                _ssh_semaphore.acquire()
+                
+                try:
+                    client = paramiko.SSHClient()
+                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    
+                    key_path = Path(settings.SSH_KEY_PATH).expanduser()
+                    if not key_path.exists():
+                        raise SSHConnectionError(f"SSH key not found at {key_path}")
 
-            self.ssh_client.connect(
-                hostname=settings.SQUANDER_HOST,
-                username=settings.SQUANDER_USER,
-                key_filename=str(key_path),
-                timeout=settings.SSH_TIMEOUT,
-                look_for_keys=False,
-                allow_agent=False,
-            )
+                    client.connect(
+                        hostname=settings.SQUANDER_HOST,
+                        username=settings.SQUANDER_USER,
+                        key_filename=str(key_path),
+                        timeout=settings.SSH_TIMEOUT,
+                        look_for_keys=False,
+                        allow_agent=False,
+                    )
+                    
+                    sftp = client.open_sftp()
+                    return client, sftp
+                finally:
+                    _ssh_semaphore.release()
             
-            self.sftp_client = self.ssh_client.open_sftp()
+            loop = asyncio.get_event_loop()
+            self.ssh_client, self.sftp_client = await loop.run_in_executor(_thread_pool, _connect)
             self.is_connected = True
+            logger.info(f"SSH connection established to {settings.SQUANDER_HOST}")
         except Exception as e:
             self.is_connected = False
+            logger.error(f"SSH connection failed: {str(e)}", exc_info=True)
             raise SSHConnectionError(f"SSH connection failed: {str(e)}") from e
 
     async def disconnect(self) -> None:
@@ -62,14 +80,20 @@ class SquanderClient:
         if not self.is_connected:
             raise SSHConnectionError("Not connected")
         try:
-            stdin, stdout, stderr = self.ssh_client.exec_command(
-                command, timeout=settings.SQUANDER_EXEC_TIMEOUT
-            )
-            output = stdout.read().decode("utf-8")
-            error = stderr.read().decode("utf-8")
-            return_code = stdout.channel.recv_exit_status()
+            def _execute():
+                stdin, stdout, stderr = self.ssh_client.exec_command(
+                    command, timeout=settings.SQUANDER_EXEC_TIMEOUT
+                )
+                output = stdout.read().decode("utf-8")
+                error = stderr.read().decode("utf-8")
+                return_code = stdout.channel.recv_exit_status()
+                return output, error, return_code
+            
+            loop = asyncio.get_event_loop()
+            output, error, return_code = await loop.run_in_executor(_thread_pool, _execute)
             return output, error, return_code
         except Exception as e:
+            logger.error(f"Execute error: {str(e)}", exc_info=True)
             raise SquanderExecutionError(f"Command failed: {str(e)}") from e
 
     async def stream_command_output(
@@ -78,18 +102,34 @@ class SquanderClient:
         if not self.is_connected:
             raise SSHConnectionError("Not connected")
         try:
-            stdin, stdout, stderr = self.ssh_client.exec_command(
-                command, timeout=settings.SQUANDER_EXEC_TIMEOUT
-            )
-
-            for line in stdout:
-                line = line.decode("utf-8").strip()
-                if line:
-                    progress = self._parse_progress(line)
-                    yield {"type": "log", "message": line, "progress": progress}
-
-            error_output = stderr.read().decode("utf-8")
-            return_code = stdout.channel.recv_exit_status()
+            def _stream_worker():
+                stdin, stdout, stderr = self.ssh_client.exec_command(
+                    command, timeout=settings.SQUANDER_EXEC_TIMEOUT
+                )
+                results = []
+                error_output = ""
+                return_code = 0
+                
+                try:
+                    for line in stdout:
+                        line = line.decode("utf-8").strip()
+                        if line:
+                            progress = self._parse_progress(line)
+                            results.append({"type": "log", "message": line, "progress": progress})
+                    
+                    error_output = stderr.read().decode("utf-8")
+                    return_code = stdout.channel.recv_exit_status()
+                except Exception as e:
+                    logger.error(f"Stream read error: {str(e)}", exc_info=True)
+                    raise SquanderExecutionError(f"Stream read error: {str(e)}")
+                
+                return results, error_output, return_code
+            
+            loop = asyncio.get_event_loop()
+            results, error_output, return_code = await loop.run_in_executor(_thread_pool, _stream_worker)
+            
+            for result in results:
+                yield result
 
             if return_code != 0:
                 raise SquanderExecutionError(f"Command failed: {error_output}")
@@ -99,17 +139,16 @@ class SquanderClient:
         except SquanderExecutionError:
             raise
         except Exception as e:
+            logger.error(f"Stream error: {str(e)}", exc_info=True)
             raise SquanderExecutionError(f"Stream failed: {str(e)}") from e
 
     @staticmethod
     def _parse_progress(line: str) -> Optional[int]:
         """Extract progress percentage from output line"""
-        # Try percentage format: [50%] or Progress: 50%
         percent_match = re.search(r"\[?(\d+)%\]?", line)
         if percent_match:
             return int(percent_match.group(1))
 
-        # Try count format: 10/20
         count_match = re.search(r"(\d+)/(\d+)", line)
         if count_match:
             current = int(count_match.group(1))
@@ -122,7 +161,11 @@ class SquanderClient:
         if not self.is_connected:
             raise SSHConnectionError("Not connected")
         try:
-            self.sftp_client.put(local_path, remote_path)
+            def _upload():
+                self.sftp_client.put(local_path, remote_path)
+            
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(_thread_pool, _upload)
         except Exception as e:
             raise SquanderExecutionError(f"Upload failed: {str(e)}") from e
 
@@ -130,7 +173,11 @@ class SquanderClient:
         if not self.is_connected:
             raise SSHConnectionError("Not connected")
         try:
-            self.sftp_client.get(remote_path, local_path)
+            def _download():
+                self.sftp_client.get(remote_path, local_path)
+            
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(_thread_pool, _download)
         except Exception as e:
             raise SquanderExecutionError(f"Download failed: {str(e)}") from e
 
