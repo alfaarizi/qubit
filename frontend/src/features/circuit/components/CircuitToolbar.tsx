@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import {
     Undo2,
     Redo2,
@@ -6,7 +6,6 @@ import {
     Play,
     ChevronDown,
     FolderOpen,
-    GitBranch,
     Eye,
     EyeOff,
     Square,
@@ -20,6 +19,8 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
@@ -31,6 +32,19 @@ import { useProject } from "@/features/project/ProjectStoreContext";
 import { usePartitionStore } from "@/stores/partitionStore";
 
 const ESTIMATED_TOTAL_PHASES = 8;
+
+const PARTITION_BACKENDS = [
+    { value: 'squander', label: 'SQUANDER' },
+    // { value: 'qiskit', label: 'Qiskit' },
+    // { value: 'bqskit', label: 'BQSKit' },
+] as const;
+
+const PARTITION_STRATEGIES = [
+    { value: 'kahn', label: 'Kahn (Fast)', description: 'Greedy topological sort' },
+    { value: 'ilp', label: 'ILP (Optimal)', description: 'Integer linear programming' },
+    { value: 'tdag', label: 'TDAG', description: 'Tree-based DAG partitioning' },
+    { value: 'gtqcp', label: 'GTQCP', description: 'GTQCP variant' },
+] as const;
 
 export function CircuitToolbar() {
     const svgRef = useCircuitSvgRef();
@@ -55,6 +69,10 @@ export function CircuitToolbar() {
     const jobId = job?.jobId || null;
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
+    
+    const [partitionBackend, setPartitionBackend] = useState<string>('squander');
+    const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
+    const [maxPartitionSize, setMaxPartitionSize] = useState<number>(4);
 
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
@@ -200,7 +218,7 @@ export function CircuitToolbar() {
         phasesRef.current.clear();
 
         setIsExecuting(true);
-        const toastId = toast.loading(`Executing ${circuit?.symbol || 'Circuit'}...`);
+        const toastId = toast.loading(`Executing ${circuit?.symbol || 'Circuit'} (${partitionBackend.toUpperCase()} - ${partitionStrategy})...`);
 
         try {
             const response = await circuitsApi.partition(
@@ -208,8 +226,9 @@ export function CircuitToolbar() {
                 numQubits,
                 placedGates,
                 measurements,
-                {},
-                new AbortController().signal
+                { maxPartitionSize },
+                new AbortController().signal,
+                partitionStrategy
             );
 
             if (jobId) {
@@ -230,7 +249,7 @@ export function CircuitToolbar() {
                 description: 'Backend is not running'
             });
         }
-    }, [placedGates, circuit?.symbol, circuitId, numQubits, measurements, jobId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
+    }, [placedGates, circuit?.symbol, circuitId, numQubits, measurements, jobId, maxPartitionSize, partitionStrategy, partitionBackend, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
     const handleClear = useCallback(() => {
         reset({
@@ -247,85 +266,70 @@ export function CircuitToolbar() {
 
     return (
         <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {/* File Menu - Hide text on mobile */}
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2 shrink-0" disabled={isExecuting}>
-                        <FolderOpen className="h-4 w-4" />
-                        <span className="hidden sm:inline">File</span>
-                        <ChevronDown className="h-3 w-3" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                    <DropdownMenuItem>New Circuit</DropdownMenuItem>
-                    <DropdownMenuItem>Open...</DropdownMenuItem>
-                    <DropdownMenuItem>Save</DropdownMenuItem>
-                    <DropdownMenuItem>Save As...</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Group 1: File Operations */}
+            <div className="flex items-center gap-1 shrink-0">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-2 shrink-0" disabled={isExecuting}>
+                            <FolderOpen className="h-4 w-4" />
+                            <span className="hidden sm:inline">File</span>
+                            <ChevronDown className="h-3 w-3" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                        <DropdownMenuItem>New Circuit</DropdownMenuItem>
+                        <DropdownMenuItem>Open...</DropdownMenuItem>
+                        <DropdownMenuItem>Save</DropdownMenuItem>
+                        <DropdownMenuItem>Save As...</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
-            <Separator orientation="vertical" className="h-6 hidden sm:block" />
+            <Separator orientation="vertical" className="h-6" />
 
-            {/* Undo/Redo */}
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => undo()}
-                disabled={!canUndo || isExecuting}
-                className="shrink-0"
-            >
-                <Undo2 className="h-4 w-4" />
-            </Button>
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => redo()}
-                disabled={!canRedo || isExecuting}
-                className="shrink-0"
-            >
-                <Redo2 className="h-4 w-4" />
-            </Button>
+            {/* Group 2: Edit Operations */}
+            <div className="flex items-center gap-0.5 shrink-0">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => undo()}
+                    disabled={!canUndo || isExecuting}
+                    className="shrink-0"
+                    title="Undo (Ctrl+Z)"
+                >
+                    <Undo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => redo()}
+                    disabled={!canRedo || isExecuting}
+                    className="shrink-0"
+                    title="Redo (Ctrl+Y)"
+                >
+                    <Redo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleClear}
+                    disabled={isExecuting}
+                    className="shrink-0"
+                    title="Clear circuit"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
 
             <Separator orientation="vertical" className="h-6 hidden md:block" />
 
-            {/* Partition & Clear - Hide on small screens */}
-            <Button variant="ghost" size="sm" className="gap-2 shrink-0 hidden md:flex" disabled={isExecuting}>
-                <GitBranch className="h-4 w-4" />
-                Partition
-            </Button>
-            <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 shrink-0 hidden md:flex"
-                onClick={handleClear}
-                disabled={isExecuting}
-            >
-                <Trash2 className="h-4 w-4" />
-                Clear
-            </Button>
-
-            {/* Clear icon only on mobile */}
-            <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 md:hidden"
-                onClick={handleClear}
-                disabled={isExecuting}
-            >
-                <Trash2 className="h-4 w-4" />
-            </Button>
-
-            <Separator orientation="vertical" className="h-6 hidden lg:block" />
-
-            {/* Show/Hide nested - Hide on smaller screens */}
-            <div className="hidden lg:flex items-center gap-2 h-9 px-2 rounded-md shrink-0">
-                {
-                    showNestedCircuit ? (
-                        <Eye className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>
-                    ) : (
-                        <EyeOff className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>
-                    )
-                }
+            {/* Group 3: View Controls */}
+            <div className="hidden md:flex items-center gap-1.5 shrink-0 px-1">
+                {showNestedCircuit ? (
+                    <Eye className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>
+                ) : (
+                    <EyeOff className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>
+                )}
                 <Switch
                     checked={showNestedCircuit}
                     onCheckedChange={setShowNestedCircuit}
@@ -336,29 +340,159 @@ export function CircuitToolbar() {
             {/* Spacer */}
             <div className="flex-1 min-w-2" />
 
-            {/* Export & Run - Always visible */}
-            <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
+            {/* Group 4: Execution Configuration */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                {/* Backend Selector */}
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Backend</span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isExecuting}
+                                className="h-8 gap-1 sm:gap-1.5 shrink-0 font-medium shadow-sm px-2 sm:px-3"
+                            >
+                                <span className="text-xs hidden sm:inline">{partitionBackend.toUpperCase()}</span>
+                                <span className="text-xs sm:hidden">BE</span>
+                                <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Partition Backend</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {PARTITION_BACKENDS.map((backend) => (
+                                <DropdownMenuItem
+                                    key={backend.value}
+                                    onClick={() => setPartitionBackend(backend.value)}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>{backend.label}</span>
+                                        {partitionBackend === backend.value && (
+                                            <span className="text-green-600">✓</span>
+                                        )}
+                                    </div>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
 
-            <Button
-                size="sm"
-                disabled={isExecuting}
-                className="gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                onClick={handleRun}
-            >
-                {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
-                <span className="hidden sm:inline">Run</span>
-            </Button>
+                <Separator orientation="vertical" className="h-5 hidden sm:block" />
 
-            <Button
-                size="sm"
-                variant="destructive"
-                disabled={!isExecuting}
-                className="gap-2 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                onClick={handleAbortClick}
-            >
-                <Square className="h-4 w-4"/>
-                <span className="hidden sm:inline">Abort</span>
-            </Button>
+                {/* Strategy Selector */}
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Strategy</span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isExecuting}
+                                className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[50px] sm:min-w-[80px] font-medium shadow-sm px-2 sm:px-3"
+                            >
+                                <span className="text-xs capitalize truncate">{partitionStrategy}</span>
+                                <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>Partition Strategy</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {PARTITION_STRATEGIES.map((strategy) => (
+                                <DropdownMenuItem
+                                    key={strategy.value}
+                                    onClick={() => setPartitionStrategy(strategy.value)}
+                                    className="cursor-pointer"
+                                >
+                                    <div className="flex flex-col gap-0.5">
+                                        <div className="font-medium flex items-center gap-2">
+                                            {strategy.label}
+                                            {partitionStrategy === strategy.value && (
+                                                <span className="text-green-600 text-xs">✓</span>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {strategy.description}
+                                        </div>
+                                    </div>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                <Separator orientation="vertical" className="h-5 hidden sm:block" />
+
+                {/* Partition Size Selector */}
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Qubits</span>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isExecuting}
+                                className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[45px] sm:min-w-[60px] font-medium shadow-sm px-2 sm:px-3"
+                            >
+                                <span className="text-xs">{maxPartitionSize}</span>
+                                <ChevronDown className="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Max Partition Size</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {[3, 4, 5].map((size) => (
+                                <DropdownMenuItem
+                                    key={size}
+                                    onClick={() => setMaxPartitionSize(size)}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>{size} qubits</span>
+                                        {maxPartitionSize === size && (
+                                            <span className="text-green-600">✓</span>
+                                        )}
+                                    </div>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Group 5: Action Buttons */}
+            <div className="flex items-center gap-1 shrink-0">
+                <Button
+                    size="sm"
+                    disabled={isExecuting}
+                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    onClick={() => handleRun()}
+                    title="Execute circuit"
+                >
+                    {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
+                    <span className="hidden sm:inline">Run</span>
+                </Button>
+
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={!isExecuting}
+                    className="gap-1 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    onClick={handleAbortClick}
+                    title="Abort execution"
+                >
+                    <Square className="h-4 w-4"/>
+                    <span className="hidden sm:inline">Abort</span>
+                </Button>
+            </div>
+
+            <Separator orientation="vertical" className="h-6" />
+
+            {/* Group 6: Export */}
+            <div className="flex items-center shrink-0">
+                <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
+            </div>
         </div>
     );
 }

@@ -17,6 +17,7 @@ class PartitionRequest(BaseModel):
     placedGates: list
     measurements: list
     options: Optional[dict] = None
+    strategy: Optional[str] = "kahn"  # kahn, ilp, tdag, etc.
 
 active_jobs = {}
 
@@ -36,6 +37,7 @@ async def partition_circuit(circuit_id: str, request: PartitionRequest):
             placed_gates=request.placedGates,
             measurements=request.measurements,
             options=request.options,
+            strategy=request.strategy or "kahn",
         )
     )
 
@@ -61,6 +63,7 @@ async def run_partition_job(
     placed_gates: list,
     measurements: list,
     options: dict,
+    strategy: str = "kahn",
 ) -> None:
     client = SquanderClient()
     room = f"partition-{job_id}"
@@ -109,6 +112,7 @@ async def run_partition_job(
             placed_gates=placed_gates,
             measurements=measurements,
             options=options or {},
+            strategy=strategy,
         ):
             await manager.broadcast_to_room(room, {**update, "jobId": job_id, "circuitId": circuit_id})
     except Exception as e:

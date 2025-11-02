@@ -15,7 +15,8 @@ export const circuitsApi = {
         gates: (Gate | Circuit)[],
         measurements: any[] = [],
         options: Record<string, any> = {},
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        strategy?: string
     ): Promise<PartitionResponse> {
         const { data } = await api.post(
             `/circuits/${circuitId}/partition`,
@@ -24,6 +25,7 @@ export const circuitsApi = {
                 placedGates: gates.sort((a, b) => a.depth - b.depth),
                 measurements,
                 options,
+                strategy: strategy || 'kahn',
             },
             { signal }
         );

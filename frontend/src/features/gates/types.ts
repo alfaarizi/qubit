@@ -33,4 +33,6 @@ export interface Gate extends DagOperation {
     gate: GateInfo;
     targetQubits: number[];
     controlQubits: number[];
+    /** Gate parameters (e.g., rotation angles in radians) */
+    parameters?: number[];
 }

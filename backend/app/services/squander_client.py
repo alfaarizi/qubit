@@ -188,6 +188,7 @@ class SquanderClient:
         placed_gates: list,
         measurements: list,
         options: Dict[str, Any],
+        strategy: str = "kahn",
     ) -> AsyncGenerator[Dict[str, Any], None]:
         try:
             remote_job_dir = f"/tmp/squander_jobs/{job_id}"
@@ -200,6 +201,7 @@ class SquanderClient:
                 "placedGates": placed_gates,
                 "measurements": measurements,
                 "options": options,
+                "strategy": strategy,
             }
             local_circuit_file = f"/tmp/{job_id}_input.json"
             Path(local_circuit_file).write_text(json.dumps(circuit_data, indent=2))
@@ -207,17 +209,103 @@ class SquanderClient:
             await self.upload_file(local_circuit_file, remote_circuit_file)
 
             yield {"type": "phase", "phase": "building", "message": "Building and partitioning circuit..."}
+            
+            # Build SQUANDER circuit and run partitioning
+            max_partition_size = options.get("maxPartitionSize", 4)
             squander_cmd = (
                 f"cd {remote_job_dir} && python3 << 'EOF'\n"
                 f"import sys\n"
                 f"sys.path.insert(0, '{settings.SQUANDER_PATH}')\n"
-                f"from squander import *\n"
+                f"from squander import Circuit\n"
+                f"from squander.partitioning.partition import PartitionCircuit\n"
                 f"import json\n"
+                f"import numpy as np\n"
+                f"\n"
                 f"with open('circuit.json') as f:\n"
-                f"    circuit_data = json.load(f)\n"
-                f"result = {{}}\n"
+                f"    data = json.load(f)\n"
+                f"\n"
+                f"# Build SQUANDER circuit\n"
+                f"c = Circuit(data['numQubits'])\n"
+                f"parameters = []\n"
+                f"\n"
+                f"# Add gates to circuit\n"
+                f"for gate_info in data['placedGates']:\n"
+                f"    gate_id = gate_info['gate']['id'].upper()\n"
+                f"    target_qubits = gate_info['targetQubits']\n"
+                f"    control_qubits = gate_info['controlQubits']\n"
+                f"    gate_params = gate_info.get('parameters', [])\n"
+                f"    \n"
+                f"    # Single-qubit gates\n"
+                f"    if gate_id == 'H':\n"
+                f"        c.add_H(target_qubits[0])\n"
+                f"    elif gate_id == 'X':\n"
+                f"        c.add_X(target_qubits[0])\n"
+                f"    elif gate_id == 'Y':\n"
+                f"        c.add_Y(target_qubits[0])\n"
+                f"    elif gate_id == 'Z':\n"
+                f"        c.add_Z(target_qubits[0])\n"
+                f"    elif gate_id == 'S':\n"
+                f"        c.add_S(target_qubits[0])\n"
+                f"    elif gate_id == 'T':\n"
+                f"        c.add_T(target_qubits[0])\n"
+                f"    elif gate_id == 'RX':\n"
+                f"        c.add_RX(target_qubits[0])\n"
+                f"        parameters.extend(gate_params if gate_params else [np.pi/2])\n"
+                f"    elif gate_id == 'RY':\n"
+                f"        c.add_RY(target_qubits[0])\n"
+                f"        parameters.extend(gate_params if gate_params else [np.pi/2])\n"
+                f"    elif gate_id == 'RZ':\n"
+                f"        c.add_RZ(target_qubits[0])\n"
+                f"        parameters.extend(gate_params if gate_params else [np.pi/2])\n"
+                f"    elif gate_id == 'SX':\n"
+                f"        c.add_SX(target_qubits[0])\n"
+                f"    # Two-qubit gates\n"
+                f"    elif gate_id in ['CNOT', 'CX']:\n"
+                f"        c.add_CNOT(target_qubits[0], control_qubits[0])\n"
+                f"    elif gate_id == 'CZ':\n"
+                f"        c.add_CZ(target_qubits[0], control_qubits[0])\n"
+                f"    elif gate_id == 'CH':\n"
+                f"        c.add_CH(target_qubits[0], control_qubits[0])\n"
+                f"    elif gate_id == 'SWAP':\n"
+                f"        c.add_SWAP(target_qubits)\n"
+                f"    # Multi-qubit gates\n"
+                f"    elif gate_id in ['CCX', 'TOFFOLI']:\n"
+                f"        c.add_CCX(target_qubits[0], control_qubits)\n"
+                f"\n"
+                f"parameters = np.array(parameters, dtype=np.float64)\n"
+                f"\n"
+                f"# Run partitioning\n"
+                f"strategy = data.get('strategy', 'kahn')\n"
+                f"max_size = {max_partition_size}\n"
+                f"partitioned_circ, partitioned_params, partition_assignments = PartitionCircuit(\n"
+                f"    c, parameters, max_size, strategy\n"
+                f")\n"
+                f"\n"
+                f"# Collect results\n"
+                f"partitions = []\n"
+                f"for i, partition in enumerate(partitioned_circ.get_Gates()):\n"
+                f"    gates = partition.get_Gates()\n"
+                f"    qubits = set()\n"
+                f"    for gate in gates:\n"
+                f"        qubits.update(gate.get_Involved_Qbits())\n"
+                f"    partitions.append({{\n"
+                f"        'index': i,\n"
+                f"        'numGates': len(gates),\n"
+                f"        'qubits': sorted(list(qubits)),\n"
+                f"        'numQubits': len(qubits)\n"
+                f"    }})\n"
+                f"\n"
+                f"result = {{\n"
+                f"    'strategy': strategy,\n"
+                f"    'maxPartitionSize': max_size,\n"
+                f"    'totalPartitions': len(partitions),\n"
+                f"    'totalGates': len(data['placedGates']),\n"
+                f"    'partitions': partitions\n"
+                f"}}\n"
+                f"\n"
                 f"with open('result.json', 'w') as f:\n"
                 f"    json.dump(result, f)\n"
+                f"print('Partitioning complete!')\n"
                 f"EOF"
             )
             async for update in self.stream_command_output(squander_cmd):
