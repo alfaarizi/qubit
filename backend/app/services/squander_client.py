@@ -41,7 +41,7 @@ class SquanderClient:
                     
                     key_path = Path(settings.SSH_KEY_PATH).expanduser()
                     if not key_path.exists():
-                        raise SSHConnectionError(f"SSH key not found at {key_path}")
+                        raise SSHConnectionError("SSH key not found at {}".format(key_path))
 
                     client.connect(
                         hostname=settings.SQUANDER_HOST,
@@ -60,11 +60,11 @@ class SquanderClient:
             loop = asyncio.get_event_loop()
             self.ssh_client, self.sftp_client = await loop.run_in_executor(_thread_pool, _connect)
             self.is_connected = True
-            logger.info(f"SSH connection established to {settings.SQUANDER_HOST}")
+            logger.info("SSH connection established to %s", settings.SQUANDER_HOST)
         except Exception as e:
             self.is_connected = False
-            logger.error(f"SSH connection failed: {str(e)}", exc_info=True)
-            raise SSHConnectionError(f"SSH connection failed: {str(e)}") from e
+            logger.error("SSH connection failed: %s", str(e), exc_info=True)
+            raise SSHConnectionError("SSH connection failed: {}".format(str(e))) from e
 
     async def disconnect(self) -> None:
         try:
@@ -74,7 +74,7 @@ class SquanderClient:
                 self.ssh_client.close()
             self.is_connected = False
         except Exception as e:
-            logger.error(f"Disconnect error: {str(e)}")
+            logger.error("Disconnect error: %s", str(e))
 
     async def execute_command(self, command: str) -> tuple[str, str, int]:
         if not self.is_connected:
@@ -93,8 +93,8 @@ class SquanderClient:
             output, error, return_code = await loop.run_in_executor(_thread_pool, _execute)
             return output, error, return_code
         except Exception as e:
-            logger.error(f"Execute error: {str(e)}", exc_info=True)
-            raise SquanderExecutionError(f"Command failed: {str(e)}") from e
+            logger.error("Execute error: %s", str(e), exc_info=True)
+            raise SquanderExecutionError("Command failed: {}".format(str(e))) from e
 
     async def stream_command_output(
         self, command: str
@@ -112,16 +112,26 @@ class SquanderClient:
                 
                 try:
                     for line in stdout:
-                        line = line.decode("utf-8").strip()
+                        # Handle both bytes and str (paramiko can return either)
+                        if isinstance(line, bytes):
+                            line = line.decode("utf-8").strip()
+                        else:
+                            line = line.strip()
+                        
                         if line:
                             progress = self._parse_progress(line)
                             results.append({"type": "log", "message": line, "progress": progress})
+                    # Handle stderr output
+                    stderr_data = stderr.read()
+                    if isinstance(stderr_data, bytes):
+                        error_output = stderr_data.decode("utf-8")
+                    else:
+                        error_output = stderr_data
                     
-                    error_output = stderr.read().decode("utf-8")
                     return_code = stdout.channel.recv_exit_status()
                 except Exception as e:
-                    logger.error(f"Stream read error: {str(e)}", exc_info=True)
-                    raise SquanderExecutionError(f"Stream read error: {str(e)}")
+                    logger.error("Stream read error: %s", str(e), exc_info=True)
+                    raise SquanderExecutionError("Stream read error: {}".format(str(e)))
                 
                 return results, error_output, return_code
             
@@ -132,15 +142,15 @@ class SquanderClient:
                 yield result
 
             if return_code != 0:
-                raise SquanderExecutionError(f"Command failed: {error_output}")
+                raise SquanderExecutionError("Command failed: {}".format(error_output))
 
             if error_output:
-                yield {"type": "log", "message": f"[WARNING] {error_output}"}
+                yield {"type": "log", "message": "[WARNING] {}".format(error_output)}
         except SquanderExecutionError:
             raise
         except Exception as e:
-            logger.error(f"Stream error: {str(e)}", exc_info=True)
-            raise SquanderExecutionError(f"Stream failed: {str(e)}") from e
+            logger.error("Stream error: %s", str(e), exc_info=True)
+            raise SquanderExecutionError("Stream failed: {}".format(str(e))) from e
 
     @staticmethod
     def _parse_progress(line: str) -> Optional[int]:
@@ -167,7 +177,7 @@ class SquanderClient:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(_thread_pool, _upload)
         except Exception as e:
-            raise SquanderExecutionError(f"Upload failed: {str(e)}") from e
+            raise SquanderExecutionError("Upload failed: {}".format(str(e))) from e
 
     async def download_file(self, remote_path: str, local_path: str) -> None:
         if not self.is_connected:
@@ -179,7 +189,7 @@ class SquanderClient:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(_thread_pool, _download)
         except Exception as e:
-            raise SquanderExecutionError(f"Download failed: {str(e)}") from e
+            raise SquanderExecutionError("Download failed: {}".format(str(e))) from e
 
     async def run_partition(
         self,
@@ -191,9 +201,9 @@ class SquanderClient:
         strategy: str = "kahn",
     ) -> AsyncGenerator[Dict[str, Any], None]:
         try:
-            remote_job_dir = f"/tmp/squander_jobs/{job_id}"
+            remote_job_dir = "/tmp/squander_jobs/{}".format(job_id)
             yield {"type": "phase", "phase": "preparing", "message": "Preparing job..."}
-            await self.execute_command(f"mkdir -p {remote_job_dir}")
+            await self.execute_command("mkdir -p {}".format(remote_job_dir))
 
             yield {"type": "phase", "phase": "uploading", "message": "Uploading circuit..."}
             circuit_data = {
@@ -203,131 +213,178 @@ class SquanderClient:
                 "options": options,
                 "strategy": strategy,
             }
-            local_circuit_file = f"/tmp/{job_id}_input.json"
+            local_circuit_file = "/tmp/{}_input.json".format(job_id)
             Path(local_circuit_file).write_text(json.dumps(circuit_data, indent=2))
-            remote_circuit_file = f"{remote_job_dir}/circuit.json"
+            remote_circuit_file = "{}/circuit.json".format(remote_job_dir)
             await self.upload_file(local_circuit_file, remote_circuit_file)
 
             yield {"type": "phase", "phase": "building", "message": "Building and partitioning circuit..."}
             
-            # Build SQUANDER circuit and run partitioning
             max_partition_size = options.get("maxPartitionSize", 4)
-            squander_cmd = (
-                f"cd {remote_job_dir} && python3 << 'EOF'\n"
-                f"import sys\n"
-                f"sys.path.insert(0, '{settings.SQUANDER_PATH}')\n"
-                f"from squander import Circuit\n"
-                f"from squander.partitioning.partition import PartitionCircuit\n"
-                f"import json\n"
-                f"import numpy as np\n"
-                f"\n"
-                f"with open('circuit.json') as f:\n"
-                f"    data = json.load(f)\n"
-                f"\n"
-                f"# Build SQUANDER circuit\n"
-                f"c = Circuit(data['numQubits'])\n"
-                f"parameters = []\n"
-                f"\n"
-                f"# Add gates to circuit\n"
-                f"for gate_info in data['placedGates']:\n"
-                f"    gate_id = gate_info['gate']['id'].upper()\n"
-                f"    target_qubits = gate_info['targetQubits']\n"
-                f"    control_qubits = gate_info['controlQubits']\n"
-                f"    gate_params = gate_info.get('parameters', [])\n"
-                f"    \n"
-                f"    # Single-qubit gates\n"
-                f"    if gate_id == 'H':\n"
-                f"        c.add_H(target_qubits[0])\n"
-                f"    elif gate_id == 'X':\n"
-                f"        c.add_X(target_qubits[0])\n"
-                f"    elif gate_id == 'Y':\n"
-                f"        c.add_Y(target_qubits[0])\n"
-                f"    elif gate_id == 'Z':\n"
-                f"        c.add_Z(target_qubits[0])\n"
-                f"    elif gate_id == 'S':\n"
-                f"        c.add_S(target_qubits[0])\n"
-                f"    elif gate_id == 'T':\n"
-                f"        c.add_T(target_qubits[0])\n"
-                f"    elif gate_id == 'RX':\n"
-                f"        c.add_RX(target_qubits[0])\n"
-                f"        parameters.extend(gate_params if gate_params else [np.pi/2])\n"
-                f"    elif gate_id == 'RY':\n"
-                f"        c.add_RY(target_qubits[0])\n"
-                f"        parameters.extend(gate_params if gate_params else [np.pi/2])\n"
-                f"    elif gate_id == 'RZ':\n"
-                f"        c.add_RZ(target_qubits[0])\n"
-                f"        parameters.extend(gate_params if gate_params else [np.pi/2])\n"
-                f"    elif gate_id == 'SX':\n"
-                f"        c.add_SX(target_qubits[0])\n"
-                f"    # Two-qubit gates\n"
-                f"    elif gate_id in ['CNOT', 'CX']:\n"
-                f"        c.add_CNOT(target_qubits[0], control_qubits[0])\n"
-                f"    elif gate_id == 'CZ':\n"
-                f"        c.add_CZ(target_qubits[0], control_qubits[0])\n"
-                f"    elif gate_id == 'CH':\n"
-                f"        c.add_CH(target_qubits[0], control_qubits[0])\n"
-                f"    elif gate_id == 'SWAP':\n"
-                f"        c.add_SWAP(target_qubits)\n"
-                f"    # Multi-qubit gates\n"
-                f"    elif gate_id in ['CCX', 'TOFFOLI']:\n"
-                f"        c.add_CCX(target_qubits[0], control_qubits)\n"
-                f"\n"
-                f"parameters = np.array(parameters, dtype=np.float64)\n"
-                f"\n"
-                f"# Run partitioning\n"
-                f"strategy = data.get('strategy', 'kahn')\n"
-                f"max_size = {max_partition_size}\n"
-                f"partitioned_circ, partitioned_params, partition_assignments = PartitionCircuit(\n"
-                f"    c, parameters, max_size, strategy\n"
-                f")\n"
-                f"\n"
-                f"# Collect results\n"
-                f"partitions = []\n"
-                f"for i, partition in enumerate(partitioned_circ.get_Gates()):\n"
-                f"    gates = partition.get_Gates()\n"
-                f"    qubits = set()\n"
-                f"    for gate in gates:\n"
-                f"        qubits.update(gate.get_Involved_Qbits())\n"
-                f"    partitions.append({{\n"
-                f"        'index': i,\n"
-                f"        'numGates': len(gates),\n"
-                f"        'qubits': sorted(list(qubits)),\n"
-                f"        'numQubits': len(qubits)\n"
-                f"    }})\n"
-                f"\n"
-                f"result = {{\n"
-                f"    'strategy': strategy,\n"
-                f"    'maxPartitionSize': max_size,\n"
-                f"    'totalPartitions': len(partitions),\n"
-                f"    'totalGates': len(data['placedGates']),\n"
-                f"    'partitions': partitions\n"
-                f"}}\n"
-                f"\n"
-                f"with open('result.json', 'w') as f:\n"
-                f"    json.dump(result, f)\n"
-                f"print('Partitioning complete!')\n"
-                f"EOF"
-            )
+            
+            python_script = """
+import sys
+sys.path.insert(0, '{squander_path}')
+from squander import Circuit
+from squander.partitioning.partition import PartitionCircuit
+import json
+import numpy as np
+
+def build_circuit(circuit_data, start_qubit=0):
+    \"\"\"Recursively build SQUANDER circuit including nested circuits\"\"\"
+    c = Circuit(circuit_data['numQubits'])
+    parameters = []
+    
+    for gate_info in circuit_data['placedGates']:
+        # Handle nested circuits
+        if 'circuit' in gate_info:
+            nested_circuit_data = {{
+                'numQubits': len(gate_info['circuit']['gates']),
+                'placedGates': gate_info['circuit']['gates']
+            }}
+            nested_circuit, nested_params = build_circuit(nested_circuit_data, gate_info['startQubit'])
+            c.add_Circuit(nested_circuit)
+            parameters.extend(nested_params)
+            continue
+        
+        gate_id = gate_info['gate']['id'].upper()
+        target_qubits = [q + start_qubit for q in gate_info['targetQubits']]
+        control_qubits = [q + start_qubit for q in gate_info['controlQubits']]
+        gate_params = gate_info.get('parameters', [])
+        
+        if gate_id == 'H':
+            c.add_H(target_qubits[0])
+        elif gate_id == 'X':
+            c.add_X(target_qubits[0])
+        elif gate_id == 'Y':
+            c.add_Y(target_qubits[0])
+        elif gate_id == 'Z':
+            c.add_Z(target_qubits[0])
+        elif gate_id == 'S':
+            c.add_S(target_qubits[0])
+        elif gate_id == 'T':
+            c.add_T(target_qubits[0])
+        elif gate_id == 'SDG':
+            c.add_Sdg(target_qubits[0])
+        elif gate_id == 'TDG':
+            c.add_Tdg(target_qubits[0])
+        elif gate_id == 'RX':
+            c.add_RX(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi/2])
+        elif gate_id == 'RY':
+            c.add_RY(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi/2])
+        elif gate_id == 'RZ':
+            c.add_RZ(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi/2])
+        elif gate_id == 'R':
+            c.add_R(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi])
+        elif gate_id == 'SX':
+            c.add_SX(target_qubits[0])
+        elif gate_id == 'U1':
+            c.add_U1(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [0])
+        elif gate_id == 'U2':
+            c.add_U2(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [0, 0])
+        elif gate_id == 'U3':
+            c.add_U3(target_qubits[0])
+            parameters.extend(gate_params if gate_params else [0, 0, 0])
+        elif gate_id in ['CNOT', 'CX']:
+            c.add_CNOT(target_qubits[0], control_qubits[0])
+        elif gate_id == 'CZ':
+            c.add_CZ(target_qubits[0], control_qubits[0])
+        elif gate_id == 'CH':
+            c.add_CH(target_qubits[0], control_qubits[0])
+        elif gate_id == 'CRY':
+            c.add_CRY(target_qubits[0], control_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi/2])
+        elif gate_id == 'CRZ':
+            c.add_CRZ(target_qubits[0], control_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi/2])
+        elif gate_id == 'CRX':
+            c.add_CRX(target_qubits[0], control_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi/2])
+        elif gate_id == 'CP':
+            c.add_CP(target_qubits[0], control_qubits[0])
+            parameters.extend(gate_params if gate_params else [0])
+        elif gate_id == 'CR':
+            c.add_CR(target_qubits[0], control_qubits[0])
+            parameters.extend(gate_params if gate_params else [np.pi])
+        elif gate_id == 'CROT':
+            c.add_CROT(target_qubits[0], control_qubits[0])
+            parameters.extend(gate_params if gate_params else [0, 0, 0])
+        elif gate_id == 'SYC':
+            c.add_SYC(target_qubits[0], control_qubits[0])
+        elif gate_id == 'SWAP':
+            c.add_SWAP(target_qubits)
+        elif gate_id == 'CSWAP':
+            c.add_CSWAP(target_qubits, control_qubits)
+        elif gate_id in ['CCX', 'TOFFOLI']:
+            c.add_CCX(target_qubits[0], control_qubits)
+    
+    return c, parameters
+
+with open('circuit.json') as f:
+    data = json.load(f)
+
+c, parameters = build_circuit(data)
+parameters = np.array(parameters, dtype=np.float64)
+
+strategy = data.get('strategy', 'kahn')
+max_size = {max_size}
+partitioned_circ, partitioned_params, partition_assignments = PartitionCircuit(
+    c, parameters, max_size, strategy
+)
+
+partitions = []
+for i, partition in enumerate(partitioned_circ.get_Gates()):
+    gates = partition.get_Gates()
+    qubits = set()
+    for gate in gates:
+        qubits.update(gate.get_Involved_Qbits())
+    partitions.append({{
+        'index': i,
+        'numGates': len(gates),
+        'qubits': sorted(list(qubits)),
+        'numQubits': len(qubits)
+    }})
+
+result = {{
+    'strategy': strategy,
+    'maxPartitionSize': max_size,
+    'totalPartitions': len(partitions),
+    'totalGates': len(data['placedGates']),
+    'partitions': partitions
+}}
+
+with open('result.json', 'w') as f:
+    json.dump(result, f)
+print('Partitioning complete!')
+""".format(squander_path=settings.SQUANDER_PATH, max_size=max_partition_size)
+
+            squander_cmd = "cd {} && python3 << 'EOF'\n{}EOF".format(remote_job_dir, python_script)
             async for update in self.stream_command_output(squander_cmd):
                 yield update
 
             yield {"type": "phase", "phase": "downloading", "message": "Downloading results..."}
-            remote_result_file = f"{remote_job_dir}/result.json"
-            local_result_file = f"/tmp/{job_id}_output.json"
+            remote_result_file = "{}/result.json".format(remote_job_dir)
+            local_result_file = "/tmp/{}_output.json".format(job_id)
             await self.download_file(remote_result_file, local_result_file)
 
             result_data = json.loads(Path(local_result_file).read_text())
 
             yield {"type": "phase", "phase": "cleanup", "message": "Cleaning up..."}
-            await self.execute_command(f"rm -rf {remote_job_dir}")
+            await self.execute_command("rm -rf {}".format(remote_job_dir))
             Path(local_circuit_file).unlink(missing_ok=True)
             Path(local_result_file).unlink(missing_ok=True)
 
             yield {"type": "complete", "message": "Partition completed successfully", "result": result_data}
 
         except SquanderExecutionError as e:
-            logger.error(f"Execution error: {str(e)}")
+            logger.error("Execution error: %s", str(e))
             yield {"type": "error", "message": str(e)}
         except Exception as e:
-            logger.error(f"Partition error: {str(e)}")
+            logger.error("Partition error: %s", str(e))
             yield {"type": "error", "message": str(e)}
