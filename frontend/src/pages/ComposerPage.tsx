@@ -10,9 +10,10 @@ import { Header } from "@/components/layout/Header"
 import { Layout } from "@/components/layout/Layout"
 import { StatusBar } from "@/components/layout/StatusBar"
 import { Panel } from "@/components/layout/Panel"
+import { toast } from "sonner";
 
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
-import { CircuitProvider, useCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
+import { CircuitProvider, useCircuitStore, getOrCreateCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
@@ -20,9 +21,6 @@ import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
-import { CircuitExecutionProvider } from "@/features/simulation/components/CircuitExecutionProvider";
-
-import { useCircuitExecution } from "@/features/simulation/components/CircuitExecutionProvider";
 
 
 const DEFAULT_INSPECTOR_SIZE = 30;
@@ -74,11 +72,42 @@ function CircuitTabContent() {
 
 function ComposerContent() {
     const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit } = useProject()
-    const { requestCircuitClose } = useCircuitExecution() 
 
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
+
+    const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
+        const store = getOrCreateCircuitStore(circuitId);
+        const state = store.getState();
+        
+        if (state.isExecuting) {
+            toast(`Close ${circuitSymbol}?`, {
+                description: 'This circuit is executing. Closing will abort it.',
+                duration: Infinity,
+                action: {
+                    label: 'Close & Abort',
+                    onClick: () => {
+                        state.setIsExecuting(false);
+                        state.setExecutionProgress(0);
+                        state.setExecutionStatus('');
+                        toast.dismiss();
+                        toast.error('Execution aborted');
+                        onConfirm();
+                    },
+                },
+                cancel: {
+                    label: 'Cancel',
+                    onClick: () => {},
+                },
+                classNames: {
+                    actionButton: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+                },
+            });
+        } else {
+            onConfirm();
+        }
+    };
 
     const toggleInspector = () => {
         const panel = inspectorRef.current
@@ -231,9 +260,7 @@ export default function ComposerPage() {
     return (
         <ProjectProvider>
             <InspectorProvider>
-                <CircuitExecutionProvider>
-                    <ComposerContent />
-                </CircuitExecutionProvider>
+                <ComposerContent />
             </InspectorProvider>
         </ProjectProvider>
     )

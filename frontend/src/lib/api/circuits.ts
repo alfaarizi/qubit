@@ -2,10 +2,31 @@ import { api } from './client';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
 
+export interface PartitionResponse {
+    jobId: string;
+    status: string;
+    message: string;
+}
+
 export const circuitsApi = {
-    async execute(circuitId: string, gates: (Gate | Circuit)[], signal?: AbortSignal) {
-        const sortedGates = gates.sort((a, b) => a.depth - b.depth);
-        const { data } = await api.post(`/circuits/${circuitId}/execute`, { gates: sortedGates }, { signal });
+    async partition(
+        circuitId: string,
+        numQubits: number,
+        gates: (Gate | Circuit)[],
+        measurements: any[] = [],
+        options: Record<string, any> = {},
+        signal?: AbortSignal
+    ): Promise<PartitionResponse> {
+        const { data } = await api.post(
+            `/circuits/${circuitId}/partition`,
+            {
+                numQubits,
+                placedGates: gates.sort((a, b) => a.depth - b.depth),
+                measurements,
+                options,
+            },
+            { signal }
+        );
         return data;
-    }
+    },
 };

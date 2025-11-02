@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     FRONTEND_URL: str
     LOG_FILE_PATH: Optional[Path] = None
 
+    # SQUANDER SSH Configuration
+    SQUANDER_HOST: Optional[str] = None
+    SQUANDER_USER: Optional[str] = None
+    SQUANDER_PATH: Optional[str] = None
+    SQUANDER_EXEC_TIMEOUT: int = 300
+    SSH_KEY_PATH: Optional[str] = None
+    SSH_TIMEOUT: int = 30
+
     @property
     def BACKEND_CORS_ORIGINS(self) -> List[str]:
         return [self.FRONTEND_URL]

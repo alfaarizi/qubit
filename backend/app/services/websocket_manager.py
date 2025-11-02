@@ -150,8 +150,10 @@ class ConnectionManager:
 
     async def broadcast_to_room(self, room: str, message: Any, exclude_connection: Optional[str] = None):
         if room not in self.rooms:
+            logger.warning(f"Room '{room}' does not exist. Connections in room: none. Active rooms: {list(self.rooms.keys())}")
             return
         message_str = json.dumps(message) if isinstance(message, dict) else str(message)
+        logger.debug(f"Broadcasting to room '{room}': {message}")
         await asyncio.gather(
             *(
                 self._send_message_safe(self.connections[connection_id], connection_id, message_str)

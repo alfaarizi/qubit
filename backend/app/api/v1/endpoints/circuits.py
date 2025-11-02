@@ -1,167 +1,114 @@
-from fastapi import APIRouter, Request
-from pydantic import BaseModel
-from typing import List, Any
+import logging
+from uuid import uuid4
 import asyncio
+from typing import Optional
 
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from app.services.squander_client import SquanderClient
 from app.services.websocket_manager import manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
+class PartitionRequest(BaseModel):
+    numQubits: int
+    placedGates: list
+    measurements: list
+    options: Optional[dict] = None
 
-class CircuitExecuteRequest(BaseModel):
-    gates: List[Any]
+active_jobs = {}
+
+@router.post("/{circuit_id}/partition")
+async def partition_circuit(circuit_id: str, request: PartitionRequest):
+    if request.numQubits <= 0 or not request.placedGates:
+        raise HTTPException(status_code=400, detail="Invalid circuit data")
+    
+    job_id = str(uuid4())
+    active_jobs[job_id] = {"circuit_id": circuit_id, "status": "queued"}
+    
+    asyncio.create_task(
+        run_partition_job(
+            job_id=job_id,
+            circuit_id=circuit_id,
+            num_qubits=request.numQubits,
+            placed_gates=request.placedGates,
+            measurements=request.measurements,
+            options=request.options,
+        )
+    )
+
+    return {"jobId": job_id, "status": "queued"}
+
+@router.get("/{circuit_id}/jobs")
+async def list_partition_jobs(circuit_id: str):
+    jobs = {jid: info for jid, info in active_jobs.items() if info["circuit_id"] == circuit_id}
+    return {"jobs": jobs}
 
 
-@router.post("/{circuit_id}/execute")
-async def execute_circuit(circuit_id: str, request: CircuitExecuteRequest, req: Request):
-    """Execute a quantum circuit and return results"""
-    print(f"Received circuit execution request for circuit: {circuit_id}")
-    print(f"Number of gates: {len(request.gates)}")
+@router.get("/{circuit_id}/jobs/{job_id}")
+async def get_partition_job(circuit_id: str, job_id: str):
+    job = active_jobs.get(job_id)
+    if not job or job["circuit_id"] != circuit_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"jobId": job_id, **job}
 
+async def run_partition_job(
+    job_id: str,
+    circuit_id: str,
+    num_qubits: int,
+    placed_gates: list,
+    measurements: list,
+    options: dict,
+) -> None:
+    client = SquanderClient()
+    room = f"partition-{job_id}"
+    
+    # Wait for client to join the room (up to 10 seconds)
+    max_wait = 10
+    wait_interval = 0.1
+    elapsed = 0
+    while elapsed < max_wait:
+        room_members = manager.get_room_connections(room)
+        if room_members:
+            break
+        await asyncio.sleep(wait_interval)
+        elapsed += wait_interval
+    else:
+        logger.warning(f"[run_partition_job] Timeout waiting for client to join room {room}")
+    
     try:
-        # Step 1: Acknowledge receipt (5%)
-        if await req.is_disconnected():
-            print(f"Client disconnected during execution of circuit: {circuit_id}")
-            return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_status",
-                "circuit_id": circuit_id,
-                "status": "Circuit received by backend",
-                "progress": 5
-            }
-        )
-        await asyncio.sleep(0.5)
-
-        # Step 2: Start partitioning (10%)
-        if await req.is_disconnected():
-            print(f"Client disconnected during execution of circuit: {circuit_id}")
-            return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_status",
-                "circuit_id": circuit_id,
-                "status": "Partitioning circuit topology...",
-                "progress": 10
-            }
-        )
-
-        # Simulate partitioning process (10% -> 60%)
-        num_gates = len(request.gates)
-        partition_steps = 5
-        for i in range(partition_steps):
-            if await req.is_disconnected():
-                print(f"Client disconnected during partitioning of circuit: {circuit_id}")
-                return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-            await asyncio.sleep(0.8)
-            progress = 10 + ((i + 1) / partition_steps) * 50
-            await manager.broadcast_to_room(
-                f"circuit-{circuit_id}",
-                {
-                    "type": "circuit_execution_progress",
-                    "circuit_id": circuit_id,
-                    "progress": progress
-                }
-            )
-
-        # Step 3: Partitioning complete (60%)
-        if await req.is_disconnected():
-            print(f"Client disconnected during execution of circuit: {circuit_id}")
-            return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_status",
-                "circuit_id": circuit_id,
-                "status": "Circuit partitioned successfully",
-                "progress": 60
-            }
-        )
-        await asyncio.sleep(0.5)
-
-        # Step 4: Executing on quantum hardware (60% -> 95%)
-        if await req.is_disconnected():
-            print(f"Client disconnected during execution of circuit: {circuit_id}")
-            return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_status",
-                "circuit_id": circuit_id,
-                "status": "Executing on quantum hardware...",
-                "progress": 65
-            }
-        )
-
-        execution_steps = 3
-        for i in range(execution_steps):
-            if await req.is_disconnected():
-                print(f"Client disconnected during quantum execution of circuit: {circuit_id}")
-                return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-            await asyncio.sleep(1)
-            progress = 65 + ((i + 1) / execution_steps) * 30
-            await manager.broadcast_to_room(
-                f"circuit-{circuit_id}",
-                {
-                    "type": "circuit_execution_progress",
-                    "circuit_id": circuit_id,
-                    "progress": progress
-                }
-            )
-
-        # Step 5: Processing results (95%)
-        if await req.is_disconnected():
-            print(f"Client disconnected during result processing of circuit: {circuit_id}")
-            return {"message": "Execution aborted", "circuit_id": circuit_id}
-
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_status",
-                "circuit_id": circuit_id,
-                "status": "Processing measurement results...",
-                "progress": 95
-            }
-        )
-        await asyncio.sleep(0.5)
-
-        # Step 6: Complete (100%)
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_complete",
-                "circuit_id": circuit_id,
-                "progress": 100,
-                "result": {
-                    "gates": request.gates,
-                    "num_gates": num_gates,
-                    "execution_time": 6.0
-                }
-            }
-        )
-
-        return {
-            "message": "Circuit executed successfully",
-            "circuit_id": circuit_id,
-            "gates": request.gates
-        }
-
-    except asyncio.CancelledError:
-        print(f"Circuit execution cancelled for circuit: {circuit_id}")
-        # broadcast abort message via WebSocket
-        await manager.broadcast_to_room(
-            f"circuit-{circuit_id}",
-            {
-                "type": "circuit_execution_aborted",
-                "circuit_id": circuit_id,
-            }
-        )
-        return {"message": "Execution aborted", "circuit_id": circuit_id}
+        await manager.broadcast_to_room(room, {
+            "type": "phase",
+            "phase": "connecting",
+            "message": "Connecting to SQUANDER..."
+        })
+        
+        await client.connect()
+        
+        await manager.broadcast_to_room(room, {
+            "type": "phase",
+            "phase": "connected",
+            "message": "Connected to SQUANDER"
+        })
+        
+        async for update in client.run_partition(
+            job_id=job_id,
+            num_qubits=num_qubits,
+            placed_gates=placed_gates,
+            measurements=measurements,
+            options=options or {},
+        ):
+            await manager.broadcast_to_room(room, {**update, "circuitId": circuit_id})
+    except Exception as e:
+        logger.error(f"[run_partition_job] Job {job_id} error: {str(e)}", exc_info=True)
+        await manager.broadcast_to_room(room, {
+            "type": "error",
+            "circuitId": circuit_id,
+            "message": str(e)
+        })
+    finally:
+        await client.disconnect()
+        if job_id in active_jobs:
+            del active_jobs[job_id]

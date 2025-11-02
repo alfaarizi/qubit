@@ -2,6 +2,7 @@ from typing import Optional, Any, Dict
 from datetime import datetime, UTC
 import logging
 import json
+import asyncio
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -114,34 +115,42 @@ async def websocket_endpoint(
 ):
     """Main WebSocket endpoint for real-time communication."""
     connection_id = await manager.connect(websocket, client_id)
-
-    # Send welcome message
-    await manager.send_message(connection_id, {
-        "type": ServerMessage.CONNECTION_ESTABLISHED,
-        "connection_id": connection_id,
-        "message": f"connected to {settings.PROJECT_NAME}",
-        "timestamp": datetime.now(UTC).isoformat()
-    })
+    logger.info(f"[WebSocket] Connection established: {connection_id}")
 
     try:
+        # Send welcome message
+        try:
+            await manager.send_message(connection_id, {
+                "type": ServerMessage.CONNECTION_ESTABLISHED,
+                "connection_id": connection_id,
+                "message": f"connected to {settings.PROJECT_NAME}",
+                "timestamp": datetime.now(UTC).isoformat()
+            })
+            logger.info(f"[WebSocket] Welcome message sent: {connection_id}")
+        except Exception as e:
+            logger.error(f"[WebSocket] Failed to send welcome message: {connection_id} - {e}", exc_info=True)
+            raise
+            
+        # Message loop
         while True:
-            # Wait for message from client
             data = await websocket.receive_text()
+            logger.debug(f"[WebSocket] Message received: {connection_id} - {data}")
             try:
                 message_data = json.loads(data)
                 if not isinstance(message_data, dict):
-                    raise ValueError
-            except (json.JSONDecodeError, ValueError):
-                logger.warning("Received non-JSON message", extra={"connection_id": connection_id})
+                    raise ValueError("Message must be dict")
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"[WebSocket] Invalid message: {connection_id} - {e}")
                 message_data = {
                     "type": ClientMessage.BROADCAST,
                     "content": data
                 }
             await handle_message(connection_id, message_data)
     except WebSocketDisconnect:
+        logger.info(f"[WebSocket] Client disconnected: {connection_id}")
         manager.disconnect(connection_id)
     except Exception as e:
-        logger.error("Connection error", extra={"connection_id": connection_id, "error": str(e)})
+        logger.error(f"[WebSocket] Unhandled error: {connection_id} - {e}", exc_info=True)
         manager.disconnect(connection_id)
 
 

@@ -10,10 +10,16 @@ from .core.config import settings
 from .api.v1.api import api_router
 
 def setup_logging():
-    formatter = JsonFormatter(
-        fmt="%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d",
-        datefmt="%Y-%m-%d %H:%M:%S"
+    # Use simple formatter for readability (comment out for JSON)
+    formatter = logging.Formatter(
+        fmt='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%H:%M:%S'
     )
+    # Uncomment below to use JSON formatter
+    # formatter = JsonFormatter(
+    #     fmt="%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d",
+    #     datefmt="%Y-%m-%d %H:%M:%S"
+    # )
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
 
