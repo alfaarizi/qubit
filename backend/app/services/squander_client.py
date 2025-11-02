@@ -236,14 +236,22 @@ def build_circuit(circuit_data, start_qubit=0):
     parameters = []
     
     for gate_info in circuit_data['placedGates']:
-        # Handle nested circuits
+        # Handle nested circuits - flatten them instead of using add_Circuit
         if 'circuit' in gate_info:
+            # Recursively process nested circuit gates with offset
+            nested_start_qubit = gate_info.get('startQubit', 0) + start_qubit
             nested_circuit_data = {{
-                'numQubits': len(gate_info['circuit']['gates']),
+                'numQubits': circuit_data['numQubits'],  # Use parent circuit's qubit count
                 'placedGates': gate_info['circuit']['gates']
             }}
-            nested_circuit, nested_params = build_circuit(nested_circuit_data, gate_info['startQubit'])
-            c.add_Circuit(nested_circuit)
+            # Recursively build and extract gates from nested circuit
+            nested_circuit, nested_params = build_circuit(nested_circuit_data, nested_start_qubit)
+            
+            # Extract gates from nested circuit and add them individually
+            nested_gates = nested_circuit.get_Gates()
+            for nested_gate in nested_gates:
+                c.add_Gate(nested_gate)
+            
             parameters.extend(nested_params)
             continue
         

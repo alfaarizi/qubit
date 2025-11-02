@@ -56,16 +56,29 @@ export const usePartitionJobManager = () => {
                 processedJobsRef.current.add(job.jobId);
 
                 if (job.toastId) toast.dismiss(job.toastId);
-                toast.success('Partition completed successfully!');
-                usePartitionStore.getState().dequeueJob(job.jobId);
+                
+                const completeUpdate = job.updates.find(u => u.type === 'complete');
+                const result = completeUpdate?.result as any;
+                
+                if (result && result.totalPartitions) {
+                    toast.success('Partition completed successfully!', {
+                        description: `Created ${result.totalPartitions} partitions with ${result.totalGates} gates`
+                    });
+                } else {
+                    toast.success('Partition completed successfully!');
+                }
             }
 
             if (job.status === 'error') {
                 processedJobsRef.current.add(job.jobId);
 
                 if (job.toastId) toast.dismiss(job.toastId);
-                toast.error('Partition failed', { description: job.error || 'Unknown error' });
-                usePartitionStore.getState().dequeueJob(job.jobId);
+                
+                const errorMessage = job.error || 'Unknown error occurred';
+                toast.error('Partition failed', { 
+                    description: errorMessage,
+                    duration: 5000
+                });
             }
         });
 

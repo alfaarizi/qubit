@@ -237,17 +237,22 @@ export function CircuitToolbar() {
 
             usePartitionStore.getState().enqueueJob(response.jobId, circuitId);
             usePartitionStore.getState().setJobToastId(response.jobId, toastId);
-        } catch (error) {
-            const err = error as { name?: string };
+        } catch (error: any) {
+            const err = error as { name?: string; message?: string; response?: any };
             if (err.name === 'AbortError' || err.name === 'CanceledError') return;
 
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
             toast.dismiss(toastId);
-            toast.error('Connection failed', { 
-                description: 'Backend is not running'
+            
+            const errorMessage = err.response?.data?.detail || err.message || 'Unknown error';
+            toast.error('Partition failed', { 
+                description: errorMessage,
+                duration: 5000
             });
+            
+            console.error('Partition error:', error);
         }
     }, [placedGates, circuit?.symbol, circuitId, numQubits, measurements, jobId, maxPartitionSize, partitionStrategy, partitionBackend, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
