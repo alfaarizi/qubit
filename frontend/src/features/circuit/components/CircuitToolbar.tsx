@@ -166,7 +166,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             }
         };
 
-        constructGates();
+        void constructGates();
     }, [job?.status, job?.jobType, job?.updates.length, setPlacedGates, setNumQubits, setMeasurements, batchInjectGates]);
 
     // Clean up abort toast when execution stops
@@ -211,13 +211,14 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
 
             useJobStore.getState().enqueueJob(response.job_id, circuitId, 'import');
             useJobStore.getState().setJobToastId(response.job_id, toastId);
-        } catch (error: any) {
+        } catch (error) {
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
             toast.dismiss(toastId);
 
-            const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+            const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail 
+                || (error as Error)?.message || 'Unknown error';
             toast.error('Import failed', {
                 description: errorMessage,
                 duration: 5000
@@ -266,15 +267,16 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
 
             useJobStore.getState().enqueueJob(response.job_id, circuitId);
             useJobStore.getState().setJobToastId(response.job_id, toastId);
-        } catch (error: any) {
-            if (error.name === 'AbortError' || error.name === 'CanceledError') return;
+        } catch (error) {
+            if ((error as Error).name === 'AbortError' || (error as Error).name === 'CanceledError') return;
 
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
             toast.dismiss(toastId);
             
-            const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+            const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail 
+                || (error as Error)?.message || 'Unknown error';
             toast.error('Partition failed', { 
                 description: errorMessage,
                 duration: 5000
