@@ -172,20 +172,22 @@ class SquanderClient:
         """Execute command and stream output line by line"""
         if not self.is_connected:
             raise SSHConnectionError("Not connected")
-    
+
         output_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
         loop = asyncio.get_running_loop()
-        
+
         def _stream_worker():
             """Worker function that runs in thread pool"""
+            def _queue_put(item):
+                asyncio.run_coroutine_threadsafe(output_queue.put(item), loop).result(timeout=5.0)
+
             try:
                 stdin, stdout, stderr = self.ssh_client.exec_command(
-                    command, 
-                    timeout=settings.SQUANDER_EXEC_TIMEOUT, 
-                    get_pty=True
+                    command, timeout=settings.SQUANDER_EXEC_TIMEOUT, get_pty=True
                 )
                 channel = stdout.channel
                 channel.settimeout(0.1)
+
                 # Stream output line by line
                 while not channel.exit_status_ready() or channel.recv_ready():
                     if channel.recv_ready():
@@ -193,63 +195,29 @@ class SquanderClient:
                             chunk = channel.recv(1024)
                             if chunk:
                                 text = chunk.decode("utf-8", errors="replace")
-                                for line in text.splitlines():
-                                    line = line.strip()
-                                    if line:
-                                        progress = self._parse_progress(line)
-                                        # Put item in queue (non-blocking from thread)
-                                        future = asyncio.run_coroutine_threadsafe(
-                                            output_queue.put({
-                                                "type": "log",
-                                                "message": line,
-                                                "progress": progress
-                                            }),
-                                            loop
-                                        )
-                                        # Wait briefly for the put to complete
-                                        future.result(timeout=5.0)
-                        except Exception as recv_error:
-                            logger.warning(f"Error receiving data: {recv_error}")
-                            continue
-                
-                # Get exit status and stderr
-                exit_code = channel.recv_exit_status()
-                stderr_output = stderr.read().decode("utf-8", errors="replace").strip()
-                
+                                for line in (l.strip() for l in text.splitlines() if l.strip()):
+                                    _queue_put({"type": "log", "message": line, "progress": self._parse_progress(line)})
+                        except Exception as e:
+                            logger.warning(f"Error receiving data: {e}")
+
                 # Signal completion
-                future = asyncio.run_coroutine_threadsafe(
-                    output_queue.put({
-                        "_done": True,
-                        "exit_code": exit_code,
-                        "stderr": stderr_output
-                    }),
-                    loop
-                )
-                future.result(timeout=5.0)
-                
+                _queue_put({"_done": True, "exit_code": channel.recv_exit_status(), "stderr": stderr.read().decode("utf-8", errors="replace").strip()})
             except Exception as e:
                 logger.error(f"Stream worker error: {e}", exc_info=True)
                 try:
-                    future = asyncio.run_coroutine_threadsafe(
-                        output_queue.put({"_error": str(e)}),
-                        asyncio.get_event_loop()
-                    )
-                    future.result(timeout=1.0)
+                    asyncio.run_coroutine_threadsafe(output_queue.put({"_error": str(e)}), loop).result(timeout=1.0)
                 except:
                     pass
-        
-        # Start worker thread
+
+        # Start worker and consume queue
         worker_task = loop.run_in_executor(_io_pool, _stream_worker)
-        
-        # Yield items from queue
         try:
             while True:
                 try:
                     item = await asyncio.wait_for(output_queue.get(), timeout=0.5)
                 except asyncio.TimeoutError:
-                    # Check if worker is still running
                     if worker_task.done():
-                        # Worker finished, drain remaining items
+                        # Drain remaining items
                         while not output_queue.empty():
                             try:
                                 item = output_queue.get_nowait()
@@ -260,11 +228,10 @@ class SquanderClient:
                                 break
                         break
                     continue
+
                 if "_done" in item:
                     if item["exit_code"] != 0:
-                        raise SquanderExecutionError(
-                            f"Command failed with exit code {item['exit_code']}: {item['stderr']}"
-                        )
+                        raise SquanderExecutionError(f"Command failed with exit code {item['exit_code']}: {item['stderr']}")
                     if item["stderr"]:
                         yield {"type": "log", "message": f"[WARNING] {item['stderr']}"}
                     break
@@ -272,9 +239,7 @@ class SquanderClient:
                     raise SquanderExecutionError(f"Stream error: {item['_error']}")
                 else:
                     yield item
-        
         finally:
-            # Ensure worker task completes
             try:
                 await asyncio.wait_for(worker_task, timeout=5.0)
             except asyncio.TimeoutError:
@@ -332,13 +297,13 @@ class SquanderClient:
         local_result_file = f"/tmp/{job_id}_output.json"
         
         try:
-            yield {"type": "phase", "phase": "preparing", "message": "Preparing job..."}
-            
+            yield {"type": "phase", "phase": "preparing", "message": "Preparing job...", "progress": 2}
+
             # Create remote directory
             await self.execute_command(f"mkdir -p {remote_job_dir}")
-            
+
             # Prepare circuit data
-            yield {"type": "phase", "phase": "uploading", "message": "Uploading circuit..."}
+            yield {"type": "phase", "phase": "uploading", "message": "Uploading circuit...", "progress": 3}
             circuit_data = {
                 "num_qubits": num_qubits,
                 "placed_gates": placed_gates,
@@ -346,14 +311,14 @@ class SquanderClient:
                 "options": options,
                 "strategy": strategy,
             }
-            
+
             # Write and upload circuit file
             Path(local_circuit_file).write_text(json.dumps(circuit_data, indent=2))
             remote_circuit_file = f"{remote_job_dir}/circuit.json"
             await self.upload_file(local_circuit_file, remote_circuit_file)
-            
+
             # Upload processing modules
-            yield {"type": "phase", "phase": "uploading", "message": "Uploading processing modules..."}
+            yield {"type": "phase", "phase": "uploading", "message": "Uploading processing modules...", "progress": 4}
             modules_to_upload = [
                 ("convert.py", Path(__file__).parent / "convert.py"),
                 ("simulate.py", Path(__file__).parent / "simulate.py"),
@@ -362,9 +327,9 @@ class SquanderClient:
                 if module_path.exists():
                     remote_module = f"{remote_job_dir}/{module_name}"
                     await self.upload_file(str(module_path), remote_module)
-            
+
             # Execute partition command
-            yield {"type": "phase", "phase": "building", "message": "Building and partitioning circuit..."}
+            yield {"type": "phase", "phase": "building", "message": "Building and partitioning circuit...", "progress": 5}
             max_partition_size = options.get("max_partition_size", 4)
             partition_cmd = (
                 f"cd {remote_job_dir} && "
@@ -373,22 +338,22 @@ class SquanderClient:
                 f"--strategy {strategy} "
                 f"--output result.json"
             )
-            
+
             async for update in self.stream_command_output(partition_cmd):
                 yield update
-            
+
             # Download results
             yield {"type": "phase", "phase": "downloading", "message": "Downloading results..."}
             remote_result_file = f"{remote_job_dir}/result.json"
             await self.download_file(remote_result_file, local_result_file)
-            
+
             # Parse results
             result_data = json.loads(Path(local_result_file).read_text())
-            
-            # Cleanup
+
+            # Cleanup remote directory (this takes time)
             yield {"type": "phase", "phase": "cleanup", "message": "Cleaning up..."}
             await self.execute_command(f"rm -rf {remote_job_dir}")
-            
+
             # Cleanup local files
             Path(local_circuit_file).unlink(missing_ok=True)
             Path(local_result_file).unlink(missing_ok=True)

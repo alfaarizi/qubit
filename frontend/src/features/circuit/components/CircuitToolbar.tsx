@@ -7,17 +7,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory, useCircuitId } from "@/features/circuit/store/CircuitStoreContext";
-import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { circuitsApi } from "@/lib/api/circuits";
 import { useProject } from "@/features/project/ProjectStoreContext";
-import { usePartitionStore } from "@/stores/partitionStore";
-import type { Gate } from "@/features/gates/types";
-import type { Circuit } from "@/features/circuit/types";
-
-import { deserializeGateFromAPI } from "@/lib/api/circuits";
-
-const ESTIMATED_TOTAL_PHASES = 8;
+import { useJobStore } from "@/stores/jobStore";
 
 const PARTITION_BACKENDS = [
     { value: 'squander', label: 'SQUANDER' },
@@ -58,16 +51,12 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const setExecutionProgress = useCircuitStore((state) => state.setExecutionProgress);
     const setExecutionStatus = useCircuitStore((state) => state.setExecutionStatus);
     const reset = useCircuitStore((state) => state.reset);
-    const setNumQubits = useCircuitStore((state) => state.setNumQubits);
-    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
-    const setMeasurements = useCircuitStore((state) => state.setMeasurements);
 
-    const queue = usePartitionStore((state) => state.queue);
+    const queue = useJobStore((state) => state.queue);
     const job = Array.from(queue.values()).find(j => j.circuitId === circuitId);
     const jobId = job?.jobId || null;
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
-    const { injectGate } = useCircuitDAG();
     
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
@@ -76,18 +65,20 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
     const executionStartTimeRef = useRef<number | null>(null);
+    const lastProgressRef = useRef<number>(0);
 
     // Sync execution state with job status
     useEffect(() => {
         if (!job) {
             setIsExecuting(false);
+            lastProgressRef.current = 0;
             return;
         }
-        
         switch (job.status) {
             case 'complete':
                 setExecutionStatus('Complete!');
                 setExecutionProgress(100);
+                lastProgressRef.current = 100;
                 setIsExecuting(false);
                 break;
             case 'error':
@@ -100,41 +91,39 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                 if (job.status === 'pending') {
                     setExecutionStatus('Connecting to SQUANDER...');
                     setExecutionProgress(0);
+                    lastProgressRef.current = 0;
                 }
                 break;
         }
     }, [job?.status, jobId, setExecutionStatus, setExecutionProgress, setIsExecuting]);
 
-    // Process job updates
+    // Process job updates and calculate progress
     useEffect(() => {
         if (!job?.updates.length || processedUpdatesCount.current >= job.updates.length) return;
-
         const latest = job.updates[job.updates.length - 1];
         processedUpdatesCount.current = job.updates.length;
 
+        // Initialize execution start time on first phase message
         if (!executionStartTimeRef.current && latest.type === 'phase') {
             executionStartTimeRef.current = latest.timestamp || Date.now();
         }
 
-        const phaseCount = job.updates.filter((u) => u.type === 'phase').length;
-        const progress = Math.min((phaseCount / ESTIMATED_TOTAL_PHASES) * 100, 100);
+        // Update progress only if explicitly provided, otherwise keep last known progress
+        if (latest.progress !== undefined && latest.progress !== null) {
+            lastProgressRef.current = latest.progress;
+            setExecutionProgress(latest.progress);
+        }
 
+        // Build status text with elapsed time
         let statusText = latest.message || `Phase: ${latest.phase}`;
         if (latest.timestamp && executionStartTimeRef.current) {
             const elapsedSec = ((latest.timestamp - executionStartTimeRef.current) / 1000).toFixed(1);
             statusText += ` (${elapsedSec}s)`;
         }
 
-        switch (latest.type) {
-            case 'phase':
-                setExecutionStatus(statusText);
-                setExecutionProgress(progress);
-                break;
-            case 'log':
-                if (latest.progress !== undefined) {
-                    setExecutionProgress(latest.progress);
-                }
-                break;
+        // Update status text for phase and log messages
+        if (latest.type === 'phase' || latest.type === 'log') {
+            setExecutionStatus(statusText);
         }
     }, [job?.updates.length, setExecutionStatus, setExecutionProgress]);
 
@@ -155,85 +144,50 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const handleImportQASM = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        
+
         if (!file.name.endsWith('.qasm')) {
             toast.error('Please select a .qasm file');
             return;
         }
 
+        setIsExecuting(false);
+        setExecutionProgress(0);
+        setExecutionStatus('');
+        processedUpdatesCount.current = 0;
+        executionStartTimeRef.current = null;
+
+        setIsExecuting(true);
         const toastId = toast.loading(`Importing ${file.name}...`);
 
         try {
             const text = await file.text();
-            
-            // Upload and parse QASM
-            toast.loading('Uploading to server...', { id: toastId });
-            const parsed = await circuitsApi.importQasm(circuitId, text, sessionId);
-            
-            if (parsed.num_qubits === 0) {
-                toast.error('No qubits found', { id: toastId });
-                return;
+            const response = await circuitsApi.importQasm(circuitId, text, sessionId);
+
+            if (jobId) {
+                useJobStore.getState().dequeueJob(jobId);
             }
 
-            // Transform gates
-            const gates = parsed.placed_gates.map(gateData => {
-                try {
-                    return deserializeGateFromAPI(gateData);
-                } catch (error) {
-                    console.error('Failed to deserialize gate:', gateData, error);
-                    return null;
-                }
-            }).filter((gate): gate is Gate | Circuit => gate !== null);
+            useJobStore.getState().enqueueJob(response.job_id, circuitId, 'import');
+            useJobStore.getState().setJobToastId(response.job_id, toastId);
+        } catch (error: any) {
+            setIsExecuting(false);
+            setExecutionProgress(0);
+            setExecutionStatus('');
+            toast.dismiss(toastId);
 
-            // Build DAG
-            setPlacedGates([]);
-            setNumQubits(parsed.num_qubits);
-            
-            const totalGates = gates.length;
-            const CHUNK_SIZE = Math.max(25, Math.floor(totalGates / 20));
-            let currentGates: Gate[] = [];
-            let processed = 0;
+            const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+            toast.error('Import failed', {
+                description: errorMessage,
+                duration: 5000
+            });
 
-            const processChunk = () => {
-                const end = Math.min(processed + CHUNK_SIZE, totalGates);
-                
-                for (let i = processed; i < end; i++) {
-                    currentGates = injectGate(gates[i], currentGates) as Gate[];
-                }
-                
-                processed = end;
-                const progress = Math.round((processed / totalGates) * 100);
-                
-                setPlacedGates([...currentGates]);
-                toast.loading(`Building circuit... ${progress}%`, { id: toastId });
-                
-                if (processed < totalGates) {
-                    requestAnimationFrame(() => setTimeout(processChunk, 0));
-                } else {
-                    if (parsed.measurements.length > 0) {
-                        setMeasurements(parsed.measurements);
-                    }
-                    toast.success(
-                        `Imported ${totalGates} gate${totalGates !== 1 ? 's' : ''}`,
-                        { id: toastId }
-                    );
-                }
-            };
-
-            processChunk();
-
-        } catch (err) {
-            console.error('QASM import error:', err);
-            toast.error(
-                err instanceof Error ? err.message : 'Import failed',
-                { id: toastId }
-            );
+            console.error('QASM import error:', error);
         } finally {
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
         }
-    }, [circuitId, sessionId, setPlacedGates, setNumQubits, setMeasurements, injectGate]);
+    }, [circuitId, sessionId, jobId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
     const handleRun = useCallback(async () => {
         if (!placedGates.length) {
@@ -265,11 +219,11 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             );
 
             if (jobId) {
-                usePartitionStore.getState().dequeueJob(jobId);
+                useJobStore.getState().dequeueJob(jobId);
             }
 
-            usePartitionStore.getState().enqueueJob(response.job_id, circuitId);
-            usePartitionStore.getState().setJobToastId(response.job_id, toastId);
+            useJobStore.getState().enqueueJob(response.job_id, circuitId);
+            useJobStore.getState().setJobToastId(response.job_id, toastId);
         } catch (error: any) {
             if (error.name === 'AbortError' || error.name === 'CanceledError') return;
 
@@ -317,7 +271,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     
                     if (jobId) {
                         if (job?.toastId) toast.dismiss(job.toastId);
-                        usePartitionStore.getState().dequeueJob(jobId);
+                        useJobStore.getState().dequeueJob(jobId);
                     }
                     
                     toast.error('Execution aborted');

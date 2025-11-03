@@ -27,9 +27,8 @@ export interface PartitionResponse {
 }
 
 export interface ImportQasmResponse {
-    num_qubits: number;
-    placed_gates: SerializedGate[];
-    measurements: boolean[];
+    job_id: string;
+    status: string;
 }
 
 const GATE_LOOKUP = new Map(

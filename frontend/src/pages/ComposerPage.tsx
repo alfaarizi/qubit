@@ -21,7 +21,7 @@ import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
-import { usePartitionStore } from "@/stores/partitionStore";
+import { useJobStore } from "@/stores/jobStore";
 
 
 const DEFAULT_INSPECTOR_SIZE = 30;
@@ -48,8 +48,8 @@ function CircuitTabContent() {
     const isExecuting = useCircuitStore((state) => state.isExecuting);
     const { activeCircuitId } = useProject();
     
-    usePartitionStore((state) => state.version);
-    const partitionQueue = usePartitionStore((state) => state.queue);
+    useJobStore((state) => state.version);
+    const partitionQueue = useJobStore((state) => state.queue);
     
     const jobs = activeCircuitId ? Array.from(partitionQueue.values()).filter(job => job.circuitId === activeCircuitId) : [];
     const latestCompletedJob = jobs
@@ -80,9 +80,9 @@ function ComposerContent() {
     const sessionIdRef = useRef<string>(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
 
     const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
-        const jobs = usePartitionStore.getState().getCircuitJobs(circuitId);
+        const jobs = useJobStore.getState().getCircuitJobs(circuitId);
         const hasRunningJob = jobs.some((job) => job.status === 'running' || job.status === 'pending');
-        
+
         if (hasRunningJob) {
             toast(`Close ${circuitSymbol}?`, {
                 description: 'This circuit is executing. Closing will abort it.',
@@ -93,7 +93,7 @@ function ComposerContent() {
                         jobs.forEach((job) => {
                             if (job.status === 'running' || job.status === 'pending') {
                                 if (job.toastId) toast.dismiss(job.toastId);
-                                usePartitionStore.getState().dequeueJob(job.jobId);
+                                useJobStore.getState().dequeueJob(job.jobId);
                             }
                         });
                         

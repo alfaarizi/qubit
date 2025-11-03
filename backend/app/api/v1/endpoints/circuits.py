@@ -57,19 +57,19 @@ async def get_job(circuit_id: str, job_id: str):
 
 @router.post("/{circuit_id}/import-qasm")
 async def import_qasm(circuit_id: str, request: ImportQasmRequest):
-    import_id = str(uuid4())
-    room = f"import-{import_id}"
+    job_id = str(uuid4())
+    room = f"import-{job_id}"
     logger.info(f"[import_qasm] Received QASM import request for circuit {circuit_id} in room {room}")
-    
+
     # Create background task to handle import with progress updates
     asyncio.create_task(run_import_qasm(
-        import_id=import_id,
+        job_id=job_id,
         circuit_id=circuit_id,
         qasm_code=request.qasm_code,
         session_id=request.session_id,
     ))
-    
-    return {"import_id": import_id, "status": "processing"}
+
+    return {"job_id": job_id, "status": "processing"}
 
 async def _wait_for_room_connection(room: str, check_interval: float = 0.1) -> None:
     """Wait until at least one connection joins the room"""
@@ -77,16 +77,16 @@ async def _wait_for_room_connection(room: str, check_interval: float = 0.1) -> N
         await asyncio.sleep(check_interval)
 
 async def run_import_qasm(
-    import_id: str,
+    job_id: str,
     circuit_id: str,
     qasm_code: str,
     session_id: Optional[str] = None,
 ) -> None:
-    room = f"import-{import_id}"
+    room = f"import-{job_id}"
     client = None
-    
+
     try:
-        logger.info(f"[run_import_qasm] Starting import {import_id} in room {room}")
+        logger.info(f"[run_import_qasm] Starting import {job_id} in room {room}")
         try:
             await asyncio.wait_for(
                 _wait_for_room_connection(room),
@@ -94,54 +94,56 @@ async def run_import_qasm(
             )
         except asyncio.TimeoutError:
             logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
-        
+
         if session_id:
             client = await SquanderClient.get_pooled_client(session_id)
         else:
             client = SquanderClient()
-        
+
         # Broadcast connecting phase
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connecting",
             "message": "Connecting to SQUANDER...",
-            "import_id": import_id,
+            "progress": 0,
+            "job_id": job_id,
             "circuit_id": circuit_id
         })
-        
+
         # Connect if not using pooled connection
         if not session_id:
-            logger.info(f"[run_import_qasm] Connecting SSH client for import {import_id}")
+            logger.info(f"[run_import_qasm] Connecting SSH client for import {job_id}")
             await client.connect()
-        
+
         # Broadcast connected
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connected",
             "message": "Connected to SQUANDER",
-            "import_id": import_id,
+            "progress": 1,
+            "job_id": job_id,
             "circuit_id": circuit_id
         })
-        
+
         # Run import and stream updates
-        logger.info(f"[run_import_qasm] Starting QASM import for {import_id}")
+        logger.info(f"[run_import_qasm] Starting QASM import for {job_id}")
         async for update in client.import_qasm(qasm_code):
             await manager.broadcast_to_room(room, {
                 **update,
-                "import_id": import_id,
+                "job_id": job_id,
                 "circuit_id": circuit_id
             })
             if update.get("type") == "complete":
-                logger.info(f"[run_import_qasm] Import {import_id} completed successfully")
+                logger.info(f"[run_import_qasm] Import {job_id} completed successfully")
             elif update.get("type") == "error":
-                logger.error(f"[run_import_qasm] Import {import_id} failed: {update.get('message')}")
-                
+                logger.error(f"[run_import_qasm] Import {job_id} failed: {update.get('message')}")
+
     except Exception as e:
-        logger.error(f"[run_import_qasm] Import {import_id} error: {str(e)}", exc_info=True)
+        logger.error(f"[run_import_qasm] Import {job_id} error: {str(e)}", exc_info=True)
         await manager.broadcast_to_room(room, {
             "type": "error",
             "circuit_id": circuit_id,
-            "import_id": import_id,
+            "job_id": job_id,
             "message": str(e)
         })
     finally:
@@ -190,6 +192,7 @@ async def run_partition(
             "type": "phase",
             "phase": "connecting",
             "message": "Connecting to SQUANDER...",
+            "progress": 0,
             "job_id": job_id,
             "circuit_id": circuit_id
         })
@@ -197,12 +200,13 @@ async def run_partition(
         if not session_id:
             logger.info(f"[run_partition] Connecting SSH client for job {job_id}")
             await client.connect()
-        
+
         # Broadcast connected
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connected",
             "message": "Connected to SQUANDER",
+            "progress": 1,
             "job_id": job_id,
             "circuit_id": circuit_id
         })

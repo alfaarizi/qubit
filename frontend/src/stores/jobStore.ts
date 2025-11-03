@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export interface PartitionUpdate {
+export interface JobUpdate {
     type: 'phase' | 'log' | 'complete' | 'error';
     phase?: string;
     message?: string;
@@ -9,39 +9,41 @@ export interface PartitionUpdate {
     timestamp?: number;
 }
 
-export interface PartitionJob {
+export interface Job {
     jobId: string;
     circuitId: string;
+    jobType: 'partition' | 'import';
     status: 'pending' | 'running' | 'complete' | 'error';
-    updates: PartitionUpdate[];
+    updates: JobUpdate[];
     error: string | null;
     createdAt: number;
     toastId?: string | number;
 }
 
-interface PartitionState {
-    queue: Map<string, PartitionJob>;
+interface JobState {
+    queue: Map<string, Job>;
     version: number;
-    enqueueJob: (jobId: string, circuitId: string) => void;
+    enqueueJob: (jobId: string, circuitId: string, jobType?: 'partition' | 'import') => void;
     setJobToastId: (jobId: string, toastId: string | number) => void;
-    addUpdate: (jobId: string, update: PartitionUpdate) => void;
+    addUpdate: (jobId: string, update: JobUpdate) => void;
     setJobError: (jobId: string, error: string) => void;
     completeJob: (jobId: string) => void;
     dequeueJob: (jobId: string) => void;
-    getJob: (jobId: string) => PartitionJob | undefined;
-    getCircuitJobs: (circuitId: string) => PartitionJob[];
+    getJob: (jobId: string) => Job | undefined;
+    getCircuitJobs: (circuitId: string) => Job[];
 }
 
-export const usePartitionStore = create<PartitionState>((set, get) => ({
+export const useJobStore = create<JobState>((set, get) => ({
     queue: new Map(),
     version: 0,
     
-    enqueueJob: (jobId: string, circuitId: string) => {
+    enqueueJob: (jobId: string, circuitId: string, jobType: 'partition' | 'import' = 'partition') => {
         set((state) => {
             const newQueue = new Map(state.queue);
             newQueue.set(jobId, {
                 jobId,
                 circuitId,
+                jobType,
                 status: 'pending',
                 updates: [],
                 error: null,
@@ -66,7 +68,7 @@ export const usePartitionStore = create<PartitionState>((set, get) => ({
         });
     },
     
-    addUpdate: (jobId: string, update: PartitionUpdate) => {
+    addUpdate: (jobId: string, update: JobUpdate) => {
         set((state) => {
             const newQueue = new Map(state.queue);
             const job = newQueue.get(jobId);

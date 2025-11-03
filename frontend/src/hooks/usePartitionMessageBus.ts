@@ -1,5 +1,5 @@
 import {useEffect, useRef} from 'react';
-import {usePartitionStore} from '@/stores/partitionStore';
+import {useJobStore} from '@/stores/jobStore';
 
 export interface Message {
     job_id?: string;
@@ -27,7 +27,7 @@ export function broadcastPartitionMessage(message: Message) {
 
     if (!jobId || !type) return;
 
-    const store = usePartitionStore.getState();
+    const store = useJobStore.getState();
 
     if (type === 'error') {
         store.setJobError(jobId, message.message || 'Unknown error');

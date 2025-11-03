@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useWebSocket } from './useWebSocket';
 import { usePartitionMessageListener } from './usePartitionMessageBus';
-import { usePartitionStore } from '@/stores/partitionStore';
+import { useJobStore } from '@/stores/jobStore';
 import { toast } from 'sonner';
 
 const ROOM_CHECK_INTERVAL = 100;
@@ -11,8 +11,8 @@ export const usePartitionJobManager = () => {
     const processedJobsRef = useRef<Set<string>>(new Set());
     
     const { isConnected, joinRoom, leaveRoom } = useWebSocket({ enabled: true });
-    const version = usePartitionStore((state) => state.version);
-    const queue = usePartitionStore((state) => state.queue);
+    const version = useJobStore((state) => state.version);
+    const queue = useJobStore((state) => state.queue);
 
     usePartitionMessageListener(() => {});
 
@@ -21,20 +21,26 @@ export const usePartitionJobManager = () => {
         if (!isConnected) return;
 
         const syncRoomsWithQueue = () => {
-            const queue = usePartitionStore.getState().queue;
+            const queue = useJobStore.getState().queue;
             const jobIdsInQueue = new Set(queue.keys());
-            
+
             jobIdsInQueue.forEach((jobId) => {
                 if (!roomsJoinedRef.current.has(jobId)) {
-                    roomsJoinedRef.current.add(jobId);
-                    joinRoom(`partition-${jobId}`, jobId);
+                    const job = queue.get(jobId);
+                    if (job) {
+                        const roomName = `${job.jobType}-${jobId}`;
+                        roomsJoinedRef.current.add(jobId);
+                        joinRoom(roomName, jobId);
+                    }
                 }
             });
 
             roomsJoinedRef.current.forEach((jobId) => {
                 if (!jobIdsInQueue.has(jobId)) {
+                    const job = queue.get(jobId);
+                    const roomName = job ? `${job.jobType}-${jobId}` : `partition-${jobId}`;
                     roomsJoinedRef.current.delete(jobId);
-                    leaveRoom(`partition-${jobId}`, jobId);
+                    leaveRoom(roomName, jobId);
                 }
             });
         };
