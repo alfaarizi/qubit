@@ -35,26 +35,26 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
 
         elif message_type == ClientMessage.JOIN_ROOM:
             room = message_data.get("room")
-            job_id = message_data.get("jobId")
+            job_id = message_data.get("job_id")
             if room:
                 success = await manager.join_room(connection_id, room)
                 await manager.send_message(connection_id, {
                     "type": ServerMessage.ROOM_JOINED,
                     "room": room,
-                    "jobId": job_id,
+                    "job_id": job_id,
                     "success": success,
                     "timestamp": datetime.now(UTC).isoformat()
                 })
 
         elif message_type == ClientMessage.LEAVE_ROOM:
             room = message_data.get("room")
-            job_id = message_data.get("jobId")
+            job_id = message_data.get("job_id")
             if room:
                 success = await manager.leave_room(connection_id, room)
                 await manager.send_message(connection_id, {
                     "type": ServerMessage.ROOM_LEFT,
                     "room": room,
-                    "jobId": job_id,
+                    "job_id": job_id,
                     "success": success,
                     "timestamp": datetime.now(UTC).isoformat()
                 })
@@ -131,7 +131,7 @@ async def websocket_endpoint(
             
         while True:
             data = await websocket.receive_text()
-            logger.debug(f"[WebSocket] Message received: {connection_id} - {data}")
+            logger.debug(f"[WebSocket] Message received okfewfegregreg: {connection_id} - {data}")
             try:
                 message_data = json.loads(data)
                 if not isinstance(message_data, dict):

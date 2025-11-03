@@ -74,10 +74,10 @@ function CircuitTabContent() {
 
 function ComposerContent() {
     const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit } = useProject()
-
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
+    const sessionIdRef = useRef<string>(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
 
     const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
         const jobs = usePartitionStore.getState().getCircuitJobs(circuitId);
@@ -206,7 +206,7 @@ function ComposerContent() {
                                             >
                                                 <CircuitProvider circuitId={circuit.id}>
                                                     <div className="sticky top-0 z-[60] bg-background will-change-transform">
-                                                        <CircuitToolbar />
+                                                        <CircuitToolbar sessionId={sessionIdRef.current} />
                                                         <ExecutionProgressBar />
                                                     </div>
                                                     <CircuitTabContent />

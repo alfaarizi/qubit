@@ -89,7 +89,7 @@ function CategoryGroup({ categoryName, items, draggedItemId, onDragStart, onDrag
                 <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-2">
-                <div className={`grid gap-2 grid-cols-${gridColumns}`}>
+                <div className={`grid gap-2 ${gridColumns === 4 ? 'grid-cols-4' : 'grid-cols-2'}`}>
                     {items.map((item) => (
                         <DraggableItem
                             key={item.id}

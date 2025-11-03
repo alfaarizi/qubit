@@ -17,7 +17,7 @@ async def test_squander():
         output, _, _ = await client.execute_command("whoami")
         print(f"Remote user: {output.strip()}")
 
-        cmd = f"python3 -c \"import sys; sys.path.insert(0, '{settings.SQUANDER_PATH}'); from squander import *; print('OK')\""
+        cmd = f"python3 -c \"import sys; sys.path.insert(0, '{settings.SQUANDER_SSH_PATH}'); from squander import *; print('OK')\""
         output, _, code = await client.execute_command(cmd)
 
         if code == 0:

@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     LOG_FILE_PATH: Optional[Path] = None
 
     # SQUANDER SSH Configuration
-    SQUANDER_HOST: Optional[str] = None
-    SQUANDER_USER: Optional[str] = None
-    SQUANDER_PATH: Optional[str] = None
+    SQUANDER_SSH_HOST: Optional[str] = None
+    SQUANDER_SSH_USER: Optional[str] = None
+    SQUANDER_SSH_PATH: Optional[str] = None
     SQUANDER_EXEC_TIMEOUT: int = 300
     SSH_KEY_PATH: Optional[str] = None
     SSH_TIMEOUT: int = 30

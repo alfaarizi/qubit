@@ -205,6 +205,7 @@ def run_simulation(
         - unitary: unitary matrix (if small enough)
     """
     def report_progress(stage: str, current: int, total: int, message: str = ""):
+        print(f"[{current}/{total}] {stage}: {message}", flush=True)
         if progress_callback:
             try:
                 progress_callback(stage, current, total, message)

@@ -3,20 +3,69 @@ import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
 import { getSpanQubits, getQubitSpan } from "@/features/gates/utils";
 
+interface QubitMaps {
+    qubitToParent: Map<number, Gate | Circuit>;
+    qubitToChild: Map<number, Gate | Circuit>;
+}
+
 export function useCircuitDAG() {
 
     const createItemsMap = useCallback((items: (Gate | Circuit)[]) => {
-        return new Map(items.map(item => [item.id, { ...item, parents: [...item.parents], children: [...item.children] }]));
+        const map = new Map<string, Gate | Circuit>();
+        for (const item of items) {
+            map.set(item.id, {
+                ...item,
+                parents: [...item.parents],
+                children: [...item.children]
+            });
+        }
+        return map;
+    }, []);
+
+    const createQubitMaps = useCallback((
+        items: (Gate | Circuit)[],
+        newItemDepth: number,
+        newItemQubits: Set<number>
+    ): QubitMaps => {
+        const qubitToParent = new Map<number, Gate | Circuit>();
+        const qubitToChild = new Map<number, Gate | Circuit>();
+        for (const item of items) {
+            const itemSpanQubits = getSpanQubits(item);
+            const overlapsQubit = itemSpanQubits.some(q => newItemQubits.has(q));
+            
+            if (!overlapsQubit) continue;
+
+            if (item.depth < newItemDepth) {
+                for (const qubit of itemSpanQubits) {
+                    if (!newItemQubits.has(qubit)) continue;
+                    const parent = qubitToParent.get(qubit);
+                    if (!parent || item.depth > parent.depth) {
+                        qubitToParent.set(qubit, item);
+                    }
+                }
+            } else {
+                for (const qubit of itemSpanQubits) {
+                    if (!newItemQubits.has(qubit)) continue;
+                    const child = qubitToChild.get(qubit);
+                    if (!child || item.depth < child.depth) {
+                        qubitToChild.set(qubit, item);
+                    }
+                }
+            }
+        }
+        return { qubitToParent, qubitToChild };
     }, []);
 
     const getItemWidth = useCallback((item: Gate | Circuit): number => {
         if ('circuit' in item) {
             if (item.circuit.gates.length === 0) return 1;
-            const endPositions = item.circuit.gates.map(g => {
+            let maxEndPosition = 0;
+            for (const g of item.circuit.gates) {
                 const width = getItemWidth(g);
-                return g.depth + width;
-            });
-            return Math.max(...endPositions);
+                const endPosition = g.depth + width;
+                if (endPosition > maxEndPosition) maxEndPosition = endPosition;
+            }
+            return maxEndPosition;
         }
         return 1;
     }, []);
@@ -27,28 +76,28 @@ export function useCircuitDAG() {
     ): void => {
         const item = itemsMap.get(itemId);
         if (!item) return;
-
-        const parentDepths = item.parents.map(parentId => {
+        let maxDepth = 0;
+        for (const parentId of item.parents) {
             const parent = itemsMap.get(parentId);
-            if (!parent) return -1;
-            const width = getItemWidth(parent);
-            return parent.depth + width;
-        });
-        item.depth = Math.max(0, ...parentDepths);
-        item.children.forEach(childId => {
+            if (parent) {
+                const width = getItemWidth(parent);
+                const depth = parent.depth + width;
+                if (depth > maxDepth) maxDepth = depth;
+            }
+        }
+        item.depth = maxDepth;
+        for (const childId of item.children) {
             recalculateDepth(childId, itemsMap);
-        });
+        }
     }, [getItemWidth]);
 
     const injectGate = useCallback((
         item: Gate | Circuit,
         items: (Gate | Circuit)[],
-        startDepth?: number
+        startDepth?: number,
+        qubitMaps?: QubitMaps
     ): (Gate | Circuit)[] => {
         const itemsMap = createItemsMap(items);
-        const qubitToParent = new Map<number, Gate | Circuit>();
-        const qubitToChild = new Map<number, Gate | Circuit>();
-
         const newItem: Gate | Circuit = {
             ...item,
             depth: startDepth ?? item.depth,
@@ -56,62 +105,43 @@ export function useCircuitDAG() {
             children: []
         };
 
-        const spanQubits = new Set(getSpanQubits(newItem));
+        const newItemSpanQubits = new Set(getSpanQubits(newItem));
+        const { qubitToParent, qubitToChild } = qubitMaps || createQubitMaps(items, newItem.depth, newItemSpanQubits);
 
-        itemsMap.forEach((currItem) => {
-            const overlappingQubits = getSpanQubits(currItem).filter(q => spanQubits.has(q));
-
-            if (overlappingQubits.length === 0) return;
-
-            if (currItem.depth < newItem.depth) {
-                overlappingQubits.forEach(qubit => {
-                    const parent = qubitToParent.get(qubit);
-                    if (!parent || currItem.depth > parent.depth) {
-                        qubitToParent.set(qubit, currItem);
-                    }
-                });
-            } else {
-                overlappingQubits.forEach(qubit => {
-                    const child = qubitToChild.get(qubit);
-                    if (!child || currItem.depth < child.depth) {
-                        qubitToChild.set(qubit, currItem);
-                    }
-                });
-            }
-        });
-
-        // disconnect old parent-child relationships on overlapping qubits
-        // NOTE: this is important to handle injection between gates
-        for (const [qubit, parent] of qubitToParent) {
-            const child = qubitToChild.get(qubit);
-            if (child) {
-                child.parents = child.parents.filter(id => id !== parent.id);
-                parent.children = parent.children.filter(id => id !== child.id);
+        for (const [qubit, parentRef] of qubitToParent) {
+            const childRef = qubitToChild.get(qubit);
+            if (childRef) {
+                const parent = itemsMap.get(parentRef.id);
+                const child = itemsMap.get(childRef.id);
+                if (parent && child) {
+                    child.parents = child.parents.filter(id => id !== parentRef.id);
+                    parent.children = parent.children.filter(id => id !== childRef.id);
+                }
             }
         }
 
-        // Connect to parents
         const parentSet = new Set(qubitToParent.values());
         newItem.parents = Array.from(parentSet, p => p.id);
-        parentSet.forEach(parent => {
-            if (!parent.children.includes(newItem.id)) {
+        for (const parentRef of parentSet) {
+            const parent = itemsMap.get(parentRef.id);
+            if (parent && !parent.children.includes(newItem.id)) {
                 parent.children.push(newItem.id);
             }
-        });
+        }
 
-        // Connect to children
         const childSet = new Set(qubitToChild.values());
         newItem.children = Array.from(childSet, c => c.id);
-        childSet.forEach((child) => {
-            if (!child.parents.includes(newItem.id)) {
+        for (const childRef of childSet) {
+            const child = itemsMap.get(childRef.id);
+            if (child && !child.parents.includes(newItem.id)) {
                 child.parents.push(newItem.id);
             }
-        });
+        }
 
         itemsMap.set(newItem.id, newItem);
         recalculateDepth(newItem.id, itemsMap);
         return Array.from(itemsMap.values());
-    }, [createItemsMap, recalculateDepth]);
+    }, [createItemsMap, recalculateDepth, createQubitMaps]);
 
     const ejectGate = useCallback((
         item: Gate | Circuit,
@@ -119,42 +149,48 @@ export function useCircuitDAG() {
         excludeItemIds: string[] = []
     ): (Gate | Circuit)[] => {
         const itemsMap = createItemsMap(items);
+        const itemSpanQubits = new Set(getSpanQubits(item));
+        
         const qubitToParent = new Map<number, Gate | Circuit>();
-        const spanQubits = new Set(getSpanQubits(item));
+        const excludeSet = new Set(excludeItemIds);
 
-        // Sort parents by depth, filtering out any that don't exist
-        item.parents
-            .map(parentId => ({ id: parentId, parent: itemsMap.get(parentId) }))
-            .filter(({ parent }) => parent !== undefined)
-            .sort((a, b) => a.parent!.depth - b.parent!.depth)
-            .forEach(({ parent }) => {
-                if (!parent) return;
-                parent.children = parent.children.filter(id => id !== item.id);
-                const overlappingQubits = getSpanQubits(parent).filter(q => spanQubits.has(q));
-                overlappingQubits.forEach(qubit => {
+        const sortedItemParents = item.parents
+            .map(parentId => itemsMap.get(parentId))
+            .filter((parent): parent is Gate | Circuit => parent !== undefined)
+            .sort((a, b) => a.depth - b.depth);
+
+        for (const parent of sortedItemParents) {
+            parent.children = parent.children.filter(id => id !== item.id);
+            const parentSpanQubits = getSpanQubits(parent);
+            for (const qubit of parentSpanQubits) {
+                if (itemSpanQubits.has(qubit)) {
                     qubitToParent.set(qubit, parent);
-                });
-            });
+                }
+            }
+        }
 
-        item.children.forEach(childId => {
+        for (const childId of item.children) {
             const child = itemsMap.get(childId);
-            if (!child) return;
+            if (!child) continue;
+            
             child.parents = child.parents.filter(id => id !== item.id);
+            if (excludeSet.has(childId)) continue;
 
-            // Skip reconnection if child is in exclude list
-            if (excludeItemIds.includes(childId)) return;
-
-            const overlappingQubits = getSpanQubits(child).filter(q => spanQubits.has(q));
-            overlappingQubits.forEach(qubit => {
-                const parent = qubitToParent.get(qubit);
-                if (!parent) return;
-                if (!child.parents.includes(parent.id)) {
+            const childSpanQubits = getSpanQubits(child);
+            for (const qubit of childSpanQubits) {
+                if (!itemSpanQubits.has(qubit)) continue;
+                
+                const parentRef = qubitToParent.get(qubit);
+                if (!parentRef) continue;
+                
+                const parent = itemsMap.get(parentRef.id);
+                if (parent && !child.parents.includes(parent.id)) {
                     child.parents.push(parent.id);
                     parent.children.push(child.id);
                 }
-            });
+            }
             recalculateDepth(childId, itemsMap);
-        });
+        }
 
         itemsMap.delete(item.id);
         return Array.from(itemsMap.values());
@@ -196,7 +232,6 @@ export function useCircuitDAG() {
     ): (Gate | Circuit)[] => {
         const itemToRemove = items.find(item => item.id === gateId);
         if (!itemToRemove) return items;
-
         return ejectGate(itemToRemove, items);
     }, [ejectGate]);
 
@@ -205,6 +240,7 @@ export function useCircuitDAG() {
         ejectGate,
         moveGate,
         removeGate,
-        getItemWidth
+        getItemWidth,
+        buildQubitMaps: createQubitMaps
     };
 }

@@ -53,11 +53,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             return;
         }
         const msg = lastJsonMessage as any;
-        console.log(`[useWebSocket] New message from server:`, {
-            type: msg.type,
-            jobId: msg.jobId,
-            message: msg
-        });
+        console.log(`[WebSocket] New message from server:`, msg);
         if (lastJsonMessage && typeof lastJsonMessage === 'object' && 'type' in lastJsonMessage) {
             broadcastPartitionMessage(lastJsonMessage as WebSocketMessage);
             if (onMessageRef.current) {

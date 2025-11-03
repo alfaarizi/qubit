@@ -2,10 +2,8 @@ import logging
 from uuid import uuid4
 import asyncio
 from typing import Optional
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 from app.services.squander_client import SquanderClient
 from app.services.websocket_manager import manager
 
@@ -13,50 +11,148 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class PartitionRequest(BaseModel):
-    numQubits: int
-    placedGates: list
+    num_qubits: int
+    placed_gates: list
     measurements: list
     options: Optional[dict] = None
-    strategy: Optional[str] = "kahn"  # kahn, ilp, tdag, etc.
+    strategy: Optional[str] = "kahn"
+    session_id: Optional[str] = None
+
+class ImportQasmRequest(BaseModel):
+    qasm_code: str
+    session_id: Optional[str] = None
 
 active_jobs = {}
 
 @router.post("/{circuit_id}/partition")
 async def partition_circuit(circuit_id: str, request: PartitionRequest):
-    if request.numQubits <= 0 or not request.placedGates:
+    if request.num_qubits <= 0 or not request.placed_gates:
         raise HTTPException(status_code=400, detail="Invalid circuit data")
-    
     job_id = str(uuid4())
     active_jobs[job_id] = {"circuit_id": circuit_id, "status": "queued"}
-    
-    asyncio.create_task(
-        run_partition_job(
-            job_id=job_id,
-            circuit_id=circuit_id,
-            num_qubits=request.numQubits,
-            placed_gates=request.placedGates,
-            measurements=request.measurements,
-            options=request.options,
-            strategy=request.strategy or "kahn",
-        )
-    )
-
-    return {"jobId": job_id, "status": "queued"}
+    logger.info(f"[partition_circuit] Received partition request for circuit {circuit_id} with job ID {job_id}")
+    asyncio.create_task(run_partition(
+        job_id=job_id,
+        circuit_id=circuit_id,
+        num_qubits=request.num_qubits,
+        placed_gates=request.placed_gates,
+        measurements=request.measurements,
+        options=request.options,
+        strategy=request.strategy or "kahn",
+        session_id=request.session_id,
+    ))
+    return {"job_id": job_id, "status": "queued"}
 
 @router.get("/{circuit_id}/jobs")
-async def list_partition_jobs(circuit_id: str):
+async def list_jobs(circuit_id: str):
     jobs = {jid: info for jid, info in active_jobs.items() if info["circuit_id"] == circuit_id}
     return {"jobs": jobs}
 
-
 @router.get("/{circuit_id}/jobs/{job_id}")
-async def get_partition_job(circuit_id: str, job_id: str):
+async def get_job(circuit_id: str, job_id: str):
     job = active_jobs.get(job_id)
     if not job or job["circuit_id"] != circuit_id:
         raise HTTPException(status_code=404, detail="Job not found")
-    return {"jobId": job_id, **job}
+    return {"job_id": job_id, **job}
 
-async def run_partition_job(
+@router.post("/{circuit_id}/import-qasm")
+async def import_qasm(circuit_id: str, request: ImportQasmRequest):
+    import_id = str(uuid4())
+    room = f"import-{import_id}"
+    logger.info(f"[import_qasm] Received QASM import request for circuit {circuit_id} in room {room}")
+    
+    # Create background task to handle import with progress updates
+    asyncio.create_task(run_import_qasm(
+        import_id=import_id,
+        circuit_id=circuit_id,
+        qasm_code=request.qasm_code,
+        session_id=request.session_id,
+    ))
+    
+    return {"import_id": import_id, "status": "processing"}
+
+async def _wait_for_room_connection(room: str, check_interval: float = 0.1) -> None:
+    """Wait until at least one connection joins the room"""
+    while not manager.get_room_connections(room):
+        await asyncio.sleep(check_interval)
+
+async def run_import_qasm(
+    import_id: str,
+    circuit_id: str,
+    qasm_code: str,
+    session_id: Optional[str] = None,
+) -> None:
+    room = f"import-{import_id}"
+    client = None
+    
+    try:
+        logger.info(f"[run_import_qasm] Starting import {import_id} in room {room}")
+        try:
+            await asyncio.wait_for(
+                _wait_for_room_connection(room),
+                timeout=10.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
+        
+        if session_id:
+            client = await SquanderClient.get_pooled_client(session_id)
+        else:
+            client = SquanderClient()
+        
+        # Broadcast connecting phase
+        await manager.broadcast_to_room(room, {
+            "type": "phase",
+            "phase": "connecting",
+            "message": "Connecting to SQUANDER...",
+            "import_id": import_id,
+            "circuit_id": circuit_id
+        })
+        
+        # Connect if not using pooled connection
+        if not session_id:
+            logger.info(f"[run_import_qasm] Connecting SSH client for import {import_id}")
+            await client.connect()
+        
+        # Broadcast connected
+        await manager.broadcast_to_room(room, {
+            "type": "phase",
+            "phase": "connected",
+            "message": "Connected to SQUANDER",
+            "import_id": import_id,
+            "circuit_id": circuit_id
+        })
+        
+        # Run import and stream updates
+        logger.info(f"[run_import_qasm] Starting QASM import for {import_id}")
+        async for update in client.import_qasm(qasm_code):
+            await manager.broadcast_to_room(room, {
+                **update,
+                "import_id": import_id,
+                "circuit_id": circuit_id
+            })
+            if update.get("type") == "complete":
+                logger.info(f"[run_import_qasm] Import {import_id} completed successfully")
+            elif update.get("type") == "error":
+                logger.error(f"[run_import_qasm] Import {import_id} failed: {update.get('message')}")
+                
+    except Exception as e:
+        logger.error(f"[run_import_qasm] Import {import_id} error: {str(e)}", exc_info=True)
+        await manager.broadcast_to_room(room, {
+            "type": "error",
+            "circuit_id": circuit_id,
+            "import_id": import_id,
+            "message": str(e)
+        })
+    finally:
+        # Clean up non-pooled connections
+        if client and not session_id:
+            try:
+                await client.disconnect()
+            except Exception as e:
+                logger.warning(f"[run_import_qasm] Error disconnecting: {e}")
+
+async def run_partition(
     job_id: str,
     circuit_id: str,
     num_qubits: int,
@@ -64,48 +160,55 @@ async def run_partition_job(
     measurements: list,
     options: dict,
     strategy: str = "kahn",
+    session_id: Optional[str] = None,
 ) -> None:
-    client = SquanderClient()
     room = f"partition-{job_id}"
-    
-    logger.info(f"[run_partition_job] Starting job {job_id} in room {room}")
-    
-    max_wait = 10
-    wait_interval = 0.1
-    elapsed = 0
-    while elapsed < max_wait:
-        room_members = manager.get_room_connections(room)
-        if room_members:
-            logger.info(f"[run_partition_job] Room {room} has members: {room_members}")
-            break
-        await asyncio.sleep(wait_interval)
-        elapsed += wait_interval
-    else:
-        logger.warning(f"[run_partition_job] Timeout waiting for client to join room {room}")
+    client = None
     
     try:
-        logger.info(f"[run_partition_job] Broadcasting connecting phase for job {job_id}")
+        logger.info(f"[run_partition] Starting job {job_id} in room {room}")
+        try:
+            await asyncio.wait_for(
+                _wait_for_room_connection(room),
+                timeout=10.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
+
+        logger.info(f"[run_partition] Got room connection for job {job_id}")
+
+        if session_id:
+            client = await SquanderClient.get_pooled_client(session_id)
+        else:
+            client = SquanderClient()
+        
+        logger.info(f"[run_partition] Got pooled client for job {job_id}")
+
+        # Broadcast connecting phase
+        logger.info(f"[run_partition] Broadcasting connecting phase for job {job_id}")
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connecting",
             "message": "Connecting to SQUANDER...",
-            "jobId": job_id,
-            "circuitId": circuit_id
+            "job_id": job_id,
+            "circuit_id": circuit_id
         })
+
+        if not session_id:
+            logger.info(f"[run_partition] Connecting SSH client for job {job_id}")
+            await client.connect()
         
-        logger.info(f"[run_partition_job] Connecting SSH client for job {job_id}")
-        await client.connect()
-        logger.info(f"[run_partition_job] SSH connected for job {job_id}")
-        
+        # Broadcast connected
         await manager.broadcast_to_room(room, {
             "type": "phase",
             "phase": "connected",
             "message": "Connected to SQUANDER",
-            "jobId": job_id,
-            "circuitId": circuit_id
+            "job_id": job_id,
+            "circuit_id": circuit_id
         })
-        
-        logger.info(f"[run_partition_job] Starting partition for job {job_id}")
+
+        # Run partition and stream updates
+        logger.info(f"[run_partition] Starting partition for job {job_id}")
         async for update in client.run_partition(
             job_id=job_id,
             num_qubits=num_qubits,
@@ -114,16 +217,24 @@ async def run_partition_job(
             options=options or {},
             strategy=strategy,
         ):
-            await manager.broadcast_to_room(room, {**update, "jobId": job_id, "circuitId": circuit_id})
+            await manager.broadcast_to_room(room, {
+                **update,
+                "job_id": job_id,
+                "circuit_id": circuit_id
+            })
     except Exception as e:
-        logger.error(f"[run_partition_job] Job {job_id} error: {str(e)}", exc_info=True)
+        logger.error(f"[run_partition] Job {job_id} error: {str(e)}", exc_info=True)
         await manager.broadcast_to_room(room, {
             "type": "error",
-            "circuitId": circuit_id,
-            "jobId": job_id,
+            "circuit_id": circuit_id,
+            "job_id": job_id,
             "message": str(e)
         })
     finally:
-        await client.disconnect()
+        if client and not session_id:
+            try:
+                await client.disconnect()
+            except Exception as e:
+                logger.warning(f"[run_partition] Error disconnecting: {e}")
         if job_id in active_jobs:
             del active_jobs[job_id]

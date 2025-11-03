@@ -12,7 +12,8 @@ export function addPartitionMessageListener(listener: MessageListener) {
 }
 
 export function broadcastPartitionMessage(message: any) {
-    const { jobId, type } = message;
+    const jobId = message.job_id;
+    const type = message.type;
 
     if (!jobId || !type) return;
 
@@ -28,10 +29,8 @@ export function broadcastPartitionMessage(message: any) {
             progress: message.progress,
             result: message.result,
             timestamp: Date.now()
-        };
-        
+        }; 
         store.addUpdate(jobId, update);
-        
         if (type === 'complete') {
             store.completeJob(jobId);
         }

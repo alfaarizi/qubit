@@ -12,8 +12,10 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { circuitsApi } from "@/lib/api/circuits";
 import { useProject } from "@/features/project/ProjectStoreContext";
 import { usePartitionStore } from "@/stores/partitionStore";
-import { parseQASM } from "@/lib/qasm/parser";
 import type { Gate } from "@/features/gates/types";
+import type { Circuit } from "@/features/circuit/types";
+
+import { deserializeGateFromAPI } from "@/lib/api/circuits";
 
 const ESTIMATED_TOTAL_PHASES = 8;
 
@@ -36,7 +38,11 @@ const PARTITION_STRATEGIES = [
     { value: 'bqskit-Cluster', label: 'BQSKit Cluster', description: 'BQSKit cluster partitioner' },
 ] as const;
 
-export function CircuitToolbar() {
+interface CircuitToolbarProps {
+    sessionId?: string;
+}
+
+export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const svgRef = useCircuitSvgRef();
     const { circuits } = useProject();
     const circuitId = useCircuitId();
@@ -56,7 +62,6 @@ export function CircuitToolbar() {
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const setMeasurements = useCircuitStore((state) => state.setMeasurements);
 
-    usePartitionStore((state) => state.version);
     const queue = usePartitionStore((state) => state.queue);
     const job = Array.from(queue.values()).find(j => j.circuitId === circuitId);
     const jobId = job?.jobId || null;
@@ -71,13 +76,14 @@ export function CircuitToolbar() {
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
     const executionStartTimeRef = useRef<number | null>(null);
-    const phasesRef = useRef<Map<string, { timestamp: number; message: string }>>(new Map());
 
+    // Sync execution state with job status
     useEffect(() => {
         if (!job) {
             setIsExecuting(false);
             return;
         }
+        
         switch (job.status) {
             case 'complete':
                 setExecutionStatus('Complete!');
@@ -99,6 +105,7 @@ export function CircuitToolbar() {
         }
     }, [job?.status, jobId, setExecutionStatus, setExecutionProgress, setIsExecuting]);
 
+    // Process job updates
     useEffect(() => {
         if (!job?.updates.length || processedUpdatesCount.current >= job.updates.length) return;
 
@@ -122,12 +129,6 @@ export function CircuitToolbar() {
             case 'phase':
                 setExecutionStatus(statusText);
                 setExecutionProgress(progress);
-                if (latest.phase) {
-                    phasesRef.current.set(latest.phase, {
-                        timestamp: latest.timestamp || Date.now(),
-                        message: latest.message || ''
-                    });
-                }
                 break;
             case 'log':
                 if (latest.progress !== undefined) {
@@ -137,6 +138,7 @@ export function CircuitToolbar() {
         }
     }, [job?.updates.length, setExecutionStatus, setExecutionProgress]);
 
+    // Clean up abort toast when execution stops
     useEffect(() => {
         if (!isExecuting && abortToastId.current) {
             toast.dismiss(abortToastId.current);
@@ -144,16 +146,163 @@ export function CircuitToolbar() {
         }
     }, [isExecuting]);
 
+    useKeyboardShortcuts([
+        { key: 'z', ctrl: true, handler: () => canUndo && undo() },
+        { key: 'y', ctrl: true, handler: () => canRedo && redo() },
+        { key: 'z', ctrl: true, shift: true, handler: () => canRedo && redo() }
+    ]);
+
+    const handleImportQASM = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        if (!file.name.endsWith('.qasm')) {
+            toast.error('Please select a .qasm file');
+            return;
+        }
+
+        const toastId = toast.loading(`Importing ${file.name}...`);
+
+        try {
+            const text = await file.text();
+            
+            // Upload and parse QASM
+            toast.loading('Uploading to server...', { id: toastId });
+            const parsed = await circuitsApi.importQasm(circuitId, text, sessionId);
+            
+            if (parsed.num_qubits === 0) {
+                toast.error('No qubits found', { id: toastId });
+                return;
+            }
+
+            // Transform gates
+            const gates = parsed.placed_gates.map(gateData => {
+                try {
+                    return deserializeGateFromAPI(gateData);
+                } catch (error) {
+                    console.error('Failed to deserialize gate:', gateData, error);
+                    return null;
+                }
+            }).filter((gate): gate is Gate | Circuit => gate !== null);
+
+            // Build DAG
+            setPlacedGates([]);
+            setNumQubits(parsed.num_qubits);
+            
+            const totalGates = gates.length;
+            const CHUNK_SIZE = Math.max(25, Math.floor(totalGates / 20));
+            let currentGates: Gate[] = [];
+            let processed = 0;
+
+            const processChunk = () => {
+                const end = Math.min(processed + CHUNK_SIZE, totalGates);
+                
+                for (let i = processed; i < end; i++) {
+                    currentGates = injectGate(gates[i], currentGates) as Gate[];
+                }
+                
+                processed = end;
+                const progress = Math.round((processed / totalGates) * 100);
+                
+                setPlacedGates([...currentGates]);
+                toast.loading(`Building circuit... ${progress}%`, { id: toastId });
+                
+                if (processed < totalGates) {
+                    requestAnimationFrame(() => setTimeout(processChunk, 0));
+                } else {
+                    if (parsed.measurements.length > 0) {
+                        setMeasurements(parsed.measurements);
+                    }
+                    toast.success(
+                        `Imported ${totalGates} gate${totalGates !== 1 ? 's' : ''}`,
+                        { id: toastId }
+                    );
+                }
+            };
+
+            processChunk();
+
+        } catch (err) {
+            console.error('QASM import error:', err);
+            toast.error(
+                err instanceof Error ? err.message : 'Import failed',
+                { id: toastId }
+            );
+        } finally {
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    }, [circuitId, sessionId, setPlacedGates, setNumQubits, setMeasurements, injectGate]);
+
+    const handleRun = useCallback(async () => {
+        if (!placedGates.length) {
+            toast.error("No gates to execute");
+            return;
+        }
+
+        setIsExecuting(false);
+        setExecutionProgress(0);
+        setExecutionStatus('');
+        processedUpdatesCount.current = 0;
+        executionStartTimeRef.current = null;
+
+        setIsExecuting(true);
+        const toastId = toast.loading(
+            `Executing ${circuit?.symbol || 'Circuit'} (${partitionStrategy})...`
+        );
+
+        try {
+            const response = await circuitsApi.partition(
+                circuitId,
+                numQubits,
+                placedGates,
+                measurements,
+                { max_partition_size: maxPartitionSize },
+                new AbortController().signal,
+                partitionStrategy,
+                sessionId
+            );
+
+            if (jobId) {
+                usePartitionStore.getState().dequeueJob(jobId);
+            }
+
+            usePartitionStore.getState().enqueueJob(response.job_id, circuitId);
+            usePartitionStore.getState().setJobToastId(response.job_id, toastId);
+        } catch (error: any) {
+            if (error.name === 'AbortError' || error.name === 'CanceledError') return;
+
+            setIsExecuting(false);
+            setExecutionProgress(0);
+            setExecutionStatus('');
+            toast.dismiss(toastId);
+            
+            const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+            toast.error('Partition failed', { 
+                description: errorMessage,
+                duration: 5000
+            });
+            
+            console.error('Partition error:', error);
+        }
+    }, [
+        placedGates, circuit, circuitId, numQubits, measurements, 
+        jobId, maxPartitionSize, partitionStrategy, sessionId,
+        setIsExecuting, setExecutionProgress, setExecutionStatus
+    ]);
+
     const handleAbortClick = useCallback(() => {
         if (!isExecuting) return;
 
         if (abortToastId.current) {
-            const toastElement = document.querySelector(`[data-sonner-toast][data-toast-id="${abortToastId.current}"]`);
-            toastElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            document
+                .querySelector(`[data-sonner-toast][data-toast-id="${abortToastId.current}"]`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             return;
         }
 
-        abortToastId.current = toast(`Abort ${circuit?.symbol || 'Circuit'} execution?`, {
+        abortToastId.current = toast(`Abort execution?`, {
             description: 'All progress will be lost.',
             duration: Infinity,
             action: {
@@ -185,124 +334,7 @@ export function CircuitToolbar() {
             },
             classNames: { actionButton: 'bg-red-600 hover:bg-red-700 text-white' },
         });
-    }, [isExecuting, circuit?.symbol, jobId, job?.toastId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
-
-    useKeyboardShortcuts([
-        { key: 'z', ctrl: true, handler: () => canUndo && undo() },
-        { key: 'y', ctrl: true, handler: () => canRedo && redo() },
-        { key: 'z', ctrl: true, shift: true, handler: () => canRedo && redo() }
-    ]);
-
-    const handleImportQASM = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        if (!file.name.endsWith('.qasm')) {
-            toast.error('Please select a .qasm file');
-            return;
-        }
-
-        const loadingToast = toast.loading(`Importing ${file.name}...`);
-
-        try {
-            const text = await file.text();
-            await new Promise(resolve => setTimeout(resolve, 0));
-            const parsed = parseQASM(text);
-
-            if (parsed.errors.length > 0) {
-                toast.error(`Parse error: ${parsed.errors.join(', ')}`, { id: loadingToast });
-                return;
-            }
-
-            if (parsed.numQubits === 0) {
-                toast.error('No qubits found in QASM file', { id: loadingToast });
-                return;
-            }
-
-            setPlacedGates([]);
-            setNumQubits(parsed.numQubits);
-
-            const BATCH_SIZE = 100;
-            let processedGates: Gate[] = [];
-            
-            for (let i = 0; i < parsed.gates.length; i += BATCH_SIZE) {
-                const batch = parsed.gates.slice(i, i + BATCH_SIZE);
-                for (const gate of batch) {
-                    processedGates = injectGate(gate, processedGates) as Gate[];
-                }
-                
-                const progress = Math.min(100, Math.round(((i + BATCH_SIZE) / parsed.gates.length) * 100));
-                toast.loading(`Processing gates... ${progress}%`, { id: loadingToast });
-                await new Promise(resolve => setTimeout(resolve, 0));
-            }
-
-            setPlacedGates(processedGates);
-
-            if (parsed.measurements.length > 0) {
-                setMeasurements(parsed.measurements);
-            }
-
-            toast.success(`Successfully imported ${parsed.gates.length} gate${parsed.gates.length !== 1 ? 's' : ''} from ${file.name}`, { id: loadingToast });
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : 'Failed to import QASM file', { id: loadingToast });
-        }
-
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    }, [setPlacedGates, setNumQubits, injectGate, setMeasurements]);
-
-    const handleRun = useCallback(async () => {
-        if (!placedGates.length) {
-            toast.error("No gates to execute");
-            return;
-        }
-
-        setIsExecuting(false);
-        setExecutionProgress(0);
-        setExecutionStatus('');
-        processedUpdatesCount.current = 0;
-        executionStartTimeRef.current = null;
-        phasesRef.current.clear();
-
-        setIsExecuting(true);
-        const toastId = toast.loading(`Executing ${circuit?.symbol || 'Circuit'} (${partitionBackend.toUpperCase()} - ${partitionStrategy})...`);
-
-        try {
-            const response = await circuitsApi.partition(
-                circuitId,
-                numQubits,
-                placedGates,
-                measurements,
-                { maxPartitionSize },
-                new AbortController().signal,
-                partitionStrategy
-            );
-
-            if (jobId) {
-                usePartitionStore.getState().dequeueJob(jobId);
-            }
-
-            usePartitionStore.getState().enqueueJob(response.jobId, circuitId);
-            usePartitionStore.getState().setJobToastId(response.jobId, toastId);
-        } catch (error: any) {
-            const err = error as { name?: string; message?: string; response?: any };
-            if (err.name === 'AbortError' || err.name === 'CanceledError') return;
-
-            setIsExecuting(false);
-            setExecutionProgress(0);
-            setExecutionStatus('');
-            toast.dismiss(toastId);
-            
-            const errorMessage = err.response?.data?.detail || err.message || 'Unknown error';
-            toast.error('Partition failed', { 
-                description: errorMessage,
-                duration: 5000
-            });
-            
-            console.error('Partition error:', error);
-        }
-    }, [placedGates, circuit?.symbol, circuitId, numQubits, measurements, jobId, maxPartitionSize, partitionStrategy, partitionBackend, setIsExecuting, setExecutionProgress, setExecutionStatus]);
+    }, [isExecuting, jobId, job?.toastId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
     const handleClear = useCallback(() => {
         reset({
