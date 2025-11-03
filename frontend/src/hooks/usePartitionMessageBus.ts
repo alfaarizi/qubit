@@ -1,7 +1,17 @@
-import { useEffect, useRef } from 'react';
-import { usePartitionStore } from '@/stores/partitionStore';
+import {useEffect, useRef} from 'react';
+import {usePartitionStore} from '@/stores/partitionStore';
 
-type MessageListener = (message: any) => void;
+export interface Message {
+    job_id?: string;
+    type: string;
+    phase?: string;
+    message?: string;
+    progress?: number;
+    result?: Record<string, unknown>;
+    [key: string]: unknown;
+}
+
+type MessageListener = (message: Message) => void;
 const messageListeners = new Set<MessageListener>();
 
 export function addPartitionMessageListener(listener: MessageListener) {
@@ -11,7 +21,7 @@ export function addPartitionMessageListener(listener: MessageListener) {
     };
 }
 
-export function broadcastPartitionMessage(message: any) {
+export function broadcastPartitionMessage(message: Message) {
     const jobId = message.job_id;
     const type = message.type;
 
@@ -23,13 +33,13 @@ export function broadcastPartitionMessage(message: any) {
         store.setJobError(jobId, message.message || 'Unknown error');
     } else if (['phase', 'log', 'complete'].includes(type)) {
         const update = {
-            type,
+            type: type as 'phase' | 'log' | 'complete',
             phase: message.phase,
             message: message.message,
             progress: message.progress,
             result: message.result,
             timestamp: Date.now()
-        }; 
+        };
         store.addUpdate(jobId, update);
         if (type === 'complete') {
             store.completeJob(jobId);
@@ -45,16 +55,15 @@ export function broadcastPartitionMessage(message: any) {
     });
 }
 
-export function usePartitionMessageListener(onMessage: (message: any) => void) {
+export function usePartitionMessageListener(onMessage: (message: Message) => void) {
     const listenerRef = useRef(onMessage);
-    
+
     useEffect(() => {
         listenerRef.current = onMessage;
     }, [onMessage]);
-    
+
     useEffect(() => {
-        const stableListener = (message: any) => listenerRef.current(message);
-        const unsubscribe = addPartitionMessageListener(stableListener);
-        return unsubscribe;
+        const stableListener = (message: Message) => listenerRef.current(message);
+        return addPartitionMessageListener(stableListener);
     }, []);
 }

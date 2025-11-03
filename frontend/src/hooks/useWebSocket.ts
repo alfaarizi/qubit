@@ -1,17 +1,13 @@
 import { default as useWebSocketLib, ReadyState } from 'react-use-websocket';
 import { useCallback, useMemo, useEffect, useRef } from 'react';
 import { broadcastPartitionMessage } from './usePartitionMessageBus';
+import type { Message } from './usePartitionMessageBus';
 
 export { ReadyState } from 'react-use-websocket';
 
-export interface WebSocketMessage {
-    type: string;
-    [key: string]: unknown;
-}
-
 interface UseWebSocketOptions {
     endpoint?: string;
-    onMessage?: (message: WebSocketMessage) => void;
+    onMessage?: (message: Message) => void;
     enabled?: boolean;
     reconnectAttempts?: number;
 }
@@ -52,17 +48,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         if (!lastJsonMessage) {
             return;
         }
-        const msg = lastJsonMessage as any;
+        const msg = lastJsonMessage as Message;
         console.log(`[WebSocket] New message from server:`, msg);
         if (lastJsonMessage && typeof lastJsonMessage === 'object' && 'type' in lastJsonMessage) {
-            broadcastPartitionMessage(lastJsonMessage as WebSocketMessage);
+            broadcastPartitionMessage(lastJsonMessage as Message);
             if (onMessageRef.current) {
-                onMessageRef.current(lastJsonMessage as WebSocketMessage);
+                onMessageRef.current(lastJsonMessage as Message);
             }
         }
     }, [lastJsonMessage]);
 
-    const sendMessage = useCallback((message: WebSocketMessage) => {
+    const sendMessage = useCallback((message: Message) => {
         if (readyState === ReadyState.OPEN && message?.type) {
             try {
                 sendJsonMessage(message);
@@ -91,7 +87,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     return {
         isConnected,
         readyState,
-        lastMessage: lastJsonMessage as WebSocketMessage | null,
+        lastMessage: lastJsonMessage as Message | null,
         sendMessage,
         sendPing,
         joinRoom,
