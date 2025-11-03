@@ -48,38 +48,16 @@ function CircuitTabContent() {
     const isExecuting = useCircuitStore((state) => state.isExecuting);
     const { activeCircuitId } = useProject();
     
-    const partitionQueue = usePartitionStore((state) => state.queue);
     usePartitionStore((state) => state.version);
+    const partitionQueue = usePartitionStore((state) => state.queue);
     
     const jobs = activeCircuitId ? Array.from(partitionQueue.values()).filter(job => job.circuitId === activeCircuitId) : [];
     const latestCompletedJob = jobs
         .filter(job => job.status === 'complete')
         .sort((a, b) => b.createdAt - a.createdAt)[0];
     
-    const partitionResult = latestCompletedJob?.updates.find(update => update.type === 'complete')?.result as any;
-    
-    console.log('[CircuitTabContent] Debug info:', {
-        activeCircuitId,
-        jobsCount: jobs.length,
-        completedJobsCount: jobs.filter(j => j.status === 'complete').length,
-        latestCompletedJob: latestCompletedJob ? {
-            jobId: latestCompletedJob.jobId,
-            status: latestCompletedJob.status,
-            updatesCount: latestCompletedJob.updates.length,
-            updates: latestCompletedJob.updates.map(u => ({ type: u.type, hasResult: !!u.result }))
-        } : null,
-        partitionResult: partitionResult ? {
-            strategy: partitionResult.strategy,
-            totalPartitions: partitionResult.totalPartitions,
-            totalGates: partitionResult.totalGates
-        } : null
-    });
-    
-    const mockResults = [
-        { state: '|000⟩', count: 512, probability: 0.5 },
-        { state: '|101⟩', count: 307, probability: 0.3 },
-        { state: '|110⟩', count: 205, probability: 0.2 },
-    ];
+    const completeUpdate = latestCompletedJob?.updates.find(update => update.type === 'complete');
+    const partitionResult = completeUpdate?.result?.partition_info as any;
 
     return (
         <>
@@ -87,12 +65,7 @@ function CircuitTabContent() {
                 <CircuitCanvas />
             </div>
             <div className="mt-4">
-                <ResultsPanel
-                    results={mockResults}
-                    totalShots={1024}
-                    executionTime={0.34}
-                    partitionResult={partitionResult}
-                />
+                <ResultsPanel partitionResult={partitionResult} />
             </div>
         </>
     );

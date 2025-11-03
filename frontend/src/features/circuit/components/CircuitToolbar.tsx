@@ -1,30 +1,10 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import {
-    Undo2,
-    Redo2,
-    Trash2,
-    Play,
-    ChevronDown,
-    FolderOpen,
-    Upload,
-    Eye,
-    EyeOff,
-    Square,
-    Loader2
-} from 'lucide-react';
+import { Undo2, Redo2, Trash2, Play, ChevronDown, FolderOpen, Eye, EyeOff, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory, useCircuitId } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
@@ -39,15 +19,21 @@ const ESTIMATED_TOTAL_PHASES = 8;
 
 const PARTITION_BACKENDS = [
     { value: 'squander', label: 'SQUANDER' },
-    // { value: 'qiskit', label: 'Qiskit' },
-    // { value: 'bqskit', label: 'BQSKit' },
 ] as const;
 
 const PARTITION_STRATEGIES = [
-    { value: 'kahn', label: 'Kahn (Fast)', description: 'Greedy topological sort' },
-    { value: 'ilp', label: 'ILP (Optimal)', description: 'Integer linear programming' },
+    { value: 'kahn', label: 'Kahn', description: 'Fast greedy topological sort' },
+    { value: 'ilp', label: 'ILP', description: 'Integer linear programming' },
+    { value: 'ilp-fusion', label: 'ILP Fusion', description: 'ILP with fusion cost' },
+    { value: 'ilp-fusion-ca', label: 'ILP Fusion CA', description: 'ILP fusion with control awareness' },
     { value: 'tdag', label: 'TDAG', description: 'Tree-based DAG partitioning' },
-    { value: 'gtqcp', label: 'GTQCP', description: 'GTQCP variant' },
+    { value: 'gtqcp', label: 'GTQCP', description: 'TDAG with GTQCP variant' },
+    { value: 'qiskit', label: 'Qiskit', description: 'Qiskit partitioning' },
+    { value: 'qiskit-fusion', label: 'Qiskit Fusion', description: 'Qiskit with fusion' },
+    { value: 'bqskit-Quick', label: 'BQSKit Quick', description: 'BQSKit quick partitioner' },
+    { value: 'bqskit-Scan', label: 'BQSKit Scan', description: 'BQSKit scan partitioner' },
+    { value: 'bqskit-Greedy', label: 'BQSKit Greedy', description: 'BQSKit greedy partitioner' },
+    { value: 'bqskit-Cluster', label: 'BQSKit Cluster', description: 'BQSKit cluster partitioner' },
 ] as const;
 
 export function CircuitToolbar() {
@@ -66,6 +52,9 @@ export function CircuitToolbar() {
     const setExecutionProgress = useCircuitStore((state) => state.setExecutionProgress);
     const setExecutionStatus = useCircuitStore((state) => state.setExecutionStatus);
     const reset = useCircuitStore((state) => state.reset);
+    const setNumQubits = useCircuitStore((state) => state.setNumQubits);
+    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
+    const setMeasurements = useCircuitStore((state) => state.setMeasurements);
 
     usePartitionStore((state) => state.version);
     const queue = usePartitionStore((state) => state.queue);
@@ -73,17 +62,12 @@ export function CircuitToolbar() {
     const jobId = job?.jobId || null;
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
+    const { injectGate } = useCircuitDAG();
     
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
     const [maxPartitionSize, setMaxPartitionSize] = useState<number>(4);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const setNumQubits = useCircuitStore((state) => state.setNumQubits);
-    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
-    const setMeasurements = useCircuitStore((state) => state.setMeasurements);
-    const { injectGate } = useCircuitDAG();
-
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
     const executionStartTimeRef = useRef<number | null>(null);
@@ -95,26 +79,23 @@ export function CircuitToolbar() {
             return;
         }
         switch (job.status) {
-            case 'complete': {
+            case 'complete':
                 setExecutionStatus('Complete!');
                 setExecutionProgress(100);
                 setIsExecuting(false);
                 break;
-            }
-            case 'error': {
+            case 'error':
                 setExecutionStatus(`Error: ${job.error}`);
                 setIsExecuting(false);
                 break;
-            }
             case 'running':
-            case 'pending': {
+            case 'pending':
                 setIsExecuting(true);
                 if (job.status === 'pending') {
                     setExecutionStatus('Connecting to SQUANDER...');
                     setExecutionProgress(0);
                 }
                 break;
-            }
         }
     }, [job?.status, jobId, setExecutionStatus, setExecutionProgress, setIsExecuting]);
 
@@ -186,9 +167,7 @@ export function CircuitToolbar() {
                     abortToastId.current = null;
                     
                     if (jobId) {
-                        if (job?.toastId) {
-                            toast.dismiss(job.toastId);
-                        }
+                        if (job?.toastId) toast.dismiss(job.toastId);
                         usePartitionStore.getState().dequeueJob(jobId);
                     }
                     
@@ -223,13 +202,10 @@ export function CircuitToolbar() {
             return;
         }
 
-        // Show loading toast
         const loadingToast = toast.loading(`Importing ${file.name}...`);
 
         try {
             const text = await file.text();
-            
-            // Parse in next tick to avoid blocking UI
             await new Promise(resolve => setTimeout(resolve, 0));
             const parsed = parseQASM(text);
 
@@ -243,51 +219,34 @@ export function CircuitToolbar() {
                 return;
             }
 
-            // Clear existing circuit first
             setPlacedGates([]);
-
-            // Set number of qubits
             setNumQubits(parsed.numQubits);
 
-            // Process gates in batches to avoid blocking UI
             const BATCH_SIZE = 100;
             let processedGates: Gate[] = [];
             
             for (let i = 0; i < parsed.gates.length; i += BATCH_SIZE) {
-                // Process batch
                 const batch = parsed.gates.slice(i, i + BATCH_SIZE);
                 for (const gate of batch) {
                     processedGates = injectGate(gate, processedGates) as Gate[];
                 }
                 
-                // Update progress
                 const progress = Math.min(100, Math.round(((i + BATCH_SIZE) / parsed.gates.length) * 100));
                 toast.loading(`Processing gates... ${progress}%`, { id: loadingToast });
-                
-                // Yield to UI every batch
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
 
-            // Update the circuit with the imported gates
             setPlacedGates(processedGates);
 
-            // Set measurements
             if (parsed.measurements.length > 0) {
                 setMeasurements(parsed.measurements);
             }
 
-            toast.success(
-                `Successfully imported ${parsed.gates.length} gate${parsed.gates.length !== 1 ? 's' : ''} from ${file.name}`,
-                { id: loadingToast }
-            );
+            toast.success(`Successfully imported ${parsed.gates.length} gate${parsed.gates.length !== 1 ? 's' : ''} from ${file.name}`, { id: loadingToast });
         } catch (err) {
-            toast.error(
-                err instanceof Error ? err.message : 'Failed to import QASM file',
-                { id: loadingToast }
-            );
+            toast.error(err instanceof Error ? err.message : 'Failed to import QASM file', { id: loadingToast });
         }
 
-        // Reset file input
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -360,7 +319,6 @@ export function CircuitToolbar() {
 
     return (
         <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {/* Group 1: File Operations */}
             <div className="flex items-center gap-1 shrink-0">
                 <input
                     ref={fileInputRef}
@@ -388,75 +346,30 @@ export function CircuitToolbar() {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-
             <Separator orientation="vertical" className="h-6" />
-
-            {/* Group 2: Edit Operations */}
             <div className="flex items-center gap-0.5 shrink-0">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => undo()}
-                    disabled={!canUndo || isExecuting}
-                    className="shrink-0"
-                    title="Undo (Ctrl+Z)"
-                >
+                <Button variant="ghost" size="icon" onClick={() => undo()} disabled={!canUndo || isExecuting} className="shrink-0" title="Undo (Ctrl+Z)">
                     <Undo2 className="h-4 w-4" />
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => redo()}
-                    disabled={!canRedo || isExecuting}
-                    className="shrink-0"
-                    title="Redo (Ctrl+Y)"
-                >
+                <Button variant="ghost" size="icon" onClick={() => redo()} disabled={!canRedo || isExecuting} className="shrink-0" title="Redo (Ctrl+Y)">
                     <Redo2 className="h-4 w-4" />
                 </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleClear}
-                    disabled={isExecuting}
-                    className="shrink-0"
-                    title="Clear circuit"
-                >
+                <Button variant="ghost" size="icon" onClick={handleClear} disabled={isExecuting} className="shrink-0" title="Clear circuit">
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
-
             <Separator orientation="vertical" className="h-6 hidden md:block" />
-
-            {/* Group 3: View Controls */}
             <div className="hidden md:flex items-center gap-1.5 shrink-0 px-1">
-                {showNestedCircuit ? (
-                    <Eye className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>
-                ) : (
-                    <EyeOff className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>
-                )}
-                <Switch
-                    checked={showNestedCircuit}
-                    onCheckedChange={setShowNestedCircuit}
-                    disabled={isExecuting}
-                />
+                {showNestedCircuit ? <Eye className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/> : <EyeOff className={`h-4 w-4 ${isExecuting ? 'opacity-50' : ''}`}/>}
+                <Switch checked={showNestedCircuit} onCheckedChange={setShowNestedCircuit} disabled={isExecuting} />
             </div>
-
-            {/* Spacer */}
             <div className="flex-1 min-w-2" />
-
-            {/* Group 4: Execution Configuration */}
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                {/* Backend Selector */}
                 <div className="flex items-center gap-1 shrink-0">
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Backend</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={isExecuting}
-                                className="h-8 gap-1 sm:gap-1.5 shrink-0 font-medium shadow-sm px-2 sm:px-3"
-                            >
+                            <Button variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 font-medium shadow-sm px-2 sm:px-3">
                                 <span className="text-xs hidden sm:inline">{partitionBackend.toUpperCase()}</span>
                                 <span className="text-xs sm:hidden">BE</span>
                                 <ChevronDown className="h-3 w-3 opacity-50" />
@@ -466,35 +379,22 @@ export function CircuitToolbar() {
                             <DropdownMenuLabel>Partition Backend</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {PARTITION_BACKENDS.map((backend) => (
-                                <DropdownMenuItem
-                                    key={backend.value}
-                                    onClick={() => setPartitionBackend(backend.value)}
-                                >
+                                <DropdownMenuItem key={backend.value} onClick={() => setPartitionBackend(backend.value)}>
                                     <div className="flex items-center justify-between w-full">
                                         <span>{backend.label}</span>
-                                        {partitionBackend === backend.value && (
-                                            <span className="text-green-600">✓</span>
-                                        )}
+                                        {partitionBackend === backend.value && <span className="text-green-600">✓</span>}
                                     </div>
                                 </DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
-
                 <Separator orientation="vertical" className="h-5 hidden sm:block" />
-
-                {/* Strategy Selector */}
                 <div className="flex items-center gap-1 shrink-0">
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Strategy</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={isExecuting}
-                                className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[50px] sm:min-w-[80px] font-medium shadow-sm px-2 sm:px-3"
-                            >
+                            <Button variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[50px] sm:min-w-[80px] font-medium shadow-sm px-2 sm:px-3">
                                 <span className="text-xs capitalize truncate">{partitionStrategy}</span>
                                 <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                             </Button>
@@ -503,41 +403,25 @@ export function CircuitToolbar() {
                             <DropdownMenuLabel>Partition Strategy</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {PARTITION_STRATEGIES.map((strategy) => (
-                                <DropdownMenuItem
-                                    key={strategy.value}
-                                    onClick={() => setPartitionStrategy(strategy.value)}
-                                    className="cursor-pointer"
-                                >
+                                <DropdownMenuItem key={strategy.value} onClick={() => setPartitionStrategy(strategy.value)} className="cursor-pointer">
                                     <div className="flex flex-col gap-0.5">
                                         <div className="font-medium flex items-center gap-2">
                                             {strategy.label}
-                                            {partitionStrategy === strategy.value && (
-                                                <span className="text-green-600 text-xs">✓</span>
-                                            )}
+                                            {partitionStrategy === strategy.value && <span className="text-green-600 text-xs">✓</span>}
                                         </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {strategy.description}
-                                        </div>
+                                        <div className="text-xs text-muted-foreground">{strategy.description}</div>
                                     </div>
                                 </DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
-
                 <Separator orientation="vertical" className="h-5 hidden sm:block" />
-
-                {/* Partition Size Selector */}
                 <div className="flex items-center gap-1 shrink-0">
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Qubits</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={isExecuting}
-                                className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[45px] sm:min-w-[60px] font-medium shadow-sm px-2 sm:px-3"
-                            >
+                            <Button variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[45px] sm:min-w-[60px] font-medium shadow-sm px-2 sm:px-3">
                                 <span className="text-xs">{maxPartitionSize}</span>
                                 <ChevronDown className="h-3 w-3 opacity-50" />
                             </Button>
@@ -546,15 +430,10 @@ export function CircuitToolbar() {
                             <DropdownMenuLabel>Max Partition Size</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {[3, 4, 5].map((size) => (
-                                <DropdownMenuItem
-                                    key={size}
-                                    onClick={() => setMaxPartitionSize(size)}
-                                >
+                                <DropdownMenuItem key={size} onClick={() => setMaxPartitionSize(size)}>
                                     <div className="flex items-center justify-between w-full">
                                         <span>{size} qubits</span>
-                                        {maxPartitionSize === size && (
-                                            <span className="text-green-600">✓</span>
-                                        )}
+                                        {maxPartitionSize === size && <span className="text-green-600">✓</span>}
                                     </div>
                                 </DropdownMenuItem>
                             ))}
@@ -562,38 +441,18 @@ export function CircuitToolbar() {
                     </DropdownMenu>
                 </div>
             </div>
-
             <Separator orientation="vertical" className="h-6" />
-
-            {/* Group 5: Action Buttons */}
             <div className="flex items-center gap-1 shrink-0">
-                <Button
-                    size="sm"
-                    disabled={isExecuting}
-                    className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                    onClick={() => handleRun()}
-                    title="Execute circuit"
-                >
+                <Button size="sm" disabled={isExecuting} className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
                     {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
                     <span className="hidden sm:inline">Run</span>
                 </Button>
-
-                <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={!isExecuting}
-                    className="gap-1 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                    onClick={handleAbortClick}
-                    title="Abort execution"
-                >
+                <Button size="sm" variant="destructive" disabled={!isExecuting} className="gap-1 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={handleAbortClick} title="Abort execution">
                     <Square className="h-4 w-4"/>
                     <span className="hidden sm:inline">Abort</span>
                 </Button>
             </div>
-
             <Separator orientation="vertical" className="h-6" />
-
-            {/* Group 6: Export */}
             <div className="flex items-center shrink-0">
                 <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
             </div>

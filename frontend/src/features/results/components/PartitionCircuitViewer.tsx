@@ -9,15 +9,15 @@ import type { Gate } from '@/features/gates/types';
 interface GateDetail {
     id: string;
     name: string;
-    targetQubits: number[];
-    controlQubits: number[];
+    target_qubits: number[];
+    control_qubits: number[];
 }
 
 interface PartitionInfo {
     index: number;
-    numGates: number;
+    num_gates: number;
     qubits: number[];
-    numQubits: number;
+    num_qubits: number;
     gates: GateDetail[];
 }
 
@@ -51,8 +51,8 @@ export function PartitionCircuitViewer({ partitions }: PartitionViewerProps) {
         let currentDepth = 0;
 
         selectedPartition.gates.forEach((detail, idx) => {
-            const localTargets = detail.targetQubits.map(q => qubitMap[q]);
-            const localControls = detail.controlQubits.map(q => qubitMap[q]);
+            const localTargets = detail.target_qubits.map((q: number) => qubitMap[q]);
+            const localControls = detail.control_qubits.map((q: number) => qubitMap[q]);
 
             const gateDef = GATE_DEFINITIONS.find(g => g.symbol === detail.name) || {
                 id: detail.id,
@@ -117,7 +117,7 @@ export function PartitionCircuitViewer({ partitions }: PartitionViewerProps) {
                 <h3 className="text-sm font-semibold">Partition Circuit Viewer</h3>
                 <div className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground">
-                        {selectedPartition && `${selectedPartition.numGates} gates • ${selectedPartition.numQubits} qubits`}
+                        {selectedPartition && `${selectedPartition.num_gates} gates • ${selectedPartition.num_qubits} qubits`}
                     </span>
                     <select
                         value={selectedIndex}
