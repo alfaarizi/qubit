@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, startTransition } from 'react';
 import { Undo2, Redo2, Trash2, Play, ChevronDown, FolderOpen, Eye, EyeOff, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -63,7 +63,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const jobId = job?.jobId || null;
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
-    const { injectGate } = useCircuitDAG();
+    const { batchInjectGates } = useCircuitDAG();
 
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
@@ -110,79 +110,64 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         const latest = job.updates[job.updates.length - 1];
         processedUpdatesCount.current = job.updates.length;
 
-        // Initialize execution start time on first phase message
+        // initialize execution start time on first phase message
         if (!executionStartTimeRef.current && latest.type === 'phase') {
             executionStartTimeRef.current = latest.timestamp || Date.now();
         }
 
-        // Update progress only if explicitly provided, otherwise keep last known progress
+        // update progress only if explicitly provided, otherwise keep last known progress
         if (latest.progress !== undefined && latest.progress !== null) {
             lastProgressRef.current = latest.progress;
             setExecutionProgress(latest.progress);
         }
 
-        // Build status text with elapsed time
+        // build status text with elapsed time
         let statusText = latest.message || `Phase: ${latest.phase}`;
         if (latest.timestamp && executionStartTimeRef.current) {
             const elapsedSec = ((latest.timestamp - executionStartTimeRef.current) / 1000).toFixed(1);
             statusText += ` (${elapsedSec}s)`;
         }
 
-        // Update status text for phase and log messages
+        // update status text for phase and log messages
         if (latest.type === 'phase' || latest.type === 'log') {
             setExecutionStatus(statusText);
         }
     }, [job?.updates.length, setExecutionStatus, setExecutionProgress]);
 
-    // Handle import completion and build gates
     useEffect(() => {
         if (!job || job.jobType !== 'import' || job.status !== 'complete') return;
-
         const completeUpdate = job.updates.find(u => u.type === 'complete');
         const result = completeUpdate?.result as any;
-
         if (!result || !result.num_qubits || !result.placed_gates) return;
 
-        // Clear canvas and build gates using injectGate for proper depth calculation
-        const buildGatesInChunks = async () => {
-            const CHUNK_SIZE = 50; // Process 50 gates at a time
+        const constructGates = async () => {
             const gates = result.placed_gates;
 
-            // First, update the circuit configuration
             setNumQubits(result.num_qubits);
             setMeasurements(Array(result.num_qubits).fill(true));
             setPlacedGates([], { skipHistory: true });
 
-            // Process gates in chunks using injectGate for proper depth calculation
-            let currentGates: (Gate | Circuit)[] = [];
+            const deserializedGates: (Gate | Circuit)[] = gates.map((gateData: any) =>
+                deserializeGateFromAPI({ ...gateData, depth: 0 })
+            );
 
-            for (let i = 0; i < gates.length; i += CHUNK_SIZE) {
-                const chunk = gates.slice(i, i + CHUNK_SIZE);
+            const BATCH_SIZE = 100;
+            let allGates: (Gate | Circuit)[] = [];
 
-                // Process each gate in the chunk using injectGate
-                for (const gateData of chunk) {
-                    const deserializedGate = deserializeGateFromAPI({
-                        ...gateData,
-                        depth: 0 // Initial depth, will be recalculated by injectGate
-                    });
+            for (let i = 0; i < deserializedGates.length; i += BATCH_SIZE) {
+                const batch = deserializedGates.slice(i, Math.min(i + BATCH_SIZE, deserializedGates.length));
+                allGates = batchInjectGates(batch, allGates);
 
-                    // Use injectGate to properly calculate depth based on dependencies
-                    currentGates = injectGate(deserializedGate, currentGates);
-                }
+                startTransition(() => setPlacedGates(allGates, { skipHistory: true }));
 
-                // Update UI progressively every chunk
-                if (i + CHUNK_SIZE < gates.length) {
-                    setPlacedGates(currentGates, { skipHistory: true });
-                    await new Promise(resolve => setTimeout(resolve, 0)); // Yield to UI thread
+                if (i + BATCH_SIZE < deserializedGates.length) {
+                    await new Promise(resolve => setTimeout(resolve, 1));
                 }
             }
-
-            // Final update with all gates
-            setPlacedGates(currentGates, { skipHistory: true });
         };
 
-        buildGatesInChunks();
-    }, [job?.status, job?.jobType, job?.updates.length, setPlacedGates, setNumQubits, setMeasurements, injectGate]);
+        constructGates();
+    }, [job?.status, job?.jobType, job?.updates.length, setPlacedGates, setNumQubits, setMeasurements, batchInjectGates]);
 
     // Clean up abort toast when execution stops
     useEffect(() => {

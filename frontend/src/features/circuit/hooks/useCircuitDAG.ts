@@ -235,12 +235,74 @@ export function useCircuitDAG() {
         return ejectGate(itemToRemove, items);
     }, [ejectGate]);
 
+    const batchInjectGates = useCallback((
+        newItems: (Gate | Circuit)[],
+        existingItems: (Gate | Circuit)[] = []
+    ): (Gate | Circuit)[] => {
+        const allItems = [...existingItems];
+        const qubitLastGate = new Map<number, Gate | Circuit>();
+
+        for (const existing of existingItems) {
+            const qubits = getSpanQubits(existing);
+            for (const q of qubits) {
+                const current = qubitLastGate.get(q);
+                if (!current || existing.depth > current.depth) {
+                    qubitLastGate.set(q, existing);
+                }
+            }
+        }
+
+        for (const item of newItems) {
+            const newItem: Gate | Circuit = {
+                ...item,
+                depth: 0,
+                parents: [],
+                children: []
+            };
+            const qubits = getSpanQubits(newItem);
+            const parentMap = new Map<string, Gate | Circuit>();
+            let maxParentEndDepth = 0;
+            for (const q of qubits) {
+                const parent = qubitLastGate.get(q);
+                if (parent) {
+                    parentMap.set(parent.id, parent);
+                    const endDepth = parent.depth + getItemWidth(parent);
+                    if (endDepth > maxParentEndDepth) {
+                        maxParentEndDepth = endDepth;
+                    }
+                }
+            }
+
+            newItem.depth = maxParentEndDepth;
+            newItem.parents = Array.from(parentMap.keys());
+            for (let i = 0; i < allItems.length; i++) {
+                if (parentMap.has(allItems[i].id)) {
+                    allItems[i] = {
+                        ...allItems[i],
+                        children: [...allItems[i].children, newItem.id]
+                    };
+                }
+            }
+
+            allItems.push(newItem);
+            for (const q of qubits) {
+                const current = qubitLastGate.get(q);
+                if (!current || newItem.depth > current.depth) {
+                    qubitLastGate.set(q, newItem);
+                }
+            }
+        }
+
+        return allItems;
+    }, [getItemWidth]);
+
     return {
         injectGate,
         ejectGate,
         moveGate,
         removeGate,
         getItemWidth,
-        buildQubitMaps: createQubitMaps
+        buildQubitMaps: createQubitMaps,
+        batchInjectGates
     };
 }
