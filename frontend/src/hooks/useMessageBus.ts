@@ -14,14 +14,14 @@ export interface Message {
 type MessageListener = (message: Message) => void;
 const messageListeners = new Set<MessageListener>();
 
-export function addPartitionMessageListener(listener: MessageListener) {
+export function addMessageListener(listener: MessageListener) {
     messageListeners.add(listener);
     return () => {
         messageListeners.delete(listener);
     };
 }
 
-export function broadcastPartitionMessage(message: Message) {
+export function broadcastMessage(message: Message) {
     const jobId = message.job_id;
     const type = message.type;
 
@@ -55,7 +55,7 @@ export function broadcastPartitionMessage(message: Message) {
     });
 }
 
-export function usePartitionMessageListener(onMessage: (message: Message) => void) {
+export function useMessageListener(onMessage: (message: Message) => void) {
     const listenerRef = useRef(onMessage);
 
     useEffect(() => {
@@ -64,6 +64,6 @@ export function usePartitionMessageListener(onMessage: (message: Message) => voi
 
     useEffect(() => {
         const stableListener = (message: Message) => listenerRef.current(message);
-        return addPartitionMessageListener(stableListener);
+        return addMessageListener(stableListener);
     }, []);
 }

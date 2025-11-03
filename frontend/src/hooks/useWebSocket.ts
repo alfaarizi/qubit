@@ -1,7 +1,7 @@
 import { default as useWebSocketLib, ReadyState } from 'react-use-websocket';
 import { useCallback, useMemo, useEffect, useRef } from 'react';
-import { broadcastPartitionMessage } from './usePartitionMessageBus';
-import type { Message } from './usePartitionMessageBus';
+import { broadcastMessage } from './useMessageBus';
+import type { Message } from './useMessageBus';
 
 export { ReadyState } from 'react-use-websocket';
 
@@ -51,7 +51,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         const msg = lastJsonMessage as Message;
         console.log(`[WebSocket] New message from server:`, msg);
         if (lastJsonMessage && typeof lastJsonMessage === 'object' && 'type' in lastJsonMessage) {
-            broadcastPartitionMessage(lastJsonMessage as Message);
+            broadcastMessage(lastJsonMessage as Message);
             if (onMessageRef.current) {
                 onMessageRef.current(lastJsonMessage as Message);
             }

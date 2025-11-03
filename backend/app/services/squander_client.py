@@ -384,43 +384,43 @@ class SquanderClient:
         local_json_file = f"/tmp/{job_id}.json"
         
         try:
-            yield {"type": "phase", "phase": "preparing", "message": "Preparing QASM import..."}
-            
+            yield {"type": "phase", "phase": "preparing", "message": "Preparing QASM import...", "progress": 10}
+
             # Write QASM file locally
             Path(local_qasm_file).write_text(qasm_code)
-            
+
             # Create remote directory
             await self.execute_command(f"mkdir -p {remote_job_dir}")
-            
+
             # Upload QASM file
-            yield {"type": "phase", "phase": "uploading", "message": "Uploading QASM file..."}
+            yield {"type": "phase", "phase": "uploading", "message": "Uploading QASM file...", "progress": 30}
             remote_qasm_file = f"{remote_job_dir}/circuit.qasm"
             await self.upload_file(local_qasm_file, remote_qasm_file)
-            
+
             # Upload convert module
             convert_module = Path(__file__).parent / "convert.py"
             if convert_module.exists():
                 remote_convert = f"{remote_job_dir}/convert.py"
                 await self.upload_file(str(convert_module), remote_convert)
-            
+
             # Convert QASM to JSON
-            yield {"type": "phase", "phase": "converting", "message": "Converting QASM to circuit..."}
+            yield {"type": "phase", "phase": "converting", "message": "Converting QASM to circuit...", "progress": 50}
             remote_json_file = f"{remote_job_dir}/circuit.json"
             convert_cmd = f"cd {remote_job_dir} && python3 -u convert.py circuit.qasm --output circuit.json"
             stdout, stderr, exit_code = await self.execute_command(convert_cmd)
-            
+
             if exit_code != 0:
                 raise SquanderExecutionError(f"QASM conversion failed: {stderr}")
-            
+
             # Download results
-            yield {"type": "phase", "phase": "downloading", "message": "Downloading results..."}
+            yield {"type": "phase", "phase": "downloading", "message": "Downloading results...", "progress": 80}
             await self.download_file(remote_json_file, local_json_file)
-            
+
             # Parse results
             result_data = json.loads(Path(local_json_file).read_text())
-            
+
             # Cleanup remote directory
-            yield {"type": "phase", "phase": "cleanup", "message": "Cleaning up..."}
+            yield {"type": "phase", "phase": "cleanup", "message": "Cleaning up...", "progress": 95}
             if self.session_id:
                 try:
                     await self.execute_command(f"rm -rf {remote_job_dir}")

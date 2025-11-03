@@ -8,9 +8,12 @@ import { toast } from "sonner";
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory, useCircuitId } from "@/features/circuit/store/CircuitStoreContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { circuitsApi } from "@/lib/api/circuits";
+import { circuitsApi, deserializeGateFromAPI } from "@/lib/api/circuits";
 import { useProject } from "@/features/project/ProjectStoreContext";
 import { useJobStore } from "@/stores/jobStore";
+import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
+import type { Gate } from "@/features/gates/types";
+import type { Circuit } from "@/features/circuit/types";
 
 const PARTITION_BACKENDS = [
     { value: 'squander', label: 'SQUANDER' },
@@ -50,6 +53,9 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const setIsExecuting = useCircuitStore((state) => state.setIsExecuting);
     const setExecutionProgress = useCircuitStore((state) => state.setExecutionProgress);
     const setExecutionStatus = useCircuitStore((state) => state.setExecutionStatus);
+    const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
+    const setNumQubits = useCircuitStore((state) => state.setNumQubits);
+    const setMeasurements = useCircuitStore((state) => state.setMeasurements);
     const reset = useCircuitStore((state) => state.reset);
 
     const queue = useJobStore((state) => state.queue);
@@ -57,7 +63,8 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const jobId = job?.jobId || null;
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
-    
+    const { injectGate } = useCircuitDAG();
+
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
     const [maxPartitionSize, setMaxPartitionSize] = useState<number>(4);
@@ -126,6 +133,56 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             setExecutionStatus(statusText);
         }
     }, [job?.updates.length, setExecutionStatus, setExecutionProgress]);
+
+    // Handle import completion and build gates
+    useEffect(() => {
+        if (!job || job.jobType !== 'import' || job.status !== 'complete') return;
+
+        const completeUpdate = job.updates.find(u => u.type === 'complete');
+        const result = completeUpdate?.result as any;
+
+        if (!result || !result.num_qubits || !result.placed_gates) return;
+
+        // Clear canvas and build gates using injectGate for proper depth calculation
+        const buildGatesInChunks = async () => {
+            const CHUNK_SIZE = 50; // Process 50 gates at a time
+            const gates = result.placed_gates;
+
+            // First, update the circuit configuration
+            setNumQubits(result.num_qubits);
+            setMeasurements(Array(result.num_qubits).fill(true));
+            setPlacedGates([], { skipHistory: true });
+
+            // Process gates in chunks using injectGate for proper depth calculation
+            let currentGates: (Gate | Circuit)[] = [];
+
+            for (let i = 0; i < gates.length; i += CHUNK_SIZE) {
+                const chunk = gates.slice(i, i + CHUNK_SIZE);
+
+                // Process each gate in the chunk using injectGate
+                for (const gateData of chunk) {
+                    const deserializedGate = deserializeGateFromAPI({
+                        ...gateData,
+                        depth: 0 // Initial depth, will be recalculated by injectGate
+                    });
+
+                    // Use injectGate to properly calculate depth based on dependencies
+                    currentGates = injectGate(deserializedGate, currentGates);
+                }
+
+                // Update UI progressively every chunk
+                if (i + CHUNK_SIZE < gates.length) {
+                    setPlacedGates(currentGates, { skipHistory: true });
+                    await new Promise(resolve => setTimeout(resolve, 0)); // Yield to UI thread
+                }
+            }
+
+            // Final update with all gates
+            setPlacedGates(currentGates, { skipHistory: true });
+        };
+
+        buildGatesInChunks();
+    }, [job?.status, job?.jobType, job?.updates.length, setPlacedGates, setNumQubits, setMeasurements, injectGate]);
 
     // Clean up abort toast when execution stops
     useEffect(() => {

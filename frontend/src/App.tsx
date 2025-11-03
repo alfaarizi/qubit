@@ -6,13 +6,13 @@ import { Toaster } from "@/components/ui/sonner"
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
-import { usePartitionJobManager } from '@/hooks/usePartitionJobManager';
+import { useJobManager } from '@/hooks/useJobManager';
 
 const Home = lazy(() => import('@/pages/HomePage'));
 const Composer = lazy(() => import('@/pages/ComposerPage'));
 
 function AppContent() {
-    usePartitionJobManager();
+    useJobManager();
 
     return (
         <>
