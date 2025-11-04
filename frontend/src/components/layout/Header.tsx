@@ -12,9 +12,9 @@ import {
 import { ModeToggle } from "@/components/common/ModeToggle"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
 import {useProject} from "@/features/project/ProjectStoreContext";
-import { EditableText } from "@/components/common/EditableText";
 
 interface HeaderProps {
+    projectName?: string
     onShareClick?: () => void
     onHelpClick?: () => void
     userInitials?: string
@@ -23,13 +23,14 @@ interface HeaderProps {
 }
 
 export function Header({
+   projectName = "Untitled Project",
    onShareClick,
    onHelpClick,
    userInitials = "JD",
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
-    const { activeCircuitId, projectName, setProjectName } = useProject();
+    const { activeCircuitId } = useProject();
 
     return (
         <header className="h-12 w-full border-b bg-muted/50 flex items-center px-4 text-xs text-muted-foreground">
@@ -49,12 +50,7 @@ export function Header({
                 <nav className="flex items-center gap-1 min-w-0 truncate">
                     <span className="shrink-0">Workspace</span>
                     <span className="shrink-0">/</span>
-                    <EditableText
-                        value={projectName}
-                        onChange={setProjectName}
-                        className="font-medium text-foreground"
-                        placeholder="Untitled Project"
-                    />
+                    <span className="font-medium text-foreground truncate">{projectName}</span>
                 </nav>
                 <SaveIndicator circuitId={activeCircuitId} />
             </div>
