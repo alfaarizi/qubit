@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import {ModeToggle} from "@/components/common/ModeToggle.tsx";
 
 function HomePage() {
     const navigate = useNavigate();
@@ -87,7 +88,8 @@ function HomePage() {
     return (
         <div className="min-h-screen bg-background">
             {/* Language Switcher - Top Right */}
-            <div className="fixed top-6 right-6 z-50">
+            <div className="fixed top-6 right-6 z-50 flex items-center gap-3">
+            <ModeToggle />
                 <LanguageSwitcher />
             </div>
 
