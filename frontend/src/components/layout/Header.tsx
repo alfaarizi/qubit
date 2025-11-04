@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip"
 import { ModeToggle } from "@/components/common/ModeToggle"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
-import {useProject} from "@/features/project/ProjectStoreContext";
+import {useComposer} from "@/features/composer/ComposerStoreContext.tsx";
 import { EditableText } from "@/components/common/EditableText";
 
 interface HeaderProps {
@@ -29,33 +29,39 @@ export function Header({
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
-    const { activeCircuitId, projectName, setProjectName } = useProject();
+    const { activeCircuitId, projectName, setProjectName } = useComposer();
 
     return (
         <header className="h-12 w-full border-b bg-muted/50 flex items-center px-4 text-xs text-muted-foreground">
             {/* Column 1: Logo and Name */}
             <div className="flex items-center gap-2 w-52">
-                <Button variant="ghost" size="icon" className="h-5 w-5" asChild>
-                    <Link to="/">
-                        <Home className="w-3.5 h-3.5" />
-                        <span className="sr-only">Home</span>
-                    </Link>
-                </Button>
                 <span className="font-semibold text-foreground">Qubitkit</span>
+                <Separator orientation="vertical" className="h-4" />
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" asChild>
+                                <Link to="/project">
+                                    <Home className="w-3.5 h-3.5" />
+                                    <span className="sr-only">Back to projects</span>
+                                </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Back to your projects</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
 
-            {/* Column 2: Breadcrumb + Cloud Status */}
+            {/* Column 2: Project Name + Save Status */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
-                <nav className="flex items-center gap-1 min-w-0 truncate">
-                    <span className="shrink-0">Workspace</span>
-                    <span className="shrink-0">/</span>
-                    <EditableText
-                        value={projectName}
-                        onChange={setProjectName}
-                        className="font-medium text-foreground"
-                        placeholder="Untitled Project"
-                    />
-                </nav>
+                <EditableText
+                    value={projectName}
+                    onChange={setProjectName}
+                    className="font-medium text-foreground"
+                    placeholder="Untitled Project"
+                />
                 <SaveIndicator circuitId={activeCircuitId} />
             </div>
 

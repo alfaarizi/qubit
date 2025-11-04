@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Copy, Check } from 'lucide-react'
-import { useProject } from '@/features/project/ProjectStoreContext'
+import { useComposer } from '@/features/composer/ComposerStoreContext.tsx'
 import { getOrCreateCircuitStore } from '@/features/circuit/store/CircuitStoreContext'
 import { getQASMWithMetadata } from '@/lib/qasm/converter'
 import { useTheme } from '@/providers/ThemeProvider.tsx'
@@ -21,7 +21,7 @@ export function QasmEditor() {
     const [copied, setCopied] = useState(false)
     const [editorInstance, setEditorInstance] = useState<any>(null)
     const [, forceUpdate] = useState({})
-    const { activeCircuitId } = useProject()
+    const { activeCircuitId } = useComposer()
     const { theme } = useTheme()
 
     const resolvedTheme = useMemo(() => {

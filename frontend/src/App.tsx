@@ -10,7 +10,8 @@ import { useJobManager } from '@/hooks/useJobManager';
 import '@/i18n/config';
 
 const Home = lazy(() => import('@/pages/HomePage'));
-const Composer = lazy(() => import('@/pages/ComposerPage'));
+const ProjectList = lazy(() => import('@/pages/ProjectListPage'));
+const ProjectWorkspace = lazy(() => import('@/pages/ProjectWorkspace'));
 
 function AppContent() {
     useJobManager();
@@ -20,7 +21,8 @@ function AppContent() {
             <Suspense fallback={<FullScreenSpinner />}>
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/composer" element={<Composer />} />
+                    <Route path="/project" element={<ProjectList />} />
+                    <Route path="/project/:projectId" element={<ProjectWorkspace />} />
                 </Routes>
             </Suspense>
         </>

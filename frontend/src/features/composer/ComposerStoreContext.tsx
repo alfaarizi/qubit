@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { ReactNode } from 'react';
 import type { CircuitInfo } from '@/features/circuit/types';
 
-interface ProjectState {
+interface ComposerState {
     projectName: string;
     circuits: CircuitInfo[];
     activeCircuitId: string;
@@ -15,7 +15,7 @@ interface ProjectState {
     reorderCircuits: (circuits: CircuitInfo[]) => void;
 }
 
-export const useProjectStore = create<ProjectState>()(
+export const useComposerStore = create<ComposerState>()(
     persist(
         (set) => ({
             projectName: 'Untitled Project',
@@ -68,9 +68,9 @@ export const useProjectStore = create<ProjectState>()(
     )
 );
 
-export function ProjectProvider({ children }: { children: ReactNode }) {
+export function ComposerProvider({ children }: { children: ReactNode }) {
     return <>{children}</>;
 }
 
 // Re-export the hook with the same name for compatibility
-export const useProject = useProjectStore;
+export const useComposer = useComposerStore;

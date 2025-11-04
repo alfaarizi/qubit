@@ -23,7 +23,7 @@ function HomePage() {
     const { t } = useTranslation();
 
     const navigateToComposer = () => {
-        navigate('/composer');
+        navigate('/project');
     };
 
     const featureColors = [

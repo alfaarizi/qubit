@@ -25,7 +25,7 @@ import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
 import type { PartitionResult, SimulationResults } from "@/features/results/components/ResultsPanel";
-import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
+import { ComposerProvider, useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { useJobStore } from "@/stores/jobStore";
 
@@ -69,7 +69,7 @@ const CanvasExecutionOverlay = memo(function CanvasExecutionOverlay() {
 
 function CircuitTabContent() {
     const isExecuting = useCircuitStore((state) => state.isExecuting);
-    const { activeCircuitId } = useProject();
+    const { activeCircuitId } = useComposer();
 
     useJobStore((state) => state.version);
     const partitionQueue = useJobStore((state) => state.queue);
@@ -157,7 +157,7 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
 }
 
 function ComposerContent() {
-    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit, reorderCircuits } = useProject()
+    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit, reorderCircuits } = useComposer()
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
@@ -377,10 +377,10 @@ function ComposerContent() {
 
 export default function ComposerPage() {
     return (
-        <ProjectProvider>
+        <ComposerProvider>
             <InspectorProvider>
                 <ComposerContent />
             </InspectorProvider>
-        </ProjectProvider>
+        </ComposerProvider>
     )
 }

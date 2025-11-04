@@ -1,10 +1,10 @@
 import { Separator } from '@/components/ui/separator'
-import { useProject } from "@/features/project/ProjectStoreContext";
+import { useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { useCircuitStateById } from "@/features/circuit/store/CircuitStoreContext";
 import {useEffect, useState} from "react";
 
 export function StatusBar() {
-    const { activeCircuitId } = useProject();
+    const { activeCircuitId } = useComposer();
     const circuitState = useCircuitStateById(activeCircuitId);
 
     const [zoom, setZoom] = useState(100)

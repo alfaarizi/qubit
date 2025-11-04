@@ -10,7 +10,7 @@ import { CircuitExportButton } from "@/features/circuit/components/CircuitExport
 import { useCircuitStore, useCircuitSvgRef, useCircuitHistory, useCircuitId } from "@/features/circuit/store/CircuitStoreContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { circuitsApi, deserializeGateFromAPI } from "@/lib/api/circuits";
-import { useProject } from "@/features/project/ProjectStoreContext";
+import { useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { useJobStore } from "@/stores/jobStore";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
@@ -41,7 +41,7 @@ interface CircuitToolbarProps {
 
 export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const svgRef = useCircuitSvgRef();
-    const { circuits } = useProject();
+    const { circuits } = useComposer();
     const circuitId = useCircuitId();
     const circuit = circuits.find(c => c.id === circuitId);
 
