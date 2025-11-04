@@ -4,8 +4,10 @@ import type { ReactNode } from 'react';
 import type { CircuitInfo } from '@/features/circuit/types';
 
 interface ProjectState {
+    projectName: string;
     circuits: CircuitInfo[];
     activeCircuitId: string;
+    setProjectName: (name: string) => void;
     setActiveCircuitId: (id: string) => void;
     addCircuit: (circuit: CircuitInfo) => void;
     removeCircuit: (id: string) => void;
@@ -15,8 +17,11 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>()(
     persist(
         (set) => ({
+            projectName: 'Untitled Project',
             circuits: [],
             activeCircuitId: '',
+
+            setProjectName: (name) => set({ projectName: name }),
 
             setActiveCircuitId: (id) => set({ activeCircuitId: id }),
 

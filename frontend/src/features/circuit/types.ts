@@ -5,6 +5,7 @@ import type { Gate, DagOperation } from "@/features/gates/types";
  */
 export interface CircuitInfo {
     id: string;
+    name?: string;
     symbol: string;
     color: string;
     gates: (Gate | Circuit)[];
