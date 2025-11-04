@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectsStore } from '@/stores/projectsStore';
 import { useComposerStore } from '@/features/composer/ComposerStoreContext.tsx';
@@ -17,6 +17,8 @@ export default function ProjectWorkspace() {
         reorderCircuits,
     } = useComposerStore();
 
+    const projectIdRef = useRef<string | null>(null);
+
     // load composer data from projects store when component mounts or projectId changes
     useEffect(() => {
         if (!projectId) {
@@ -30,21 +32,24 @@ export default function ProjectWorkspace() {
             navigate('/project');
             return;
         }
-        // Initialize the composer context store with composer data
-        setProjectName(project.name);
-        if (project.circuits.length !== circuits.length ||
-            project.activeCircuitId !== activeCircuitId) {
-            // Only update if there are differences to avoid unnecessary re-renders
+        // Only initialize if we're loading a new project
+        if (projectIdRef.current !== projectId) {
+            projectIdRef.current = projectId;
+            setProjectName(project.name);
             reorderCircuits(project.circuits);
             setActiveCircuitId(project.activeCircuitId);
         }
-    }, [projectId, getProject, navigate, setProjectName, circuits.length, activeCircuitId, reorderCircuits, setActiveCircuitId]);
+    }, [projectId, navigate, getProject, setProjectName, reorderCircuits, setActiveCircuitId]);
 
     // sync changes back to the projects store whenever composer state changes
     useEffect(() => {
         if (!projectId) return;
+        // Only sync if we've initialized this project
+        if (projectIdRef.current !== projectId) return;
+
         const project = getProject(projectId);
         if (!project) return;
+
         // only update if there are actual changes
         const hasChanges =
             project.name !== projectName ||
