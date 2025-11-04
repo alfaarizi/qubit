@@ -19,6 +19,7 @@ import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
+import type { PartitionResult } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { useJobStore } from "@/stores/jobStore";
@@ -44,25 +45,43 @@ const ExecutionProgressBar = memo(function ExecutionProgressBar() {
     );
 });
 
+const CanvasExecutionOverlay = memo(function CanvasExecutionOverlay() {
+    const isExecuting = useCircuitStore((state) => state.isExecuting);
+    const executionStatus = useCircuitStore((state) => state.executionStatus);
+
+    if (!isExecuting) return null;
+
+    return (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
+            <div className="flex items-center justify-center h-full">
+                <div className="text-muted-foreground text-sm font-medium">
+                    {executionStatus || 'Executing circuit...'}
+                </div>
+            </div>
+        </div>
+    );
+});
+
 function CircuitTabContent() {
     const isExecuting = useCircuitStore((state) => state.isExecuting);
     const { activeCircuitId } = useProject();
-    
+
     useJobStore((state) => state.version);
     const partitionQueue = useJobStore((state) => state.queue);
-    
+
     const jobs = activeCircuitId ? Array.from(partitionQueue.values()).filter(job => job.circuitId === activeCircuitId) : [];
     const latestCompletedJob = jobs
         .filter(job => job.status === 'complete')
         .sort((a, b) => b.createdAt - a.createdAt)[0];
-    
+
     const completeUpdate = latestCompletedJob?.updates.find(update => update.type === 'complete');
-    const partitionResult = completeUpdate?.result?.partition_info as any;
+    const partitionResult = completeUpdate?.result?.partition_info as PartitionResult | undefined;
 
     return (
         <>
-            <div className={`h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
+            <div className={`h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'} relative`}>
                 <CircuitCanvas />
+                <CanvasExecutionOverlay />
             </div>
             <div className="mt-4">
                 <ResultsPanel partitionResult={partitionResult} />

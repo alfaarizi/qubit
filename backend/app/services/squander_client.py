@@ -331,6 +331,10 @@ class SquanderClient:
             # Execute partition command
             yield {"type": "phase", "phase": "building", "message": "Building and partitioning circuit...", "progress": 5}
             max_partition_size = options.get("max_partition_size", 4)
+            simulation_timeout = options.get("simulation_timeout")
+
+            logger.info(f"[run_partition] Received simulation_timeout: {simulation_timeout} (type: {type(simulation_timeout)})")
+
             partition_cmd = (
                 f"cd {remote_job_dir} && "
                 f"python3 -u simulate.py circuit.json "
@@ -338,6 +342,11 @@ class SquanderClient:
                 f"--strategy {strategy} "
                 f"--output result.json"
             )
+
+            # Add timeout parameter if provided
+            if simulation_timeout and simulation_timeout > 0:
+                partition_cmd += f" --timeout {simulation_timeout}"
+                logger.info(f"[run_partition] Command with timeout: {partition_cmd}")
 
             async for update in self.stream_command_output(partition_cmd):
                 yield update
@@ -375,13 +384,18 @@ class SquanderClient:
             Path(local_circuit_file).unlink(missing_ok=True)
             Path(local_result_file).unlink(missing_ok=True)
 
-    async def import_qasm(self, qasm_code: str) -> AsyncGenerator[Dict[str, Any], None]:
+    async def import_qasm(self, qasm_code: str, options: Dict[str, Any] = None) -> AsyncGenerator[Dict[str, Any], None]:
         """Import QASM circuit using remote SQUANDER server"""
         import uuid
         job_id = str(uuid.uuid4())
         remote_job_dir = f"/tmp/squander_qasm/{job_id}"
         local_qasm_file = f"/tmp/{job_id}.qasm"
         local_json_file = f"/tmp/{job_id}.json"
+
+        if options is None:
+            options = {}
+
+        simulation_timeout = options.get("simulation_timeout")
         
         try:
             yield {"type": "phase", "phase": "preparing", "message": "Preparing QASM import...", "progress": 10}
@@ -407,9 +421,16 @@ class SquanderClient:
             yield {"type": "phase", "phase": "converting", "message": "Converting QASM to circuit...", "progress": 50}
             remote_json_file = f"{remote_job_dir}/circuit.json"
             convert_cmd = f"cd {remote_job_dir} && python3 -u convert.py circuit.qasm --output circuit.json"
+
+            # Add timeout to command if specified
+            if simulation_timeout and simulation_timeout > 0:
+                convert_cmd = f"timeout {simulation_timeout} bash -c '{convert_cmd}'"
+
             stdout, stderr, exit_code = await self.execute_command(convert_cmd)
 
-            if exit_code != 0:
+            if exit_code == 124:  # timeout exit code
+                raise SquanderExecutionError(f"QASM conversion timed out after {simulation_timeout} seconds")
+            elif exit_code != 0:
                 raise SquanderExecutionError(f"QASM conversion failed: {stderr}")
 
             # Download results

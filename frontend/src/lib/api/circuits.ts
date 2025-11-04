@@ -122,7 +122,7 @@ export const circuitsApi = {
         numQubits: number,
         placedGates: (Gate | Circuit)[],
         measurements: boolean[],
-        options: { max_partition_size?: number },
+        options: { max_partition_size?: number; simulation_timeout?: number },
         signal: AbortSignal,
         strategy?: string,
         sessionId?: string
@@ -149,13 +149,15 @@ export const circuitsApi = {
     importQasm: async (
         circuitId: string,
         qasmCode: string,
-        sessionId?: string
+        sessionId?: string,
+        options?: { simulation_timeout?: number }
     ): Promise<ImportQasmResponse> => {
         const { data } = await api.post(
             `/circuits/${circuitId}/import-qasm`,
             {
                 qasm_code: qasmCode,
                 session_id: sessionId,
+                options,
             },
             { timeout: 30000 }
         );

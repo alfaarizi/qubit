@@ -17,23 +17,6 @@ import { GATE_CONFIG } from '@/features/gates/constants';
 import { useCircuitStore, useCircuitSvgRef } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 
-const CanvasExecutionOverlay = memo(function CanvasExecutionOverlay() {
-    const isExecuting = useCircuitStore((state) => state.isExecuting);
-    const executionStatus = useCircuitStore((state) => state.executionStatus);
-
-    if (!isExecuting) return null;
-
-    return (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
-            <div className="flex items-center justify-center h-full">
-                <div className="text-muted-foreground text-sm font-medium">
-                    {executionStatus || 'Executing circuit...'}
-                </div>
-            </div>
-        </div>
-    );
-});
-
 interface QubitLabelsProps {
     numQubits: number;
     onAddQubit: () => void;
@@ -295,7 +278,6 @@ export function CircuitCanvas() {
                     />
                 </CardContent>
             </Card>
-            <CanvasExecutionOverlay />
             {draggableGate && cursorPos && !isExecuting && (
                 <GateIcon
                     item={'circuit' in draggableGate ? draggableGate.circuit : draggableGate.gate}

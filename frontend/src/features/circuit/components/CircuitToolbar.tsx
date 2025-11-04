@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState, startTransition } from 'react';
 import { Undo2, Redo2, Trash2, Play, ChevronDown, FolderOpen, Eye, EyeOff, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -68,6 +69,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
     const [maxPartitionSize, setMaxPartitionSize] = useState<number>(4);
+    const [simulationTimeout, setSimulationTimeout] = useState<number>(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
@@ -192,18 +194,21 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             return;
         }
 
-        setIsExecuting(false);
-        setExecutionProgress(0);
-        setExecutionStatus('');
         processedUpdatesCount.current = 0;
         executionStartTimeRef.current = null;
 
-        setIsExecuting(true);
         const toastId = toast.loading(`Importing ${file.name}...`);
 
         try {
             const text = await file.text();
-            const response = await circuitsApi.importQasm(circuitId, text, sessionId);
+            const response = await circuitsApi.importQasm(
+                circuitId,
+                text,
+                sessionId,
+                {
+                    simulation_timeout: simulationTimeout > 0 ? simulationTimeout : undefined
+                }
+            );
 
             if (jobId) {
                 useJobStore.getState().dequeueJob(jobId);
@@ -238,24 +243,24 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             return;
         }
 
-        setIsExecuting(false);
-        setExecutionProgress(0);
-        setExecutionStatus('');
         processedUpdatesCount.current = 0;
         executionStartTimeRef.current = null;
 
-        setIsExecuting(true);
         const toastId = toast.loading(
             `Executing ${circuit?.symbol || 'Circuit'} (${partitionStrategy})...`
         );
 
         try {
+            console.log('[CircuitToolbar] Partition with timeout:', simulationTimeout);
             const response = await circuitsApi.partition(
                 circuitId,
                 numQubits,
                 placedGates,
                 measurements,
-                { max_partition_size: maxPartitionSize },
+                {
+                    max_partition_size: maxPartitionSize,
+                    simulation_timeout: simulationTimeout > 0 ? simulationTimeout : undefined
+                },
                 new AbortController().signal,
                 partitionStrategy,
                 sessionId
@@ -285,8 +290,8 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             console.error('Partition error:', error);
         }
     }, [
-        placedGates, circuit, circuitId, numQubits, measurements, 
-        jobId, maxPartitionSize, partitionStrategy, sessionId,
+        placedGates, circuit, circuitId, numQubits, measurements,
+        jobId, maxPartitionSize, partitionStrategy, sessionId, simulationTimeout,
         setIsExecuting, setExecutionProgress, setExecutionStatus
     ]);
 
@@ -359,9 +364,8 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                 />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-2 shrink-0" disabled={isExecuting}>
+                        <Button variant="ghost" size="sm" className="gap-1 shrink-0" disabled={isExecuting} title="File">
                             <FolderOpen className="h-4 w-4" />
-                            <span className="hidden sm:inline">File</span>
                             <ChevronDown className="h-3 w-3" />
                         </Button>
                     </DropdownMenuTrigger>
@@ -470,16 +474,31 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
+                <Separator orientation="vertical" className="h-5 hidden sm:block" />
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Timeout</span>
+                    <div className="relative flex items-center">
+                        <Input
+                            type="number"
+                            min="0"
+                            value={simulationTimeout}
+                            onChange={(e) => setSimulationTimeout(Math.max(0, parseInt(e.target.value) || 0))}
+                            disabled={isExecuting}
+                            placeholder="0"
+                            className="h-8 w-[60px] pr-6 text-xs font-medium"
+                            title="Simulation timeout in seconds (0 = no timeout)"
+                        />
+                        <span className="absolute right-2 text-xs text-muted-foreground pointer-events-none">s</span>
+                    </div>
+                </div>
             </div>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-1 shrink-0">
-                <Button size="sm" disabled={isExecuting} className="gap-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
+                <Button size="icon" disabled={isExecuting} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
                     {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
-                    <span className="hidden sm:inline">Run</span>
                 </Button>
-                <Button size="sm" variant="destructive" disabled={!isExecuting} className="gap-1 disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={handleAbortClick} title="Abort execution">
+                <Button size="icon" variant="destructive" disabled={!isExecuting} className="disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={handleAbortClick} title="Abort execution">
                     <Square className="h-4 w-4"/>
-                    <span className="hidden sm:inline">Abort</span>
                 </Button>
             </div>
             <Separator orientation="vertical" className="h-6" />

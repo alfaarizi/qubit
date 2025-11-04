@@ -21,6 +21,7 @@ class PartitionRequest(BaseModel):
 class ImportQasmRequest(BaseModel):
     qasm_code: str
     session_id: Optional[str] = None
+    options: Optional[dict] = None
 
 active_jobs = {}
 
@@ -67,6 +68,7 @@ async def import_qasm(circuit_id: str, request: ImportQasmRequest):
         circuit_id=circuit_id,
         qasm_code=request.qasm_code,
         session_id=request.session_id,
+        options=request.options,
     ))
 
     return {"job_id": job_id, "status": "processing"}
@@ -81,6 +83,7 @@ async def run_import_qasm(
     circuit_id: str,
     qasm_code: str,
     session_id: Optional[str] = None,
+    options: Optional[dict] = None,
 ) -> None:
     room = f"import-{job_id}"
     client = None
@@ -127,7 +130,7 @@ async def run_import_qasm(
 
         # Run import and stream updates
         logger.info(f"[run_import_qasm] Starting QASM import for {job_id}")
-        async for update in client.import_qasm(qasm_code):
+        async for update in client.import_qasm(qasm_code, options or {}):
             await manager.broadcast_to_room(room, {
                 **update,
                 "job_id": job_id,

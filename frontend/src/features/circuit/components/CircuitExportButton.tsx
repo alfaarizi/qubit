@@ -9,7 +9,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {ChevronDown, Download} from "lucide-react";
+import { Download, ChevronDown } from "lucide-react";
 
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
@@ -159,9 +159,8 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-1" title="Export">
                     <Download className="h-4 w-4" />
-                    Export
                     <ChevronDown className="h-3 w-3" />
                 </Button>
             </DropdownMenuTrigger>

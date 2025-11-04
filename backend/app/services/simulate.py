@@ -14,11 +14,46 @@ Licensed under Apache License 2.0
 import json
 import argparse
 import numpy as np
-from typing import Dict, List, Optional, Callable
+import multiprocessing
+from typing import Dict, List, Optional, Callable, Any
 
 from squander import Circuit
 from squander.partitioning.partition import PartitionCircuit
 from convert import CircuitConverter
+
+class TimeoutError(Exception):
+    """Raised when a step times out"""
+    pass
+
+def run_with_timeout(func, args=(), kwargs=None, timeout_seconds=None):
+    """Run a function with a timeout using multiprocessing (works with C/C++)"""
+    if kwargs is None:
+        kwargs = {}
+    if timeout_seconds is None or timeout_seconds <= 0:
+        return func(*args, **kwargs)
+    result_queue = multiprocessing.Queue()
+    def wrapper():
+        try:
+            result = func(*args, **kwargs)
+            result_queue.put(('success', result))
+        except Exception as e:
+            result_queue.put(('error', e))
+    process = multiprocessing.Process(target=wrapper)
+    process.start()
+    process.join(timeout=timeout_seconds)
+    if process.is_alive():
+        process.terminate()
+        process.join(timeout=1)
+        if process.is_alive():
+            process.kill()
+        raise TimeoutError(f"Operation timed out after {timeout_seconds} seconds")
+    if not result_queue.empty():
+        status, result = result_queue.get()
+        if status == 'error':
+            raise result
+        return result
+    else:
+        raise TimeoutError(f"Process ended without returning a result")
 
 class QuantumCircuitSimulator:    
     def __init__(self, num_qubits: int):
@@ -178,11 +213,12 @@ def serialize_results(results: Dict) -> Dict:
     return serialized
 
 def run_simulation(
-    circuit_data: Dict, 
-    max_partition_size: int = 4, 
-    strategy: str = 'kahn', 
+    circuit_data: Dict,
+    max_partition_size: int = 4,
+    strategy: str = 'kahn',
     num_shots: int = 10000,
-    progress_callback: Optional[Callable[[str, int, int, str], None]] = None
+    progress_callback: Optional[Callable[[str, int, int, str], None]] = None,
+    simulation_timeout: Optional[int] = None
 ) -> Dict:
     """
         run complete simulation pipeline and return all visualization data
@@ -224,53 +260,149 @@ def run_simulation(
     
     # Simulate original circuit
     report_progress("simulating_original", 2, 11, "Simulating original circuit...")
-    state_original = simulator.simulate_statevector(circuit, parameters)
-    
+    try:
+        state_original = run_with_timeout(
+            simulator.simulate_statevector,
+            args=(circuit, parameters),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("simulating_original", 2, 11, f"Skipping original circuit simulation - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'simulating_original', 'error': str(e), 'timeout': True})
+        state_original = np.zeros((simulator.matrix_size, 1), dtype=np.complex128)
+        state_original[0] = 1.0 + 0j
+
     report_progress("calculating_probabilities", 3, 11, "Calculating probabilities...")
-    probs_original = simulator.get_probabilities(state_original)
-    
+    try:
+        probs_original = run_with_timeout(
+            simulator.get_probabilities,
+            args=(state_original,),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("calculating_probabilities", 3, 11, f"Skipping probability calculation - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'calculating_probabilities', 'error': str(e), 'timeout': True})
+        probs_original = np.zeros(simulator.matrix_size)
+
     report_progress("sampling_measurements", 4, 11, f"Sampling {num_shots} measurements...")
-    counts_original = simulator.sample_measurements(state_original, num_shots)
+    try:
+        counts_original = run_with_timeout(
+            simulator.sample_measurements,
+            args=(state_original, num_shots),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("sampling_measurements", 4, 11, f"Skipping measurement sampling - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'sampling_measurements', 'error': str(e), 'timeout': True})
+        counts_original = {}
     
     # partition circuit
     report_progress("partitioning", 5, 11, f"Partitioning circuit (strategy: {strategy})...")
-    partition_result = simulator.partition_circuit(
-        circuit, parameters, max_partition_size, strategy
-    )
-    partitioned_circ = partition_result['partitioned_circuit']
-    partitioned_params = partition_result['partitioned_params']
-    
+    try:
+        partition_result = run_with_timeout(
+            simulator.partition_circuit,
+            args=(circuit, parameters, max_partition_size, strategy),
+            timeout_seconds=simulation_timeout
+        )
+        partitioned_circ = partition_result['partitioned_circuit']
+        partitioned_params = partition_result['partitioned_params']
+    except TimeoutError as e:
+        report_progress("partitioning", 5, 11, f"Skipping circuit partitioning - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'partitioning', 'error': str(e), 'timeout': True})
+        # Use original circuit if partitioning times out
+        partition_result = {
+            'partitioned_circuit': circuit,
+            'partitioned_params': parameters,
+            'partition_info': {
+                'strategy': strategy,
+                'max_partition_size': max_partition_size,
+                'total_partitions': 0,
+                'partitions': []
+            }
+        }
+        partitioned_circ = circuit
+        partitioned_params = parameters
+
     # simulate partitioned circuit
     report_progress("simulating_partitioned", 6, 11, "Simulating partitioned circuit...")
-    state_partitioned = simulator.simulate_statevector(partitioned_circ, partitioned_params)
-    probs_partitioned = simulator.get_probabilities(state_partitioned)
-    counts_partitioned = simulator.sample_measurements(state_partitioned, num_shots)
-    
+
+    def simulate_partitioned_circuit():
+        state = simulator.simulate_statevector(partitioned_circ, partitioned_params)
+        probs = simulator.get_probabilities(state)
+        counts = simulator.sample_measurements(state, num_shots)
+        return state, probs, counts
+
+    try:
+        state_partitioned, probs_partitioned, counts_partitioned = run_with_timeout(
+            simulate_partitioned_circuit,
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("simulating_partitioned", 6, 11, f"Skipping partitioned circuit simulation - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'simulating_partitioned', 'error': str(e), 'timeout': True})
+        state_partitioned = state_original.copy()
+        probs_partitioned = probs_original.copy()
+        counts_partitioned = counts_original.copy()
+
     # calculate fidelity
     report_progress("calculating_fidelity", 7, 11, "Calculating fidelity...")
-    fidelity = simulator.calculate_fidelity(state_original, state_partitioned)
-    
+    try:
+        fidelity = run_with_timeout(
+            simulator.calculate_fidelity,
+            args=(state_original, state_partitioned),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("calculating_fidelity", 7, 11, f"Skipping fidelity calculation - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'calculating_fidelity', 'error': str(e), 'timeout': True})
+        fidelity = 0.0
+
     # density matrices
     report_progress("computing_density_matrix", 8, 11, "Computing density matrices...")
     density_original = None
     density_partitioned = None
+
+    def compute_density_matrices():
+        dens_orig = simulator.get_density_matrix(state_original)
+        dens_part = simulator.get_density_matrix(state_partitioned)
+        return dens_orig, dens_part
+
     try:
-        density_original = simulator.get_density_matrix(state_original)
-        density_partitioned = simulator.get_density_matrix(state_partitioned)
+        density_original, density_partitioned = run_with_timeout(
+            compute_density_matrices,
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("computing_density_matrix", 8, 11, f"Skipping density matrix computation - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'density_matrix', 'error': str(e), 'timeout': True})
     except Exception as e:
         errors.append({'stage': 'density_matrix', 'error': str(e)})
     
     # entropy analysis
-    report_progress("analyzing_entropy", 9, 11, "Analyzing entanglement entropy...")
     entropy_original = []
     entropy_partitioned = []
+    report_progress("analyzing_entropy", 9, 11, "Analyzing entanglement entropy...")
     try:
-        entropy_original = simulator.analyze_entanglement_scaling(circuit, parameters)
+        entropy_original = run_with_timeout(
+            simulator.analyze_entanglement_scaling,
+            args=(circuit, parameters),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("analyzing_entropy", 9, 11, f"Skipping entropy analysis (original) - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'entropy_original', 'error': str(e), 'timeout': True})
     except Exception as e:
         errors.append({'stage': 'entropy_original', 'error': str(e)})
-    
+
     try:
-        entropy_partitioned = simulator.analyze_entanglement_scaling(partitioned_circ, partitioned_params)
+        entropy_partitioned = run_with_timeout(
+            simulator.analyze_entanglement_scaling,
+            args=(partitioned_circ, partitioned_params),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("analyzing_entropy", 9, 11, f"Skipping entropy analysis (partitioned) - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'entropy_partitioned', 'error': str(e), 'timeout': True})
     except Exception as e:
         errors.append({'stage': 'entropy_partitioned', 'error': str(e)})
     
@@ -279,11 +411,25 @@ def run_simulation(
     unitary_original = None
     unitary_partitioned = None
     try:
-        unitary_original = simulator.get_unitary_matrix(circuit, parameters)
+        unitary_original = run_with_timeout(
+            simulator.get_unitary_matrix,
+            args=(circuit, parameters),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("computing_unitary", 10, 11, f"Skipping unitary matrix computation (original) - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'unitary_original', 'error': str(e), 'timeout': True})
     except Exception as e:
         errors.append({'stage': 'unitary_original', 'error': str(e)})
     try:
-        unitary_partitioned = simulator.get_unitary_matrix(partitioned_circ, partitioned_params)
+        unitary_partitioned = run_with_timeout(
+            simulator.get_unitary_matrix,
+            args=(partitioned_circ, partitioned_params),
+            timeout_seconds=simulation_timeout
+        )
+    except TimeoutError as e:
+        report_progress("computing_unitary", 10, 11, f"Skipping unitary matrix computation (partitioned) - timed out after {simulation_timeout}s")
+        errors.append({'stage': 'unitary_partitioned', 'error': str(e), 'timeout': True})
     except Exception as e:
         errors.append({'stage': 'unitary_partitioned', 'error': str(e)})
     
@@ -338,7 +484,8 @@ def main():
                                 'bqskit-Greedy', 'bqskit-Cluster'], 
                         help='partitioning strategy (default: kahn)')
     parser.add_argument('--shots', '-n', type=int, default=10000, help='number of measurement shots (default: 10000)')
-    
+    parser.add_argument('--timeout', '-t', type=int, default=None, help='simulation timeout in seconds (skips entropy analysis if set, default: None)')
+
     args = parser.parse_args()
     
     # load circuit data
@@ -353,7 +500,8 @@ def main():
         circuit_data,
         max_partition_size=args.partition_size,
         strategy=args.strategy,
-        num_shots=args.shots
+        num_shots=args.shots,
+        simulation_timeout=args.timeout
     )
     
     # save results

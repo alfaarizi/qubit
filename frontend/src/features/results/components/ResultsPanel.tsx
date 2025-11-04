@@ -1,16 +1,16 @@
 import { Card, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Layers } from 'lucide-react';
-import { PartitionCircuitViewer } from './PartitionCircuitViewer';
+import { ResultsViewer } from './ResultsViewer.tsx';
 
-interface GateDetail {
+export interface GateDetail {
     id: string;
     name: string;
     target_qubits: number[];
     control_qubits: number[];
 }
 
-interface PartitionInfo {
+export interface PartitionInfo {
     index: number;
     num_gates: number;
     qubits: number[];
@@ -18,7 +18,7 @@ interface PartitionInfo {
     gates: GateDetail[];
 }
 
-interface PartitionResult {
+export interface PartitionResult {
     strategy: string;
     max_partition_size: number;
     total_partitions: number;
@@ -60,7 +60,7 @@ export function ResultsPanel({ partitionResult }: ResultsPanelProps) {
                         ) : (
                             <div className="space-y-4">
                                 {/* Partition Circuit Viewer - Placed before summary */}
-                                <PartitionCircuitViewer partitions={partitionResult.partitions} />
+                                <ResultsViewer partitions={partitionResult.partitions} />
 
                                 {/* Partition Summary */}
                                 <div className="bg-muted/30 rounded-lg p-4">
