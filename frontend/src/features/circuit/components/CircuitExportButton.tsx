@@ -73,7 +73,9 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
             }
         });
 
-        svg.selectAll('g:not(.circuit-background)').attr('transform', `translate(${qubitLabelWidth}, 0)`);
+        // Translate gate and circuit groups to account for qubit labels
+        svg.selectAll('.gates-group, .circuits-group, .labels-group, .circuit-backgrounds-group')
+            .attr('transform', `translate(${qubitLabelWidth}, 0)`);
 
         // adjust depth markers
         svg.selectAll('.depth-marker').each(function() {
