@@ -4,6 +4,10 @@ import { ChevronRight, ChevronLeft, Plus, X } from 'lucide-react'
 import { EditableText } from '@/components/common/EditableText'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modifiers'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button'
@@ -96,13 +100,91 @@ function CircuitTabContent() {
     );
 }
 
+interface SortableTabTriggerProps {
+    circuit: any;
+    activeCircuitId: string;
+    onClose: () => void;
+    onUpdateName: (id: string, name: string) => void;
+}
+
+function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }: SortableTabTriggerProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: circuit.id });
+
+    // Lock dragging to horizontal axis only
+    const style = {
+        transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <TabsTrigger
+            ref={setNodeRef}
+            style={style}
+            key={circuit.id}
+            value={circuit.id}
+            className={`cursor-pointer rounded-none rounded-t-lg !shadow-none !border-b-0 border-border group relative pr-8 shrink-0 !p-2.5 !m-0 ${
+                activeCircuitId === circuit.id ? '!bg-muted' : '!bg-transparent hover:!bg-accent/50'
+            }`}
+            {...attributes}
+            {...listeners}
+        >
+            <EditableText
+                value={circuit.name || circuit.symbol}
+                onChange={(newName) => onUpdateName(circuit.id, newName)}
+                className="text-sm"
+                inputClassName="text-sm"
+                placeholder="Untitled Circuit"
+            />
+            <span
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+                className="absolute right-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-pointer group/close"
+            >
+                <X className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover/close:bg-muted-foreground/20 rounded-full p-0.5 transition-all"/>
+            </span>
+        </TabsTrigger>
+    );
+}
 
 function ComposerContent() {
-    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit } = useProject()
+    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit, reorderCircuits } = useProject()
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
     const sessionIdRef = useRef<string>(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = circuits.findIndex((c) => c.id === active.id);
+            const newIndex = circuits.findIndex((c) => c.id === over.id);
+
+            const newCircuits = [...circuits];
+            const [movedCircuit] = newCircuits.splice(oldIndex, 1);
+            newCircuits.splice(newIndex, 0, movedCircuit);
+
+            reorderCircuits(newCircuits);
+        }
+    };
 
     const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
         const jobs = useJobStore.getState().getCircuitJobs(circuitId);
@@ -174,38 +256,35 @@ function ComposerContent() {
                             <Tabs value={activeCircuitId} onValueChange={setActiveCircuitId} className="h-full flex flex-col gap-0">
                                 <div className="bg-transparent px-6 pt-5 sticky top-0 z-20">
                                     <h2 className="text-md font-semibold pb-6">Quantum Circuit</h2>
-                                    <TabsList className={`w-full justify-start rounded-none rounded-t-lg bg-zinc-200 dark:bg-zinc-900 p-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${activeCircuitId ? '' : 'border-2 border-b-0'}`}>
-                                        {circuits.map(circuit => (
-                                            <TabsTrigger
-                                                key={circuit.id}
-                                                value={circuit.id}
-                                                className={`h-full cursor-pointer rounded-none rounded-t-lg !shadow-none !border-b-0 border-border group relative pr-8 shrink-0 ${
-                                                    activeCircuitId === circuit.id ? '!bg-muted' : '!bg-transparent hover:!bg-accent/50'
-                                                }`}
+                                    <TabsList className={`w-full justify-start rounded-none rounded-t-lg bg-zinc-200 dark:bg-zinc-900 p-0 gap-0 h-auto min-h-[2.5rem] relative ${activeCircuitId ? '' : 'border-2 border-b-0'}`}>
+                                        <div className="flex items-stretch w-full h-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pr-9.5">
+                                            <DndContext
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={handleDragEnd}
+                                                modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
                                             >
-                                                <EditableText
-                                                    value={circuit.name || circuit.symbol}
-                                                    onChange={(newName) => updateCircuit(circuit.id, { name: newName })}
-                                                    className="text-sm"
-                                                    inputClassName="text-sm"
-                                                    placeholder="Untitled Circuit"
-                                                />
-                                                <span
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        requestCircuitClose(circuit.id, circuit.name || circuit.symbol, () => {
-                                                            removeCircuit(circuit.id);
-                                                        });
-                                                    }}
-                                                    className="absolute right-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-pointer group/close"
+                                                <SortableContext
+                                                    items={circuits.map(c => c.id)}
+                                                    strategy={horizontalListSortingStrategy}
                                                 >
-                                                    <X className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover/close:bg-muted-foreground/20 rounded-full p-0.5 transition-all"/>
-                                                </span>
-                                            </TabsTrigger>
-                                        ))}
+                                                    {circuits.map(circuit => (
+                                                        <SortableTabTrigger
+                                                            key={circuit.id}
+                                                            circuit={circuit}
+                                                            activeCircuitId={activeCircuitId}
+                                                            onClose={() => requestCircuitClose(circuit.id, circuit.name || circuit.symbol, () => {
+                                                                removeCircuit(circuit.id);
+                                                            })}
+                                                            onUpdateName={(id, name) => updateCircuit(id, { name })}
+                                                        />
+                                                    ))}
+                                                </SortableContext>
+                                            </DndContext>
+                                        </div>
                                         <Button
                                             variant="ghost"
-                                            size="sm"
+                                            size="icon"
                                             onClick={() => {
                                                 const nums = circuits.map(c => parseInt(c.symbol.split('(')[1])).filter(n => !isNaN(n)).sort((a, b) => a - b);
                                                 let next = 1;
@@ -219,9 +298,9 @@ function ComposerContent() {
                                                     gates: [],
                                                 });
                                             }}
-                                            className='bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted shrink-0'
+                                            className='absolute right-0.5 bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted !p-0 !m-0'
                                         >
-                                            <Plus className="h-4 w-4" />
+                                            <Plus className="h-3.5 w-3.5" />
                                         </Button>
                                     </TabsList>
                                 </div>

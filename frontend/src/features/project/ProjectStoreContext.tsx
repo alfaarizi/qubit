@@ -12,6 +12,7 @@ interface ProjectState {
     addCircuit: (circuit: CircuitInfo) => void;
     removeCircuit: (id: string) => void;
     updateCircuit: (id: string, updates: Partial<CircuitInfo>) => void;
+    reorderCircuits: (circuits: CircuitInfo[]) => void;
 }
 
 export const useProjectStore = create<ProjectState>()(
@@ -20,18 +21,14 @@ export const useProjectStore = create<ProjectState>()(
             projectName: 'Untitled Project',
             circuits: [],
             activeCircuitId: '',
-
             setProjectName: (name) => set({ projectName: name }),
-
             setActiveCircuitId: (id) => set({ activeCircuitId: id }),
-
             addCircuit: (circuit) => {
                 set((state) => ({
                     circuits: [...state.circuits, circuit],
                     activeCircuitId: circuit.id,
                 }));
             },
-
             removeCircuit: (id) => {
                 set((state) => {
                     const prev = state.circuits;
@@ -54,13 +51,15 @@ export const useProjectStore = create<ProjectState>()(
                     };
                 });
             },
-
             updateCircuit: (id, updates) => {
                 set((state) => ({
                     circuits: state.circuits.map(c =>
                         c.id === id ? { ...c, ...updates } : c
                     ),
                 }));
+            },
+            reorderCircuits: (circuits) => {
+                set({ circuits });
             },
         }),
         {
