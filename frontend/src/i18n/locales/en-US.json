@@ -1,0 +1,79 @@
+{
+  "homepage": {
+    "badge": "Quantum Circuit Simulator & Visualizer",
+    "hero": {
+      "title": "Design, Simulate, and Visualize Quantum Circuits",
+      "subtitle": "A powerful visual platform for quantum computing exploration. Build complex quantum circuits, partition them intelligently, and analyze results with professional-grade visualizations.",
+      "getStarted": "Get Started",
+      "learnMore": "Learn More"
+    },
+    "stats": {
+      "qubits": "Qubits Supported",
+      "gates": "Quantum Gates",
+      "visualizations": "Visualizations"
+    },
+    "features": {
+      "title": "Powerful Features",
+      "subtitle": "Everything you need to explore quantum computing, from circuit design to advanced analysis",
+      "visualComposer": {
+        "title": "Visual Circuit Composer",
+        "description": "Build quantum circuits with an intuitive drag-and-drop interface. Support for all standard quantum gates including Hadamard, Pauli, CNOT, Toffoli, and custom gate definitions."
+      },
+      "partitioning": {
+        "title": "Advanced Partitioning",
+        "description": "Optimize large circuits with intelligent partitioning algorithms including Kahn topological sort, minimum cut strategies, and depth-balanced decomposition for efficient execution."
+      },
+      "simulation": {
+        "title": "Real-Time Simulation",
+        "description": "Execute quantum circuits instantly with our high-performance statevector simulator. Support for multiple qubits with real-time measurement and state visualization."
+      },
+      "visualizations": {
+        "title": "Professional Visualizations",
+        "description": "Analyze results with interactive 2D and 3D visualizations including Bloch spheres, density matrices, entanglement entropy charts, and measurement histograms."
+      },
+      "management": {
+        "title": "Circuit Management",
+        "description": "Organize your work with nested circuit support, QASM import/export, circuit versioning, and seamless state persistence across sessions."
+      },
+      "educational": {
+        "title": "Educational Platform",
+        "description": "Perfect for learning quantum computing fundamentals with visual feedback, step-by-step execution, and comprehensive result analysis for every simulation."
+      }
+    },
+    "squander": {
+      "title": "Powered by SQUANDER",
+      "description": "Built on SQUANDER (Sequential Quantum Gate Decomposer), a cutting-edge C++/Python framework developed at Eötvös Loránd University. SQUANDER excels at decomposing n-qubit unitaries into optimized quantum circuits using parallel processing, vectorized AVX kernels, and innovative gradient-free optimization techniques that effectively circumvent barren plateaus.",
+      "learn": "Explore SQUANDER on GitHub"
+    },
+    "capabilities": {
+      "title": "Comprehensive Capabilities",
+      "subtitle": "Professional tools for quantum circuit development and analysis",
+      "items": {
+        "multiQubit": "Multi-qubit circuit design up to 12+ qubits",
+        "gateLibrary": "Standard gate library with custom gate support",
+        "stateVector": "State vector and density matrix analysis",
+        "partition": "Partition-based circuit optimization",
+        "qasm": "QASM 2.0 compatible import/export",
+        "bloch": "Interactive Bloch sphere visualization",
+        "measurement": "Measurement outcome statistics",
+        "entanglement": "Entanglement entropy computation"
+      }
+    },
+    "cta": {
+      "title": "Ready to Start Building?",
+      "subtitle": "Create your first quantum circuit in seconds. No installation required, just open the composer and start experimenting with quantum gates.",
+      "button": "Open Circuit Composer"
+    },
+    "footer": {
+      "text": "Quantum Circuit Simulator - Built for education and research"
+    }
+  },
+  "composer": {
+    "title": "Circuit Composer"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  }
+}

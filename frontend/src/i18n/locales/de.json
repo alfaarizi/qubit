@@ -1,0 +1,79 @@
+{
+  "homepage": {
+    "badge": "Quantenschaltkreis-Simulator & Visualisierer",
+    "hero": {
+      "title": "Quantenschaltkreise Entwerfen, Simulieren und Visualisieren",
+      "subtitle": "Eine leistungsstarke visuelle Plattform zur Erforschung des Quantencomputings. Erstellen Sie komplexe Quantenschaltkreise, partitionieren Sie sie intelligent und analysieren Sie Ergebnisse mit professionellen Visualisierungen.",
+      "getStarted": "Loslegen",
+      "learnMore": "Mehr Erfahren"
+    },
+    "stats": {
+      "qubits": "Unterstützte Qubits",
+      "gates": "Quantengatter",
+      "visualizations": "Visualisierungen"
+    },
+    "features": {
+      "title": "Leistungsstarke Funktionen",
+      "subtitle": "Alles, was Sie für die Erforschung des Quantencomputings benötigen, vom Schaltkreisentwurf bis zur fortgeschrittenen Analyse",
+      "visualComposer": {
+        "title": "Visueller Schaltkreis-Editor",
+        "description": "Erstellen Sie Quantenschaltkreise mit einer intuitiven Drag-and-Drop-Oberfläche. Unterstützung für alle Standard-Quantengatter einschließlich Hadamard, Pauli, CNOT, Toffoli und benutzerdefinierten Gatterdefinitionen."
+      },
+      "partitioning": {
+        "title": "Erweiterte Partitionierung",
+        "description": "Optimieren Sie große Schaltkreise mit intelligenten Partitionierungsalgorithmen, einschließlich Kahn-topologischer Sortierung, Minimum-Cut-Strategien und tiefenausgeglichener Zerlegung für effiziente Ausführung."
+      },
+      "simulation": {
+        "title": "Echtzeit-Simulation",
+        "description": "Führen Sie Quantenschaltkreise sofort mit unserem Hochleistungs-Zustandsvektor-Simulator aus. Unterstützung für mehrere Qubits mit Echtzeitmessung und Zustandsvisualisierung."
+      },
+      "visualizations": {
+        "title": "Professionelle Visualisierungen",
+        "description": "Analysieren Sie Ergebnisse mit interaktiven 2D- und 3D-Visualisierungen, einschließlich Bloch-Kugeln, Dichtematrizen, Verschränkungsentropie-Diagrammen und Messhistogrammen."
+      },
+      "management": {
+        "title": "Schaltkreis-Verwaltung",
+        "description": "Organisieren Sie Ihre Arbeit mit verschachtelter Schaltkreisunterstützung, QASM-Import/Export, Schaltkreis-Versionierung und nahtloser Zustandserhaltung über Sitzungen hinweg."
+      },
+      "educational": {
+        "title": "Bildungsplattform",
+        "description": "Perfekt zum Erlernen der Grundlagen des Quantencomputings mit visuellem Feedback, schrittweiser Ausführung und umfassender Ergebnisanalyse für jede Simulation."
+      }
+    },
+    "squander": {
+      "title": "Angetrieben von SQUANDER",
+      "description": "Basierend auf SQUANDER (Sequential Quantum Gate Decomposer), einem hochmodernen C++/Python-Framework, das an der Eötvös-Loránd-Universität entwickelt wurde. SQUANDER zeichnet sich durch die Zerlegung von n-Qubit-Unitären in optimierte Quantenschaltkreise aus, unter Verwendung paralleler Verarbeitung, vektorisierter AVX-Kernel und innovativer gradientenfreier Optimierungstechniken, die Barren-Plateaus effektiv umgehen.",
+      "learn": "SQUANDER auf GitHub erkunden"
+    },
+    "capabilities": {
+      "title": "Umfassende Fähigkeiten",
+      "subtitle": "Professionelle Werkzeuge für Quantenschaltkreisentwicklung und -analyse",
+      "items": {
+        "multiQubit": "Multi-Qubit-Schaltkreisentwurf bis zu 12+ Qubits",
+        "gateLibrary": "Standard-Gatterbibliothek mit benutzerdefinierten Gattern",
+        "stateVector": "Zustandsvektor- und Dichtematrix-Analyse",
+        "partition": "Partitionsbasierte Schaltkreisoptimierung",
+        "qasm": "QASM 2.0-kompatible Import/Export",
+        "bloch": "Interaktive Bloch-Kugel-Visualisierung",
+        "measurement": "Messergebnis-Statistiken",
+        "entanglement": "Verschränkungsentropie-Berechnung"
+      }
+    },
+    "cta": {
+      "title": "Bereit zum Loslegen?",
+      "subtitle": "Erstellen Sie Ihren ersten Quantenschaltkreis in Sekunden. Keine Installation erforderlich, öffnen Sie einfach den Editor und experimentieren Sie mit Quantengattern.",
+      "button": "Schaltkreis-Editor Öffnen"
+    },
+    "footer": {
+      "text": "Quantenschaltkreis-Simulator - Für Bildung und Forschung entwickelt"
+    }
+  },
+  "composer": {
+    "title": "Schaltkreis-Editor"
+  },
+  "common": {
+    "loading": "Laden...",
+    "error": "Fehler",
+    "success": "Erfolg"
+  }
+}

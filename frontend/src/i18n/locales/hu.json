@@ -1,0 +1,79 @@
+{
+  "homepage": {
+    "badge": "Kvantum Áramkör Szimulátor és Vizualizáló",
+    "hero": {
+      "title": "Tervezzen, Szimuláljon és Vizualizáljon Kvantum Áramköröket",
+      "subtitle": "Egy hatékony vizuális platform a kvantumszámítástechnika felfedezésére. Építsen összetett kvantum áramköröket, particionálja őket intelligensen, és elemezze az eredményeket professzionális vizualizációkkal.",
+      "getStarted": "Kezdjünk Hozzá",
+      "learnMore": "Tudjon Meg Többet"
+    },
+    "stats": {
+      "qubits": "Támogatott Qubitek",
+      "gates": "Kvantumkapuk",
+      "visualizations": "Vizualizációk"
+    },
+    "features": {
+      "title": "Hatékony Funkciók",
+      "subtitle": "Minden, amire szüksége van a kvantumszámítástechnika felfedezéséhez, az áramkör tervezésétől a fejlett elemzésig",
+      "visualComposer": {
+        "title": "Vizuális Áramkör Szerkesztő",
+        "description": "Építsen kvantum áramköröket intuitív húzd-és-ejtsd felülettel. Támogatás minden standard kvantumkapuhoz, beleértve a Hadamard, Pauli, CNOT, Toffoli és egyéni kapu definíciókat."
+      },
+      "partitioning": {
+        "title": "Fejlett Particionálás",
+        "description": "Optimalizálja a nagy áramköröket intelligens particionáló algoritmusokkal, beleértve a Kahn topológiai rendezést, minimum vágás stratégiákat és mélység-kiegyensúlyozott dekompozíciót a hatékony végrehajtáshoz."
+      },
+      "simulation": {
+        "title": "Valós Idejű Szimuláció",
+        "description": "Hajtsa végre a kvantum áramköröket azonnal nagy teljesítményű állapotvektorunk szimulátorával. Több qubit támogatása valós idejű méréssel és állapot vizualizációval."
+      },
+      "visualizations": {
+        "title": "Professzionális Vizualizációk",
+        "description": "Elemezze az eredményeket interaktív 2D és 3D vizualizációkkal, beleértve a Bloch gömböket, sűrűség mátrixokat, összefonódási entrópia diagramokat és mérési hisztogramokat."
+      },
+      "management": {
+        "title": "Áramkör Menedzsment",
+        "description": "Szervezze meg munkáját beágyazott áramkör támogatással, QASM import/export funkcióval, áramkör verziókezeléssel és zökkenőmentes állapot megőrzéssel a munkamenetek között."
+      },
+      "educational": {
+        "title": "Oktatási Platform",
+        "description": "Tökéletes a kvantumszámítástechnika alapjainak tanulásához vizuális visszajelzéssel, lépésről lépésre végrehajtással és átfogó eredmény elemzéssel minden szimulációhoz."
+      }
+    },
+    "squander": {
+      "title": "A SQUANDER Technológiával",
+      "description": "A SQUANDER (Sequential Quantum Gate Decomposer) alapjaira épül, egy élvonalbeli C++/Python keretrendszer, amelyet az Eötvös Loránd Tudományegyetemen fejlesztettek. A SQUANDER kiválóan alkalmas n-qubites unitárok optimalizált kvantum áramkörökké történő dekompozíciójára párhuzamos feldolgozás, vektorizált AVX kernelek és innovatív gradiens-mentes optimalizációs technikák használatával, amelyek hatékonyan kikerülik a lapos fennsíkokat.",
+      "learn": "Fedezze fel a SQUANDER-t a GitHub-on"
+    },
+    "capabilities": {
+      "title": "Átfogó Képességek",
+      "subtitle": "Professzionális eszközök kvantum áramkör fejlesztéshez és elemzéshez",
+      "items": {
+        "multiQubit": "Több qubites áramkör tervezés akár 12+ qubitig",
+        "gateLibrary": "Standard kapu könyvtár egyéni kapu támogatással",
+        "stateVector": "Állapotvektor és sűrűség mátrix elemzés",
+        "partition": "Partíció-alapú áramkör optimalizálás",
+        "qasm": "QASM 2.0 kompatibilis import/export",
+        "bloch": "Interaktív Bloch gömb vizualizáció",
+        "measurement": "Mérési eredmény statisztikák",
+        "entanglement": "Összefonódási entrópia számítás"
+      }
+    },
+    "cta": {
+      "title": "Készen Áll az Építésre?",
+      "subtitle": "Készítse el első kvantum áramkörét másodpercek alatt. Nincs szükség telepítésre, csak nyissa meg a szerkesztőt és kezdjen el kísérletezni a kvantumkapukkal.",
+      "button": "Áramkör Szerkesztő Megnyitása"
+    },
+    "footer": {
+      "text": "Kvantum Áramkör Szimulátor - Oktatásra és kutatásra épülve"
+    }
+  },
+  "composer": {
+    "title": "Áramkör Szerkesztő"
+  },
+  "common": {
+    "loading": "Betöltés...",
+    "error": "Hiba",
+    "success": "Siker"
+  }
+}

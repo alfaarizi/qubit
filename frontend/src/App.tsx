@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
 import { useJobManager } from '@/hooks/useJobManager';
+import '@/i18n/config';
 
 const Home = lazy(() => import('@/pages/HomePage'));
 const Composer = lazy(() => import('@/pages/ComposerPage'));
