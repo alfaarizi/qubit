@@ -481,14 +481,15 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                         <Input
                             type="number"
                             min="0"
-                            value={simulationTimeout}
-                            onChange={(e) => setSimulationTimeout(Math.max(0, parseInt(e.target.value) || 0))}
+                            value={simulationTimeout || ''}
+                            onChange={(e) => setSimulationTimeout(parseInt(e.target.value) || 0)}
+                            onWheel={(e) => e.currentTarget.blur()}
                             disabled={isExecuting}
                             placeholder="0"
-                            className="h-8 w-[60px] pr-6 text-xs font-medium"
+                            className="h-8 w-[60px] pr-5 text-xs font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             title="Simulation timeout in seconds (0 = no timeout)"
                         />
-                        <span className="absolute right-2 text-xs text-muted-foreground pointer-events-none">s</span>
+                        <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none">s</span>
                     </div>
                 </div>
             </div>
