@@ -19,7 +19,7 @@ import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
 import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
-import type { PartitionResult } from "@/features/results/components/ResultsPanel";
+import type { PartitionResult, SimulationResults } from "@/features/results/components/ResultsPanel";
 import { ProjectProvider, useProject } from "@/features/project/ProjectStoreContext";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { useJobStore } from "@/stores/jobStore";
@@ -76,6 +76,7 @@ function CircuitTabContent() {
 
     const completeUpdate = latestCompletedJob?.updates.find(update => update.type === 'complete');
     const partitionResult = completeUpdate?.result?.partition_info as PartitionResult | undefined;
+    const simulationResults = completeUpdate?.result as SimulationResults | undefined;
 
     return (
         <>
@@ -84,7 +85,11 @@ function CircuitTabContent() {
                 <CanvasExecutionOverlay />
             </div>
             <div className="mt-4">
-                <ResultsPanel partitionResult={partitionResult} />
+                <ResultsPanel
+                    circuitId={activeCircuitId || ''}
+                    partitionResult={partitionResult}
+                    simulationResults={simulationResults}
+                />
             </div>
         </>
     );

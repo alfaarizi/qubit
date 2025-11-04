@@ -1,7 +1,17 @@
-import { Card, CardHeader } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Layers } from 'lucide-react';
-import { PartitionCircuitViewer } from './PartitionCircuitViewer.tsx';
+import { useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+    MeasurementHistogram,
+    DensityMatrixHeatmap,
+    EntanglementEntropyChart,
+    ProbabilityComparison,
+    StateVectorVisualization,
+    BlochSphere
+} from './visualizations';
+import { PartitionDistributionHistogram } from '@/features/results/components/visualizations';
+import { PartitionCircuitViewer } from './PartitionCircuitViewer';
+import { useResultsStore, type SimulationResults } from '@/stores/resultsStore';
 
 export interface GateDetail {
     id: string;
@@ -25,141 +35,215 @@ export interface PartitionResult {
     partitions: PartitionInfo[];
 }
 
+export type { SimulationResults };
+
 interface ResultsPanelProps {
+    circuitId: string;
     partitionResult?: PartitionResult;
+    simulationResults?: SimulationResults;
 }
 
-export function ResultsPanel({ partitionResult }: ResultsPanelProps) {
-    const hasPartitionResults = !!partitionResult;
+export function ResultsPanel({ circuitId, partitionResult, simulationResults }: ResultsPanelProps) {
+    const { setCircuitResults, getCircuitResults } = useResultsStore();
+
+    // Persist results when they change
+    useEffect(() => {
+        if (simulationResults && circuitId) {
+            try {
+                setCircuitResults(circuitId, simulationResults);
+            } catch (error) {
+                console.error('[ResultsPanel] Failed to persist results:', error);
+            }
+        }
+    }, [circuitId, simulationResults, setCircuitResults]);
+
+    // Get persisted results if no new results are provided
+    const results = simulationResults || (circuitId ? getCircuitResults(circuitId) : undefined);
+    const partitions = partitionResult?.partitions || results?.partition_info?.partitions;
+
+    // Extract partition metadata (for PartitionDistributionHistogram)
+    const partitionStrategy = partitionResult?.strategy || results?.partition_info?.strategy;
+    const maxPartitionSize = partitionResult?.max_partition_size || results?.partition_info?.max_partition_size;
+
+    // Extract data from simulation results
+    const fidelity = results?.comparison?.fidelity;
+    const originalCounts = results?.original?.counts;
+    const partitionedCounts = results?.partitioned?.counts;
+    const originalProbs = results?.original?.probabilities;
+    const partitionedProbs = results?.partitioned?.probabilities;
+    const originalDensity = results?.original?.density_matrix;
+    const partitionedDensity = results?.partitioned?.density_matrix;
+    const originalEntropy = results?.original?.entropy_scaling;
+    const partitionedEntropy = results?.partitioned?.entropy_scaling;
+    const originalStateVector = results?.original?.state_vector;
+    const partitionedStateVector = results?.partitioned?.state_vector;
+    const numQubits = results?.num_qubits;
+    const numShots = results?.num_shots;
+    const errors = results?.errors;
+
+    // Check if we have any results
+    const hasResults = !!(
+        fidelity !== undefined ||
+        originalCounts ||
+        partitionedCounts ||
+        partitions
+    );
+
+    // Check if we can show Bloch sphere (only for single qubit)
+    const canShowBlochSphere = numQubits === 1 && originalStateVector && (
+        Array.isArray(originalStateVector)
+            ? originalStateVector.length === 2
+            : Object.keys(originalStateVector).length === 2
+    );
+
+    if (!hasResults) {
+        return (
+            <Card className="border-border/50 bg-card/95 h-full min-h-[400px] flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                    <svg className="h-16 w-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <p className="text-base font-medium">No Simulation Results</p>
+                    <p className="text-sm mt-2">Run circuit partition to see quantum simulation visualizations</p>
+                </div>
+            </Card>
+        );
+    }
 
     return (
-        <Card className="border-border/50 bg-card/95">
-            <CardHeader className="pb-3">
-                <Tabs defaultValue="partitions" className="w-full">
+        <div className="space-y-4">
+            {/* Header with Summary Stats */}
+            <Card className="border-border/50 bg-gradient-to-br from-card/95 to-card/80 backdrop-blur">
+                <CardHeader>
                     <div className="flex items-center justify-between">
-                        <TabsList>
-                            <TabsTrigger value="partitions" className="gap-2">
-                                <Layers className="h-4 w-4" />
-                                Partitions
-                            </TabsTrigger>
-                        </TabsList>
-                        {hasPartitionResults && (
-                            <div className="text-xs text-muted-foreground">
-                                Strategy: {partitionResult.strategy} • {partitionResult.total_partitions} partitions
+                        <div>
+                            <CardTitle className="text-xl font-bold">Simulation Results</CardTitle>
+                            <CardDescription className="mt-1.5">
+                                {numQubits && `${numQubits}-qubit circuit`}
+                                {numShots && ` • ${numShots.toLocaleString()} shots`}
+                                {partitions && ` • ${partitions.length} partitions`}
+                            </CardDescription>
+                        </div>
+                        {fidelity !== undefined && (
+                            <div className="text-right">
+                                <div className="text-sm text-muted-foreground">Circuit Fidelity</div>
+                                <div className="text-3xl font-bold mt-1">
+                                    <span className={fidelity >= 0.99 ? 'text-green-600 dark:text-green-400' : fidelity >= 0.95 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}>
+                                        {(fidelity * 100).toFixed(2)}%
+                                    </span>
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    <TabsContent value="partitions" className="mt-4">
-                        {!hasPartitionResults ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                                <Layers className="h-12 w-12 mb-4 opacity-20" />
-                                <p className="text-sm">No partition results yet</p>
-                                <p className="text-xs mt-1">Run circuit partitioning to see results</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {/* Partition Circuit Viewer - Placed before summary */}
-                                <PartitionCircuitViewer partitions={partitionResult.partitions} />
+                    {errors && errors.length > 0 && (
+                        <div className="mt-4 space-y-1">
+                            {errors.slice(0, 3).map((error, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                    {error.timeout ? '⏱️' : '⚠️'} {error.stage}: {error.error.substring(0, 60)}
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
+                </CardHeader>
+            </Card>
 
-                                {/* Partition Summary */}
-                                <div className="bg-muted/30 rounded-lg p-4">
-                                    <h3 className="text-sm font-semibold mb-3">Partition Summary</h3>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-                                        <div>
-                                            <div className="text-muted-foreground">Strategy</div>
-                                            <div className="font-mono font-medium mt-1">{partitionResult.strategy}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-muted-foreground">Total Partitions</div>
-                                            <div className="font-mono font-medium mt-1">{partitionResult.total_partitions}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-muted-foreground">Max Partition Size</div>
-                                            <div className="font-mono font-medium mt-1">{partitionResult.max_partition_size}</div>
-                                        </div>
-                                    </div>
-                                </div>
+            {/* Partition Circuit Viewer */}
+            {partitions && partitions.length > 0 && (
+                <PartitionCircuitViewer
+                    partitions={partitions}
+                    maxPartitionSize={maxPartitionSize}
+                />
+            )}
 
-                                {/* Partitions Table */}
-                                <div>
-                                    <h3 className="text-sm font-semibold mb-3">Partition Details</h3>
-                                    <div className="border rounded-lg overflow-hidden">
-                                        {/* Table Header */}
-                                        <div className="bg-muted/50 grid grid-cols-5 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b">
-                                            <div>Partition</div>
-                                            <div>Gates</div>
-                                            <div>Qubits Used</div>
-                                            <div>Qubit Count</div>
-                                            <div>Size Ratio</div>
-                                        </div>
+            {/* Partition Distribution Analysis */}
+            {partitions && partitionStrategy && maxPartitionSize && (
+                <PartitionDistributionHistogram
+                    partitions={partitions}
+                    strategy={partitionStrategy}
+                    maxPartitionSize={maxPartitionSize}
+                />
+            )}
 
-                                        {/* Table Rows */}
-                                        {partitionResult.partitions.map((partition, idx) => {
-                                            const sizeRatio = (partition.num_gates / partitionResult.max_partition_size) * 100;
-                                            return (
-                                                <div
-                                                    key={partition.index}
-                                                    className={`grid grid-cols-5 gap-4 px-4 py-3 text-sm items-center ${
-                                                        idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'
-                                                    }`}
-                                                >
-                                                    <div className="font-mono">P{partition.index}</div>
-                                                    <div className="font-mono text-muted-foreground">{partition.num_gates}</div>
-                                                    <div className="font-mono text-xs text-muted-foreground">
-                                                        {partition.qubits.join(', ')}
-                                                    </div>
-                                                    <div className="font-mono text-muted-foreground">{partition.num_qubits}</div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex-1 h-4 bg-muted rounded-sm overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-primary"
-                                                                style={{ width: `${Math.min(sizeRatio, 100)}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs text-muted-foreground w-10 text-right">
-                                                            {sizeRatio.toFixed(0)}%
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+            {/* Measurement Distribution Analysis */}
+            {(originalCounts || partitionedCounts) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {originalCounts && (
+                        <MeasurementHistogram
+                            counts={originalCounts}
+                            title="Original Circuit - Measurement Distribution"
+                        />
+                    )}
+                    {partitionedCounts && (
+                        <MeasurementHistogram
+                            counts={partitionedCounts}
+                            title="Partitioned Circuit - Measurement Distribution"
+                        />
+                    )}
+                </div>
+            )}
 
-                                {/* Partition Visualization */}
-                                <div>
-                                    <h3 className="text-sm font-semibold mb-3">Partition Distribution</h3>
-                                    <div className="space-y-2">
-                                        {(() => {
-                                            const totalGates = partitionResult.partitions.reduce((sum, p) => sum + p.num_gates, 0);
-                                            return partitionResult.partitions.map((partition) => {
-                                                const widthPercent = (partition.num_gates / totalGates) * 100;
-                                                return (
-                                                    <div key={partition.index} className="flex items-center gap-3">
-                                                        <div className="text-xs font-mono text-muted-foreground w-8">P{partition.index}</div>
-                                                        <div className="flex-1 h-8 bg-muted rounded overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-primary/70 flex items-center justify-center text-xs font-medium text-primary-foreground"
-                                                                style={{ width: `${Math.max(widthPercent, 5)}%` }}
-                                                            >
-                                                                {partition.num_gates} gates
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground w-12 text-right">
-                                                            {widthPercent.toFixed(1)}%
-                                                        </div>
-                                                    </div>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
-            </CardHeader>
-        </Card>
+            {/* Probability Comparison Analysis */}
+            {originalProbs && partitionedProbs && (
+                <ProbabilityComparison
+                    probabilitiesOriginal={originalProbs}
+                    probabilitiesPartitioned={partitionedProbs}
+                />
+            )}
+
+            {/* State Vector Analysis */}
+            {(originalStateVector || partitionedStateVector) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {originalStateVector && (
+                        <StateVectorVisualization
+                            stateVector={originalStateVector}
+                            title="Original Circuit - State Vector Amplitudes"
+                        />
+                    )}
+                    {partitionedStateVector && (
+                        <StateVectorVisualization
+                            stateVector={partitionedStateVector}
+                            title="Partitioned Circuit - State Vector Amplitudes"
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* Bloch Sphere Representation (for single qubit) */}
+            {canShowBlochSphere && originalStateVector && (
+                <div className="max-w-3xl mx-auto">
+                    <BlochSphere
+                        stateVector={originalStateVector}
+                        title="Single-Qubit Bloch Sphere Representation"
+                    />
+                </div>
+            )}
+
+            {/* Density Matrix Heatmaps */}
+            {(originalDensity || partitionedDensity) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {originalDensity && (
+                        <DensityMatrixHeatmap
+                            densityMatrix={originalDensity}
+                            title="Original Circuit - Density Matrix"
+                        />
+                    )}
+                    {partitionedDensity && (
+                        <DensityMatrixHeatmap
+                            densityMatrix={partitionedDensity}
+                            title="Partitioned Circuit - Density Matrix"
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* Entanglement Entropy */}
+            {(originalEntropy || partitionedEntropy) && (
+                <EntanglementEntropyChart
+                    entropyOriginal={originalEntropy || []}
+                    entropyPartitioned={partitionedEntropy || []}
+                />
+            )}
+        </div>
     );
 }

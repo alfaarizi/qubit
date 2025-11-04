@@ -23,9 +23,10 @@ interface PartitionInfo {
 
 interface PartitionCircuitViewerProps {
     partitions: PartitionInfo[];
+    maxPartitionSize?: number;
 }
 
-export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerProps) {
+export function PartitionCircuitViewer({ partitions, maxPartitionSize }: PartitionCircuitViewerProps) {
     const [selectedIndex, setSelectedIndex] = useState<number>(
         partitions.length > 0 ? partitions[0].index : 0
     );
@@ -76,7 +77,7 @@ export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerPro
             };
 
             processedGates = injectGate(newGate, processedGates, currentDepth) as Gate[];
-            
+
             const injectedGate = processedGates.find(g => g.id === newGate.id);
             if (injectedGate) {
                 const gateWidth = getItemWidth(injectedGate);
@@ -84,7 +85,10 @@ export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerPro
             }
         });
 
-        const maxD = processedGates.length > 0 ? Math.max(...processedGates.map(g => g.depth)) + 1 : 1;
+        // Calculate the actual max depth by finding the rightmost gate edge (depth + width)
+        const maxD = processedGates.length > 0
+            ? Math.max(...processedGates.map(g => g.depth + getItemWidth(g)))
+            : 1;
 
         return {
             gates: processedGates,
@@ -111,9 +115,15 @@ export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerPro
 
     if (partitions.length === 0) return null;
 
+    // Calculate statistics
+    const totalGates = partitions.reduce((sum, p) => sum + p.num_gates, 0);
+    const avgGatesPerPartition = totalGates / partitions.length;
+    const maxGatesInPartition = Math.max(...partitions.map(p => p.num_gates));
+    const efficiency = maxPartitionSize ? (avgGatesPerPartition / maxPartitionSize) * 100 : 0;
+
     return (
-        <div className="bg-muted/30 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-muted border">
+            <div className="flex items-center justify-between px-4 py-2 border-b">
                 <h3 className="text-sm font-semibold">Partition Circuit Viewer</h3>
                 <div className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground">
@@ -133,13 +143,13 @@ export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerPro
                 </div>
             </div>
 
-            <div className="border rounded-lg bg-background overflow-hidden">
+            <div className="bg-background overflow-hidden">
                 <ScrollArea className="w-full" style={{ maxHeight: 400 }}>
                     <div className="flex p-4">
                         <div className="flex flex-col mr-4" style={{ paddingTop: CIRCUIT_CONFIG.headerHeight }}>
                             {selectedPartition?.qubits.map((globalQubit) => (
-                                <div 
-                                    key={globalQubit} 
+                                <div
+                                    key={globalQubit}
                                     style={{ height: GATE_CONFIG.qubitSpacing }}
                                     className="flex items-center justify-center font-mono text-sm"
                                 >
@@ -147,9 +157,9 @@ export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerPro
                                 </div>
                             ))}
                         </div>
-                        <svg 
+                        <svg
                             ref={svgRef}
-                            width={canvasWidth} 
+                            width={canvasWidth}
                             height={canvasHeight}
                             className="select-none"
                         />
@@ -157,6 +167,15 @@ export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerPro
                     <ScrollBar orientation="horizontal" />
                 </ScrollArea>
             </div>
+
+            {/* Statistics Footer */}
+            {maxPartitionSize && (
+                <div className="flex gap-4 px-4 py-2 border-t bg-muted/50 text-xs text-muted-foreground">
+                    <span>Avg: {avgGatesPerPartition.toFixed(1)} gates</span>
+                    <span>Max: {maxGatesInPartition} gates</span>
+                    <span>Efficiency: {efficiency.toFixed(1)}%</span>
+                </div>
+            )}
         </div>
     );
 }
