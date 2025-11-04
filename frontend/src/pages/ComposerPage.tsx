@@ -1,6 +1,7 @@
 import { useState, useRef, memo } from 'react'
 
 import { ChevronRight, ChevronLeft, Plus, X } from 'lucide-react'
+import { EditableText } from '@/components/common/EditableText'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 
@@ -97,7 +98,7 @@ function CircuitTabContent() {
 
 
 function ComposerContent() {
-    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit } = useProject()
+    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit } = useProject()
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
@@ -182,11 +183,17 @@ function ComposerContent() {
                                                     activeCircuitId === circuit.id ? '!bg-muted' : '!bg-transparent hover:!bg-accent/50'
                                                 }`}
                                             >
-                                                {circuit.symbol}
+                                                <EditableText
+                                                    value={circuit.name || circuit.symbol}
+                                                    onChange={(newName) => updateCircuit(circuit.id, { name: newName })}
+                                                    className="text-sm"
+                                                    inputClassName="text-sm"
+                                                    placeholder="Untitled Circuit"
+                                                />
                                                 <span
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        requestCircuitClose(circuit.id, circuit.symbol, () => {
+                                                        requestCircuitClose(circuit.id, circuit.name || circuit.symbol, () => {
                                                             removeCircuit(circuit.id);
                                                         });
                                                     }}
@@ -203,8 +210,10 @@ function ComposerContent() {
                                                 const nums = circuits.map(c => parseInt(c.symbol.split('(')[1])).filter(n => !isNaN(n)).sort((a, b) => a - b);
                                                 let next = 1;
                                                 for (const n of nums) if (n === next) next++; else break;
+                                                const circuitName = circuits.length === 0 ? 'Circuit' : `Circuit ${next}`;
                                                 addCircuit({
                                                     id: `circuit-${crypto.randomUUID()}`,
+                                                    name: circuitName,
                                                     symbol: circuits.length === 0 ? 'Circuit' : `Circuit (${next})`,
                                                     color: '#3b82f6',
                                                     gates: [],
