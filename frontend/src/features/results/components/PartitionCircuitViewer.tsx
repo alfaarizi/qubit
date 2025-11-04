@@ -21,11 +21,11 @@ interface PartitionInfo {
     gates: GateDetail[];
 }
 
-interface ResultsViewerProps {
+interface PartitionCircuitViewerProps {
     partitions: PartitionInfo[];
 }
 
-export function ResultsViewer({ partitions }: ResultsViewerProps) {
+export function PartitionCircuitViewer({ partitions }: PartitionCircuitViewerProps) {
     const [selectedIndex, setSelectedIndex] = useState<number>(
         partitions.length > 0 ? partitions[0].index : 0
     );
