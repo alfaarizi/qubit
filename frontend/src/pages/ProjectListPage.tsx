@@ -46,6 +46,7 @@ import { DraggableDialog } from '@/components/common/DraggableDialog';
 import { useProjectsStore, type Project } from '@/stores/projectsStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { CircuitThumbnail } from '@/features/circuit/components/CircuitThumbnail';
 
 type ViewMode = 'grid' | 'list';
 type FilterType = 'all' | 'yours' | 'shared' | 'archived' | 'trashed';
@@ -342,15 +343,11 @@ export default function ProjectListPage() {
                                         className="group hover:shadow-md transition-all cursor-pointer border-border hover:border-primary/50 overflow-hidden"
                                         onClick={() => handleOpenProject(project.id)}
                                     >
-                                        {/* Circuit Preview Placeholder */}
-                                        <div className="h-32 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center border-b">
-                                            <div className="text-muted-foreground text-sm">
-                                                {project.circuits.length > 0 ? (
-                                                    <span>{project.circuits.length} {project.circuits.length === 1 ? 'circuit' : 'circuits'}</span>
-                                                ) : (
-                                                    <span>No circuits yet</span>
-                                                )}
-                                            </div>
+                                        <div className="h-32 bg-gradient-to-br flex items-center border-t border-b justify-center overflow-hidden">
+                                            <CircuitThumbnail 
+                                                project={project}
+                                                className="w-full h-full"
+                                            />
                                         </div>
 
                                         <CardContent className="p-4">
