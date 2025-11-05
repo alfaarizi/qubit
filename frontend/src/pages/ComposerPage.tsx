@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button'
 import { Header } from "@/components/layout/Header"
 import { Layout } from "@/components/layout/Layout"
+import { useCollaborationStore } from "@/stores/collaborationStore"
 import { StatusBar } from "@/components/layout/StatusBar"
 import { Panel } from "@/components/layout/Panel"
 import { toast } from "sonner";
@@ -116,6 +117,8 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
         transition,
         isDragging,
     } = useSortable({ id: circuit.id });
+    const { collaborators } = useCollaborationStore();
+    const activeCollaborators = collaborators.filter(c => c.isOnline && c.activeCircuitId === circuit.id);
 
     // Lock dragging to horizontal axis only
     const style = {
@@ -136,13 +139,27 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
             {...attributes}
             {...listeners}
         >
-            <EditableText
-                value={circuit.name || circuit.symbol}
-                onChange={(newName) => onUpdateName(circuit.id, newName)}
-                className="text-sm"
-                inputClassName="text-sm"
-                placeholder="Untitled Circuit"
-            />
+            <div className="flex items-center gap-1.5">
+                {activeCollaborators.length > 0 && (
+                    <div className="flex items-center gap-0.5">
+                        {activeCollaborators.slice(0, 3).map((collaborator) => (
+                            <div
+                                key={collaborator.id}
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: collaborator.color }}
+                                title={collaborator.email}
+                            />
+                        ))}
+                    </div>
+                )}
+                <EditableText
+                    value={circuit.name || circuit.symbol}
+                    onChange={(newName) => onUpdateName(circuit.id, newName)}
+                    className="text-sm"
+                    inputClassName="text-sm"
+                    placeholder="Untitled Circuit"
+                />
+            </div>
             <span
                 onClick={(e) => {
                     e.stopPropagation();

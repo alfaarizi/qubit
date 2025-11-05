@@ -88,6 +88,41 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
                 "timestamp": datetime.now(UTC).isoformat()
             })
 
+        elif message_type == ClientMessage.COLLABORATOR_UPDATE:
+            room = message_data.get("room")
+            data = message_data.get("data", {})
+            if room:
+                await manager.broadcast_to_room(room, {
+                    "type": ServerMessage.COLLABORATOR_UPDATE,
+                    "data": {**data, "connection_id": connection_id},
+                    "timestamp": datetime.now(UTC).isoformat()
+                }, exclude_connection=connection_id)
+
+        elif message_type == ClientMessage.COLLABORATOR_ACTION:
+            room = message_data.get("room")
+            action = message_data.get("action", {})
+            if room:
+                await manager.broadcast_to_room(room, {
+                    "type": ServerMessage.COLLABORATOR_ACTION,
+                    "action": {**action, "connection_id": connection_id},
+                    "timestamp": datetime.now(UTC).isoformat()
+                }, exclude_connection=connection_id)
+
+        elif message_type == ClientMessage.CIRCUIT_CHANGE:
+            room = message_data.get("room")
+            circuit_id = message_data.get("circuit_id")
+            active_circuit_id = message_data.get("active_circuit_id")
+            user_id = message_data.get("user_id")
+            if room:
+                await manager.broadcast_to_room(room, {
+                    "type": ServerMessage.CIRCUIT_CHANGE,
+                    "circuit_id": circuit_id,
+                    "active_circuit_id": active_circuit_id,
+                    "user_id": user_id,
+                    "connection_id": connection_id,
+                    "timestamp": datetime.now(UTC).isoformat()
+                }, exclude_connection=connection_id)
+
         else:
             await manager.send_message(connection_id, {
                 "type": ServerMessage.ERROR,

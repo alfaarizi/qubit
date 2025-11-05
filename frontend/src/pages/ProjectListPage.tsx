@@ -60,7 +60,7 @@ const sidebarItems = [
 
 export default function ProjectListPage() {
     const navigate = useNavigate();
-    const { projects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
+    const { projects, addProject, updateProject, deleteProject, duplicateProject, archiveProject, unarchiveProject } = useProjectsStore();
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +68,7 @@ export default function ProjectListPage() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
     const [newProjectName, setNewProjectName] = useState('');
@@ -75,15 +76,18 @@ export default function ProjectListPage() {
     const [renameProjectName, setRenameProjectName] = useState('');
     const [renameProjectDescription, setRenameProjectDescription] = useState('');
 
-    // Filter projects based on filter type (for now, just show all as "yours")
+    // Filter projects based on filter type
     const filteredProjects = projects
         .filter((project) =>
             project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (project.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
         )
-        .filter(() => {
-            // For now, all projects are "yours" - you can extend this later
-            if (filterType === 'yours' || filterType === 'all') return true;
+        .filter((project) => {
+            if (filterType === 'all') return !project.isArchived;
+            if (filterType === 'yours') return !project.isArchived && !project.isShared;
+            if (filterType === 'shared') return project.isShared && !project.isArchived;
+            if (filterType === 'archived') return project.isArchived;
+            if (filterType === 'trashed') return false; // Trash not implemented yet
             return false;
         })
         .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -160,10 +164,25 @@ export default function ProjectListPage() {
         setIsDeleteDialogOpen(true);
     };
 
+    const openArchiveDialog = (project: Project) => {
+        setSelectedProject(project);
+        setIsArchiveDialogOpen(true);
+    };
+
+    const handleArchiveProject = () => {
+        if (!selectedProject) return;
+        if (selectedProject.isArchived) {
+            unarchiveProject(selectedProject.id);
+            toast.success('Project unarchived successfully');
+        } else {
+            archiveProject(selectedProject.id);
+            toast.success('Project archived successfully');
+        }
+        setIsArchiveDialogOpen(false);
+        setSelectedProject(null);
+    };
+
     const getProjectCount = () => {
-        if (filterType === 'shared') return 0;
-        if (filterType === 'archived') return 0;
-        if (filterType === 'trashed') return 0;
         return filteredProjects.length;
     };
 
@@ -212,7 +231,14 @@ export default function ProjectListPage() {
                         <nav className="space-y-1">
                             {sidebarItems.map((item) => {
                                 const Icon = item.icon;
-                                const count = item.id === 'all' || item.id === 'yours' ? projects.length : 0;
+                                const count = (() => {
+                                    if (item.id === 'all') return projects.filter(p => !p.isArchived).length;
+                                    if (item.id === 'yours') return projects.filter(p => !p.isArchived && !p.isShared).length;
+                                    if (item.id === 'shared') return projects.filter(p => p.isShared && !p.isArchived).length;
+                                    if (item.id === 'archived') return projects.filter(p => p.isArchived).length;
+                                    if (item.id === 'trashed') return 0; // Trash not implemented yet
+                                    return 0;
+                                })();
                                 return (
                                     <button
                                         key={item.id}
@@ -356,6 +382,10 @@ export default function ProjectListPage() {
                                                             <Copy className="h-4 w-4 mr-2" />
                                                             Duplicate
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openArchiveDialog(project); }}>
+                                                            <Archive className="h-4 w-4 mr-2" />
+                                                            {project.isArchived ? 'Unarchive' : 'Archive'}
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
                                                             onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
@@ -425,6 +455,10 @@ export default function ProjectListPage() {
                                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicateProject(project.id); }}>
                                                                 <Copy className="h-4 w-4 mr-2" />
                                                                 Duplicate
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openArchiveDialog(project); }}>
+                                                                <Archive className="h-4 w-4 mr-2" />
+                                                                {project.isArchived ? 'Unarchive' : 'Archive'}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
@@ -524,6 +558,27 @@ export default function ProjectListPage() {
                     </div>
                 </div>
             </DraggableDialog>
+
+            {/* Archive Project Dialog */}
+            <AlertDialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{selectedProject?.isArchived ? 'Unarchive' : 'Archive'} Project?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {selectedProject?.isArchived
+                                ? `This will restore "${selectedProject?.name}" to your active projects.`
+                                : `This will move "${selectedProject?.name}" to your archived projects. You can restore it anytime.`
+                            }
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleArchiveProject}>
+                            {selectedProject?.isArchived ? 'Unarchive' : 'Archive'} Project
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* delete Project Dialog */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

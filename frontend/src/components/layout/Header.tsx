@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom"
+import { useState } from "react"
+import { Link, useParams, useLocation } from "react-router-dom"
 import { HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -13,23 +14,32 @@ import { ModeToggle } from "@/components/common/ModeToggle"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
 import {useComposer} from "@/features/composer/ComposerStoreContext.tsx";
 import { EditableText } from "@/components/common/EditableText";
+import { ShareDialog } from "@/features/collaboration/components/ShareDialog";
+import { useCollaborationStore } from "@/stores/collaborationStore";
+import { getInitials } from "@/features/collaboration/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
-    onShareClick?: () => void
     onHelpClick?: () => void
-    userInitials?: string
     githubUrl?: string
     emailUrl?: string
 }
 
 export function Header({
-   onShareClick,
    onHelpClick,
-   userInitials = "JD",
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
+    const { user, isAuthenticated } = useAuth();
     const { activeCircuitId, projectName, setProjectName } = useComposer();
+    const { collaborators } = useCollaborationStore();
+    const { projectId } = useParams<{ projectId: string }>();
+    const location = useLocation();
+    const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+
+    const userEmail = user?.email || "user@example.com";
+    const userInitials = user?.email ? getInitials(user.email) : "U";
+    const onlineCollaborators = collaborators.filter(c => c.isOnline && c.email !== userEmail);
 
     return (
         <header className="h-12 w-full border-b bg-muted/50 flex items-center px-4 text-xs text-muted-foreground">
@@ -67,24 +77,80 @@ export function Header({
 
             {/* Column 3: Actions */}
             <div className="flex items-center gap-2 shrink-0">
-            {/* Share Button */}
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={onShareClick}
-                                className="h-5 w-5"
-                            >
-                                <Share2 className="w-3.5 h-3.5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Share</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                {/* Online Collaborators */}
+                {onlineCollaborators.length > 0 && (
+                    <>
+                        <div className="flex items-center -space-x-2">
+                            {onlineCollaborators.slice(0, 3).map((collaborator) => (
+                                <TooltipProvider key={collaborator.id}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Avatar className="h-6 w-6 border-2 border-background" style={{ backgroundColor: collaborator.color }}>
+                                                <AvatarFallback className="text-white text-[8px] font-semibold" style={{ backgroundColor: collaborator.color }}>
+                                                    {getInitials(collaborator.email)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{collaborator.email} (Online)</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ))}
+                            {onlineCollaborators.length > 3 && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Avatar className="h-6 w-6 border-2 border-background bg-muted">
+                                                <AvatarFallback className="bg-muted text-foreground text-[8px] font-semibold">
+                                                    +{onlineCollaborators.length - 3}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{onlineCollaborators.length - 3} more online</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
+                        <Separator orientation="vertical" className="h-5" />
+                    </>
+                )}
+                {/* Share Button or Auth Buttons */}
+                {isAuthenticated ? (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setIsShareDialogOpen(true)}
+                                    className="h-5 w-5"
+                                >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Share</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                ) : (
+                    <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2" asChild>
+                            <Link to="/signin" state={{ from: location.pathname }}>
+                                Sign In
+                            </Link>
+                        </Button>
+                        <span className="text-muted-foreground">|</span>
+                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2" asChild>
+                            <Link to="/signup" state={{ from: location.pathname }}>
+                                Sign Up
+                            </Link>
+                        </Button>
+                    </div>
+                )}
 
                 {/* Help Button */}
                 <TooltipProvider>
@@ -167,6 +233,14 @@ export function Header({
                     </AvatarFallback>
                 </Avatar>
             </div>
+            {projectId && isAuthenticated && (
+                <ShareDialog
+                    open={isShareDialogOpen}
+                    onOpenChange={setIsShareDialogOpen}
+                    projectId={projectId}
+                    currentUserEmail={userEmail}
+                />
+            )}
         </header>
     )
 }

@@ -10,6 +10,9 @@ export interface Project {
     updatedAt: number;
     circuits: CircuitInfo[];
     activeCircuitId: string;
+    isArchived?: boolean;
+    isShared?: boolean;
+    owner?: string;
 }
 
 interface ProjectsState {
@@ -19,6 +22,8 @@ interface ProjectsState {
     deleteProject: (id: string) => void;
     getProject: (id: string) => Project | undefined;
     duplicateProject: (id: string) => string | null;
+    archiveProject: (id: string) => void;
+    unarchiveProject: (id: string) => void;
 }
 
 export const useProjectsStore = create<ProjectsState>()(
@@ -67,6 +72,20 @@ export const useProjectsStore = create<ProjectsState>()(
                     activeCircuitId: project.activeCircuitId,
                 });
                 return newId;
+            },
+            archiveProject: (id) => {
+                set((state) => ({
+                    projects: state.projects.map((p) =>
+                        p.id === id ? { ...p, isArchived: true, updatedAt: Date.now() } : p
+                    ),
+                }));
+            },
+            unarchiveProject: (id) => {
+                set((state) => ({
+                    projects: state.projects.map((p) =>
+                        p.id === id ? { ...p, isArchived: false, updatedAt: Date.now() } : p
+                    ),
+                }));
             },
         }),
         {

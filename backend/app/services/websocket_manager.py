@@ -17,6 +17,9 @@ class ClientMessage(str, Enum):
     BROADCAST = "broadcast"
     ROOM_BROADCAST = "room_broadcast"
     GET_STATS = "get_stats"
+    COLLABORATOR_UPDATE = "collaborator_update"
+    COLLABORATOR_ACTION = "collaborator_action"
+    CIRCUIT_CHANGE = "circuit_change"
 
 class ServerMessage(str, Enum):
     CONNECTION_ESTABLISHED = "connection_established"
@@ -30,6 +33,9 @@ class ServerMessage(str, Enum):
     ERROR = "error"
     HTTP_BROADCAST = "http_broadcast"
     HTTP_ROOM_BROADCAST = "http_room_broadcast"
+    COLLABORATOR_UPDATE = "collaborator_update"
+    COLLABORATOR_ACTION = "collaborator_action"
+    CIRCUIT_CHANGE = "circuit_change"
 
 class ConnectionEvent(str, Enum):
     USER_CONNECTED = "user_connected"
