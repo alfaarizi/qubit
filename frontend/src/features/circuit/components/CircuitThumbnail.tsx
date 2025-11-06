@@ -13,13 +13,27 @@ export function CircuitThumbnail({ project, className = '' }: CircuitThumbnailPr
   const svgRef = useRef<SVGSVGElement>(null);
 
   const activeCircuitId = project.activeCircuitId;
-  const circuitState = activeCircuitId ? useCircuitStateById(activeCircuitId) : null;
+  const circuitState = useCircuitStateById(activeCircuitId || '');
 
-  if (!circuitState || circuitState.placedGates.length === 0) {
+  const showPlaceholder = !activeCircuitId || !circuitState || circuitState.placedGates.length === 0;
+  const maxDepth = showPlaceholder ? 3 : getMaxDepth(circuitState.placedGates) + 1;
+
+  useCircuitRenderer({
+    svgRef,
+    numQubits: circuitState?.numQubits || 1,
+    maxDepth: Math.max(3, maxDepth),
+    placedGates: circuitState?.placedGates || [],
+    selectedGateIdsKey: '',
+    scrollContainerWidth: 300,
+    showNestedCircuit: false,
+    isExecuting: false,
+  });
+
+  if (showPlaceholder) {
     return (
       <div className={`flex items-center justify-center ${className}`}>
         <span className="text-muted-foreground text-xs">
-          {project.circuits.length > 0 
+          {project.circuits.length > 0
             ? `${project.circuits.length} ${project.circuits.length === 1 ? 'circuit' : 'circuits'}`
             : 'No circuits yet'
           }
@@ -28,25 +42,12 @@ export function CircuitThumbnail({ project, className = '' }: CircuitThumbnailPr
     );
   }
 
-  const maxDepth = getMaxDepth(circuitState.placedGates) + 1;
-
-  useCircuitRenderer({
-    svgRef,
-    numQubits: circuitState.numQubits,
-    maxDepth: Math.max(3, maxDepth),
-    placedGates: circuitState.placedGates,
-    selectedGateIdsKey: '',
-    scrollContainerWidth: 300,
-    showNestedCircuit: false,
-    isExecuting: false,
-  });
-
   return (
-    <svg 
-      ref={svgRef} 
+    <svg
+      ref={svgRef}
       className={className}
-      style={{ 
-        width: '100%', 
+      style={{
+        width: '100%',
         height: '100%',
         transform: 'scale(0.8)',
         transformOrigin: 'center',

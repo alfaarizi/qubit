@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     ArrowRight,
@@ -17,10 +17,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {ModeToggle} from "@/components/common/ModeToggle.tsx";
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { getInitials } from '@/features/collaboration/utils';
 
 function HomePage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { t } = useTranslation();
+    const { user, isAuthenticated, signOut } = useAuth();
 
     const navigateToComposer = () => {
         navigate('/project');
@@ -87,9 +99,43 @@ function HomePage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Language Switcher - Top Right */}
+            {/* Language Switcher & Auth - Top Right */}
             <div className="fixed top-6 right-6 z-50 flex items-center gap-3">
-            <ModeToggle />
+                {!isAuthenticated ? (
+                    <>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-3" asChild>
+                            <Link to="/signin" state={{ from: location.pathname }}>
+                                Sign In
+                            </Link>
+                        </Button>
+                        <span className="text-muted-foreground">|</span>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-3" asChild>
+                            <Link to="/signup" state={{ from: location.pathname }}>
+                                Sign Up
+                            </Link>
+                        </Button>
+                    </>
+                ) : (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                <Avatar className="h-8 w-8 bg-blue-600">
+                                    <AvatarFallback className="bg-blue-600 text-white text-xs font-semibold">
+                                        {getInitials(user?.email || 'U')}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <div className="px-2 py-1.5 text-sm font-medium">{user?.email}</div>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => signOut()}>
+                                Sign Out
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+                <ModeToggle />
                 <LanguageSwitcher />
             </div>
 

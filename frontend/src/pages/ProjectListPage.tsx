@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
     Plus,
     Search,
@@ -44,9 +44,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { ModeToggle } from '@/components/common/ModeToggle';
 import { DraggableDialog } from '@/components/common/DraggableDialog';
 import { useProjectsStore, type Project } from '@/stores/projectsStore';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    DropdownMenu as ProfileDropdown,
+    DropdownMenuContent as ProfileDropdownContent,
+    DropdownMenuItem as ProfileDropdownItem,
+    DropdownMenuSeparator as ProfileDropdownSeparator,
+    DropdownMenuTrigger as ProfileDropdownTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CircuitThumbnail } from '@/features/circuit/components/CircuitThumbnail';
+import { getInitials } from '@/features/collaboration/utils';
 
 type ViewMode = 'grid' | 'list';
 type FilterType = 'all' | 'yours' | 'shared' | 'archived' | 'trashed';
@@ -61,7 +71,9 @@ const sidebarItems = [
 
 export default function ProjectListPage() {
     const navigate = useNavigate();
-    const { projects, addProject, updateProject, deleteProject, duplicateProject, archiveProject, unarchiveProject } = useProjectsStore();
+    const location = useLocation();
+    const { user, isAuthenticated, signOut } = useAuth();
+    const { projects, loadProjects, isLoading, addProject, updateProject, deleteProject, duplicateProject, archiveProject, unarchiveProject } = useProjectsStore();
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +88,11 @@ export default function ProjectListPage() {
     const [newProjectDescription, setNewProjectDescription] = useState('');
     const [renameProjectName, setRenameProjectName] = useState('');
     const [renameProjectDescription, setRenameProjectDescription] = useState('');
+
+    // Load projects from database on mount
+    useEffect(() => {
+        loadProjects();
+    }, [loadProjects]);
 
     // Filter projects based on filter type
     const filteredProjects = projects
@@ -93,13 +110,13 @@ export default function ProjectListPage() {
         })
         .sort((a, b) => b.updatedAt - a.updatedAt);
 
-    const handleCreateProject = () => {
+    const handleCreateProject = async () => {
         if (!newProjectName.trim()) {
             toast.error('Project name is required');
             return;
         }
 
-        const projectId = addProject({
+        const projectId = await addProject({
             name: newProjectName.trim(),
             description: newProjectDescription.trim() || undefined,
             circuits: [],
@@ -109,21 +126,24 @@ export default function ProjectListPage() {
         setNewProjectName('');
         setNewProjectDescription('');
         setIsCreateDialogOpen(false);
-        toast.success('Project created successfully');
-        navigate(`/project/${projectId}`);
+
+        // wait for database to index the new project before navigating
+        setTimeout(() => {
+            navigate(`/project/${projectId}`);
+        }, 150);
     };
 
     const handleOpenProject = (projectId: string) => {
         navigate(`/project/${projectId}`);
     };
 
-    const handleRenameProject = () => {
+    const handleRenameProject = async () => {
         if (!selectedProject || !renameProjectName.trim()) {
             toast.error('Project name is required');
             return;
         }
 
-        updateProject(selectedProject.id, {
+        await updateProject(selectedProject.id, {
             name: renameProjectName.trim(),
             description: renameProjectDescription.trim() || undefined,
         });
@@ -135,8 +155,8 @@ export default function ProjectListPage() {
         toast.success('Project updated successfully');
     };
 
-    const handleDuplicateProject = (projectId: string) => {
-        const newProjectId = duplicateProject(projectId);
+    const handleDuplicateProject = async (projectId: string) => {
+        const newProjectId = await duplicateProject(projectId);
         if (newProjectId) {
             toast.success('Project duplicated successfully');
         } else {
@@ -144,10 +164,10 @@ export default function ProjectListPage() {
         }
     };
 
-    const handleDeleteProject = () => {
+    const handleDeleteProject = async () => {
         if (!selectedProject) return;
 
-        deleteProject(selectedProject.id);
+        await deleteProject(selectedProject.id);
         setIsDeleteDialogOpen(false);
         setSelectedProject(null);
         toast.success('Project deleted successfully');
@@ -170,13 +190,13 @@ export default function ProjectListPage() {
         setIsArchiveDialogOpen(true);
     };
 
-    const handleArchiveProject = () => {
+    const handleArchiveProject = async () => {
         if (!selectedProject) return;
         if (selectedProject.isArchived) {
-            unarchiveProject(selectedProject.id);
+            await unarchiveProject(selectedProject.id);
             toast.success('Project unarchived successfully');
         } else {
-            archiveProject(selectedProject.id);
+            await archiveProject(selectedProject.id);
             toast.success('Project archived successfully');
         }
         setIsArchiveDialogOpen(false);
@@ -199,6 +219,25 @@ export default function ProjectListPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Sign In/Sign Up on the left */}
+                        {!isAuthenticated && (
+                            <>
+                                <Button variant="ghost" size="sm" className="h-8 text-xs px-2" asChild>
+                                    <Link to="/signin" state={{ from: location.pathname }}>
+                                        Sign In
+                                    </Link>
+                                </Button>
+                                <span className="text-muted-foreground">|</span>
+                                <Button variant="ghost" size="sm" className="h-8 text-xs px-2" asChild>
+                                    <Link to="/signup" state={{ from: location.pathname }}>
+                                        Sign Up
+                                    </Link>
+                                </Button>
+                                <div className="w-px h-6 bg-border mx-1" />
+                            </>
+                        )}
+
+                        {/* GitHub and Email Links */}
                         <Button
                             variant="ghost"
                             size="icon"
@@ -219,7 +258,34 @@ export default function ProjectListPage() {
                                 <Mail className="h-4 w-4" />
                             </a>
                         </Button>
+
+                        {/* Mode Toggle */}
                         <ModeToggle />
+
+                        {/* User Profile - Rightmost position */}
+                        {isAuthenticated && (
+                            <>
+                                <div className="w-px h-6 bg-border mx-1" />
+                                <ProfileDropdown>
+                                    <ProfileDropdownTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                            <Avatar className="h-8 w-8 bg-blue-600">
+                                                <AvatarFallback className="bg-blue-600 text-white text-xs font-semibold">
+                                                    {getInitials(user?.email || 'U')}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </Button>
+                                    </ProfileDropdownTrigger>
+                                    <ProfileDropdownContent align="end">
+                                        <div className="px-2 py-1.5 text-sm font-medium">{user?.email}</div>
+                                        <ProfileDropdownSeparator />
+                                        <ProfileDropdownItem onClick={() => signOut()}>
+                                            Sign Out
+                                        </ProfileDropdownItem>
+                                    </ProfileDropdownContent>
+                                </ProfileDropdown>
+                            </>
+                        )}
                     </div>
                 </div>
             </header>

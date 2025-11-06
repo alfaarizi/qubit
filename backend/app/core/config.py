@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     FRONTEND_URL: str
     LOG_FILE_PATH: Optional[Path] = None
 
+    # MongoDB Configuration
+    MONGODB_URL: str = "mongodb://localhost:27017"
+    MONGODB_DATABASE: str = "qubitkitdev"
+
+    # JWT Authentication
+    SECRET_KEY: str = "your-secret-key-change-in-production-use-openssl-rand-hex-32"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     # SQUANDER SSH Configuration
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None

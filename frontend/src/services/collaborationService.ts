@@ -22,7 +22,8 @@ export class CollaborationService {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
         const port = import.meta.env.VITE_BACKEND_PORT || '8000';
-        const wsUrl = `${protocol}//${host}:${port}/api/v1/ws/`;
+        const token = localStorage.getItem('auth_token');
+        const wsUrl = `${protocol}//${host}:${port}/api/v1/ws/${token ? `?token=${token}` : ''}`;
 
         try {
             this.ws = new WebSocket(wsUrl);

@@ -1,104 +1,92 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase, mockAuth, isMockAuthEnabled } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { authApi, type User } from '@/lib/api/auth';
 
 interface AuthContextType {
-    user: User | null;
-    loading: boolean;
-    signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-    signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-    signOut: () => Promise<void>;
-    isAuthenticated: boolean;
+  user: User | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Check active sessions and sets the user
-        const initAuth = async () => {
-            if (isMockAuthEnabled) {
-                const { user: mockUser } = mockAuth.getSession();
-                setUser(mockUser as unknown as User);
-                setLoading(false);
-            } else {
-                const { data: { session } } = await supabase.auth.getSession();
-                setUser(session?.user ?? null);
-                setLoading(false);
-
-                // Listen for changes on auth state
-                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-                    setUser(session?.user ?? null);
-                });
-
-                return () => subscription.unsubscribe();
-            }
-        };
-
-        initAuth();
-    }, []);
-
-    const signIn = async (email: string, password: string) => {
-        if (isMockAuthEnabled) {
-            const { user: mockUser, error } = await mockAuth.signIn(email, password);
-            if (!error && mockUser) {
-                setUser(mockUser as unknown as User);
-            }
-            return { error };
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem(TOKEN_KEY);
+      const storedUser = localStorage.getItem(USER_KEY);
+      if (token && storedUser) {
+        try {
+          // verify token is still valid
+          const currentUser = await authApi.getCurrentUser();
+          setUser(currentUser);
+        } catch (error) {
+          // token expired or invalid, clean up
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+          setUser(null);
         }
-
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (!error && data.user) {
-            setUser(data.user);
-        }
-        return { error: error as Error | null };
+      }
+      setLoading(false);
     };
 
-    const signUp = async (email: string, password: string) => {
-        if (isMockAuthEnabled) {
-            const { user: mockUser, error } = await mockAuth.signUp(email, password);
-            if (!error && mockUser) {
-                setUser(mockUser as unknown as User);
-            }
-            return { error };
-        }
+    initAuth();
+  }, []);
 
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (!error && data.user) {
-            setUser(data.user);
-        }
-        return { error: error as Error | null };
-    };
+  const signIn = async (email: string, password: string) => {
+    try {
+      const response = await authApi.login({ email, password });
+      localStorage.setItem(TOKEN_KEY, response.accessToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+      setUser(response.user);
+      return { error: null };
+    } catch (error: any) {
+      return { error: new Error(error.response?.data?.detail || 'Login failed') };
+    }
+  };
 
-    const signOut = async () => {
-        if (isMockAuthEnabled) {
-            await mockAuth.signOut();
-            setUser(null);
-        } else {
-            await supabase.auth.signOut();
-            setUser(null);
-        }
-    };
+  const signUp = async (email: string, password: string) => {
+    try {
+      const response = await authApi.register({ email, password });
+      localStorage.setItem(TOKEN_KEY, response.accessToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+      setUser(response.user);
+      return { error: null };
+    } catch (error: any) {
+      return { error: new Error(error.response?.data?.detail || 'Registration failed') };
+    }
+  };
 
-    const value = {
-        user,
-        loading,
-        signIn,
-        signUp,
-        signOut,
-        isAuthenticated: !!user,
-    };
+  const signOut = async () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
+  };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const value = {
+    user,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    isAuthenticated: !!user,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

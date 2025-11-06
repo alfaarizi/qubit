@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from .core.config import settings
 from .api.v1.api import api_router
 from .services.squander_client import SquanderClient
+from .db.mongodb import MongoDB
 
 def setup_logging():
     # Use simple formatter for readability (comment out for JSON)
@@ -57,14 +58,24 @@ def create_application() -> FastAPI:
     application.include_router(api_router, prefix=settings.API_V1_STR)
 
     @application.on_event("startup")
-    async def start_cleanup_task():
-        """Start background task to cleanup stale SSH connections"""
+    async def startup_event():
+        """Initialize services on startup"""
+        # Connect to MongoDB
+        await MongoDB.connect_db()
+        logging.info("MongoDB connection established")
+        # Start SSH cleanup task
         async def cleanup_loop():
             while True:
                 await asyncio.sleep(60)  # Run every minute
                 await SquanderClient.cleanup_stale_connections(max_idle_seconds=300)
         asyncio.create_task(cleanup_loop())
         logging.info("Started SSH connection cleanup task (checks every 60s, cleans after 300s idle)")
+
+    @application.on_event("shutdown")
+    async def shutdown_event():
+        """Cleanup on shutdown"""
+        await MongoDB.close_db()
+        logging.info("MongoDB connection closed")
 
     @application.get('/favicon.ico', include_in_schema=False)
     async def favicon():

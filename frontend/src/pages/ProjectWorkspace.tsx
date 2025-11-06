@@ -22,6 +22,7 @@ export default function ProjectWorkspace() {
     } = useComposerStore();
 
     const projectIdRef = useRef<string | null>(null);
+    const isInitializedRef = useRef(false);
 
     const userEmail = user?.email || 'user@example.com';
 
@@ -34,22 +35,26 @@ export default function ProjectWorkspace() {
     // load composer data from projects store when component mounts or projectId changes
     useEffect(() => {
         if (!projectId) {
-            // No composer ID, redirect to composer list
             navigate('/project');
             return;
         }
         const project = getProject(projectId);
         if (!project) {
-            // Project not found, redirect to composer list
             navigate('/project');
             return;
         }
         // Only initialize if we're loading a new project
         if (projectIdRef.current !== projectId) {
             projectIdRef.current = projectId;
+            isInitializedRef.current = false;
             setProjectName(project.name);
             reorderCircuits(project.circuits);
             setActiveCircuitId(project.activeCircuitId);
+
+            // Mark as initialized after a short delay to skip the first update
+            setTimeout(() => {
+                isInitializedRef.current = true;
+            }, 200);
 
             // Initialize owner collaborator
             if (user?.email) {
@@ -68,8 +73,8 @@ export default function ProjectWorkspace() {
     // sync changes back to the projects store whenever composer state changes
     useEffect(() => {
         if (!projectId) return;
-        // Only sync if we've initialized this project
         if (projectIdRef.current !== projectId) return;
+        if (!isInitializedRef.current) return;
 
         const project = getProject(projectId);
         if (!project) return;

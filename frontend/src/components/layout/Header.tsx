@@ -10,6 +10,13 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ModeToggle } from "@/components/common/ModeToggle"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
 import {useComposer} from "@/features/composer/ComposerStoreContext.tsx";
@@ -30,7 +37,7 @@ export function Header({
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, signOut } = useAuth();
     const { activeCircuitId, projectName, setProjectName } = useComposer();
     const { collaborators } = useCollaborationStore();
     const { projectId } = useParams<{ projectId: string }>();
@@ -77,6 +84,26 @@ export function Header({
 
             {/* Column 3: Actions */}
             <div className="flex items-center gap-2 shrink-0">
+                {/* Sign In/Sign Up on the left */}
+                {!isAuthenticated && (
+                    <>
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" asChild>
+                                <Link to="/signin" state={{ from: location.pathname }}>
+                                    Sign In
+                                </Link>
+                            </Button>
+                            <span className="text-muted-foreground">|</span>
+                            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" asChild>
+                                <Link to="/signup" state={{ from: location.pathname }}>
+                                    Sign Up
+                                </Link>
+                            </Button>
+                        </div>
+                        <Separator orientation="vertical" className="h-5" />
+                    </>
+                )}
+
                 {/* Online Collaborators */}
                 {onlineCollaborators.length > 0 && (
                     <>
@@ -117,8 +144,9 @@ export function Header({
                         <Separator orientation="vertical" className="h-5" />
                     </>
                 )}
-                {/* Share Button or Auth Buttons */}
-                {isAuthenticated ? (
+
+                {/* Share Button */}
+                {isAuthenticated && (
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -136,20 +164,6 @@ export function Header({
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                ) : (
-                    <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2" asChild>
-                            <Link to="/signin" state={{ from: location.pathname }}>
-                                Sign In
-                            </Link>
-                        </Button>
-                        <span className="text-muted-foreground">|</span>
-                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2" asChild>
-                            <Link to="/signup" state={{ from: location.pathname }}>
-                                Sign Up
-                            </Link>
-                        </Button>
-                    </div>
                 )}
 
                 {/* Help Button */}
@@ -222,16 +236,33 @@ export function Header({
                 {/* Mode Toggle */}
                 <ModeToggle />
 
-                <div className="flex items-center h-5">
-                    <Separator orientation="vertical" />
-                </div>
+                {/* User Profile - Rightmost position */}
+                {isAuthenticated && (
+                    <>
+                        <div className="flex items-center h-5">
+                            <Separator orientation="vertical" />
+                        </div>
 
-                {/* User Avatar */}
-                <Avatar className="w-5 h-5 bg-blue-600">
-                    <AvatarFallback className="bg-blue-600 text-white text-[8px] font-semibold">
-                        {userInitials}
-                    </AvatarFallback>
-                </Avatar>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full p-0">
+                                    <Avatar className="w-5 h-5 bg-blue-600">
+                                        <AvatarFallback className="bg-blue-600 text-white text-[8px] font-semibold">
+                                            {userInitials}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <div className="px-2 py-1.5 text-xs font-medium">{userEmail}</div>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => signOut()} className="text-xs cursor-pointer">
+                                    Sign Out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </>
+                )}
             </div>
             {projectId && isAuthenticated && (
                 <ShareDialog

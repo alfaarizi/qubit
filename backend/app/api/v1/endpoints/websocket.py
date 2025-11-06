@@ -18,6 +18,22 @@ class BroadcastMessage(BaseModel):
     content: str = ""
     metadata: Dict[str, Any] = {}
 
+async def get_websocket_user(token: Optional[str]) -> Optional[str]:
+    """validate JWT token from websocket and return user email"""
+    if not token:
+        return None
+    from ....core.security import decode_access_token
+    from ....db.mongodb import MongoDB
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    email = payload.get("sub")
+    if not email:
+        return None
+    db = MongoDB.get_db()
+    user = await db.users.find_one({"email": email})
+    return email if user else None
+
 async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> None:
     session = manager.get_session(connection_id)
     if session:
@@ -145,11 +161,15 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
 @router.websocket("/")
 async def websocket_endpoint(
     websocket: WebSocket,
+    token: Optional[str] = Query(None, description="JWT authentication token"),
     client_id: Optional[str] = Query(None, description="Optional client identifier")
 ):
-    """Main WebSocket endpoint for real-time communication."""
+    """main websocket endpoint for real-time communication"""
+    user_email = await get_websocket_user(token)
     connection_id = await manager.connect(websocket, client_id)
-    logger.info(f"[WebSocket] Connection established: {connection_id}")
+    if user_email:
+        manager.update_session(connection_id, user={"email": user_email, "authenticated": True})
+    logger.info(f"[WebSocket] Connection established: {connection_id} (auth: {bool(user_email)})")
 
     try:
         try:

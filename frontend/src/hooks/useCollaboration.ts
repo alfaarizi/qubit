@@ -20,17 +20,18 @@ export function useCollaboration({ userEmail, enabled = true }: UseCollaboration
             return;
         }
 
-        // Connect to WebSocket
-        collaborationService.connect(projectId, userEmail);
+        let isActive = true;
 
         // Handle connection established
-        const handleConnectionEstablished = (data: { connection_id: string }) => {
-            console.log('[Collaboration] Connection established:', data.connection_id);
+        const handleConnectionEstablished = (data: unknown) => {
+            const message = data as { connection_id: string };
+            console.log('[Collaboration] Connection established:', message.connection_id);
         };
 
         // Handle collaborator updates
-        const handleCollaboratorUpdate = (data: { data: { id?: string; email: string; role: string; activeCircuitId?: string; isOnline?: boolean } }) => {
-            const collaboratorData = data.data;
+        const handleCollaboratorUpdate = (data: unknown) => {
+            const message = data as { data: { id?: string; email: string; role: 'owner' | 'editor' | 'viewer'; activeCircuitId?: string; isOnline?: boolean } };
+            const collaboratorData = message.data;
             if (collaboratorData.email === userEmail) return;
 
             const existingCollaborators = useCollaborationStore.getState().collaborators;
@@ -38,12 +39,17 @@ export function useCollaboration({ userEmail, enabled = true }: UseCollaboration
             const color = existingIndex >= 0 ? existingCollaborators[existingIndex].color : getCollaboratorColor(existingCollaborators.length);
 
             if (collaboratorData.id) {
-                updateCollaborator(collaboratorData.id, { ...collaboratorData, color });
+                updateCollaborator(collaboratorData.id, {
+                    role: collaboratorData.role,
+                    color,
+                    activeCircuitId: collaboratorData.activeCircuitId,
+                    isOnline: collaboratorData.isOnline ?? true,
+                });
             } else {
                 addCollaborator({
                     id: crypto.randomUUID(),
                     email: collaboratorData.email,
-                    role: collaboratorData.role as 'owner' | 'editor' | 'viewer',
+                    role: collaboratorData.role,
                     color,
                     isOnline: collaboratorData.isOnline ?? true,
                     activeCircuitId: collaboratorData.activeCircuitId,
@@ -52,19 +58,21 @@ export function useCollaboration({ userEmail, enabled = true }: UseCollaboration
         };
 
         // Handle circuit changes
-        const handleCircuitChange = (data: { user_id: string; active_circuit_id: string }) => {
-            if (data.user_id === userEmail) return;
+        const handleCircuitChange = (data: unknown) => {
+            const message = data as { user_id: string; active_circuit_id: string };
+            if (message.user_id === userEmail) return;
 
-            updateCollaborator(data.user_id, {
-                activeCircuitId: data.active_circuit_id,
+            updateCollaborator(message.user_id, {
+                activeCircuitId: message.active_circuit_id,
                 isOnline: true,
             });
         };
 
         // Handle user connections/disconnections
-        const handleConnectionUpdate = (data: { event: string; connection_id: string }) => {
-            if (data.event === 'user_disconnected') {
-                removeCollaborator(data.connection_id);
+        const handleConnectionUpdate = (data: unknown) => {
+            const message = data as { event: string; connection_id: string };
+            if (message.event === 'user_disconnected') {
+                removeCollaborator(message.connection_id);
             }
         };
 
@@ -74,15 +82,24 @@ export function useCollaboration({ userEmail, enabled = true }: UseCollaboration
         collaborationService.on('circuit_change', handleCircuitChange);
         collaborationService.on('connection_update', handleConnectionUpdate);
 
-        // Announce presence
-        collaborationService.sendCollaboratorUpdate({
-            email: userEmail,
-            isOnline: true,
-            activeCircuitId,
-        });
+        // Connect to WebSocket
+        collaborationService.connect(projectId, userEmail);
+
+        // Announce presence after a short delay to ensure connection is established
+        const announceTimer = setTimeout(() => {
+            if (isActive) {
+                collaborationService.sendCollaboratorUpdate({
+                    email: userEmail,
+                    isOnline: true,
+                    activeCircuitId,
+                });
+            }
+        }, 100);
 
         // Cleanup
         return () => {
+            isActive = false;
+            clearTimeout(announceTimer);
             collaborationService.off('connection_established', handleConnectionEstablished);
             collaborationService.off('collaborator_update', handleCollaboratorUpdate);
             collaborationService.off('circuit_change', handleCircuitChange);
