@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     FRONTEND_URL: str
     LOG_FILE_PATH: Optional[Path] = None
 
+    # MongoDB Configuration
+    MONGODB_URL: str
+    MONGODB_DATABASE: str
+
     # SQUANDER SSH Configuration
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None
