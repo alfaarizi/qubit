@@ -15,6 +15,7 @@ const ProjectList = lazy(() => import('@/pages/ProjectListPage'));
 const ProjectWorkspace = lazy(() => import('@/pages/ProjectWorkspace'));
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 
 function AppContent() {
     useJobManager();
@@ -26,6 +27,14 @@ function AppContent() {
                     <Route path="/" element={<Home />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route
+                        path="/me"
+                        element={
+                            <ProtectedRoute>
+                                <ProfilePage />
+                            </ProtectedRoute>
+                        }
+                    />
                     <Route
                         path="/project"
                         element={

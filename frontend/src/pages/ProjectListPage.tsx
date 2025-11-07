@@ -42,6 +42,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ModeToggle } from '@/components/common/ModeToggle';
+import { UserNav } from '@/components/common/UserNav';
 import { DraggableDialog } from '@/components/common/DraggableDialog';
 import { useProjectsStore, type Project } from '@/stores/projectsStore';
 import { toast } from 'sonner';
@@ -201,6 +202,9 @@ export default function ProjectListPage() {
                             </a>
                         </Button>
                         <ModeToggle />
+                        <div className="scale-75 origin-center">
+                            <UserNav />
+                        </div>
                     </div>
                 </div>
             </header>
