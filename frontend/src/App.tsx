@@ -6,12 +6,15 @@ import { Toaster } from "@/components/ui/sonner"
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useJobManager } from '@/hooks/useJobManager';
 import '@/i18n/config';
 
 const Home = lazy(() => import('@/pages/HomePage'));
 const ProjectList = lazy(() => import('@/pages/ProjectListPage'));
 const ProjectWorkspace = lazy(() => import('@/pages/ProjectWorkspace'));
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
 
 function AppContent() {
     useJobManager();
@@ -21,8 +24,24 @@ function AppContent() {
             <Suspense fallback={<FullScreenSpinner />}>
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/project" element={<ProjectList />} />
-                    <Route path="/project/:projectId" element={<ProjectWorkspace />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route
+                        path="/project"
+                        element={
+                            <ProtectedRoute>
+                                <ProjectList />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/project/:projectId"
+                        element={
+                            <ProtectedRoute>
+                                <ProjectWorkspace />
+                            </ProtectedRoute>
+                        }
+                    />
                 </Routes>
             </Suspense>
         </>
@@ -35,7 +54,7 @@ function App() {
             <Router>
                 <AppContent />
             </Router>
-            <Toaster 
+            <Toaster
                 position="top-center"
                 richColors
                 toastOptions={{
