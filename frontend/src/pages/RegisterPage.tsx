@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -25,6 +26,11 @@ export default function RegisterPage() {
     lastName: "",
   });
   const [validationError, setValidationError] = useState("");
+
+  useEffect(() => {
+    // clear any stale errors on mount
+    clearError();
+  }, [clearError]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -60,7 +66,7 @@ export default function RegisterPage() {
         formData.firstName || undefined,
         formData.lastName || undefined
       );
-      navigate("/project");
+      // Navigation happens in useEffect when isAuthenticated becomes true
     } catch (err) {
       // error handled by store
     }
@@ -93,7 +99,8 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <FieldGroup>
               {displayError && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1">
+                  <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{displayError}</AlertDescription>
                 </Alert>
               )}

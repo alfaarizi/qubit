@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>()(
           await get().loadUser();
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'login failed',
+            error: error.response?.data?.detail || 'Invalid email or password',
             isLoading: false,
             isAuthenticated: false,
           });
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
           await get().login(email, password);
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'registration failed',
+            error: error.response?.data?.detail || 'Registration failed. Please try again.',
             isLoading: false,
           });
           throw error;
@@ -98,7 +98,8 @@ export const useAuthStore = create<AuthState>()(
           const user = await authApi.me();
           set({ user, isAuthenticated: true });
         } catch (error) {
-          get().logout();
+          // don't logout immediately, the refresh token might still be valid
+          set({ user: null, accessToken: null, isAuthenticated: false });
         }
       },
       clearError: () => set({ error: null }),
@@ -110,6 +111,13 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+      }),
+      // skip hydration of isLoading and error to prevent stale state
+      merge: (persistedState: any, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        isLoading: false, // start with loading false
+        error: null, // start with no error
       }),
     }
   )

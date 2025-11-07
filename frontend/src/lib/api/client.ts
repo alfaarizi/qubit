@@ -47,8 +47,9 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // don't intercept 401 errors from login or register endpoints
+    const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/register');
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -88,14 +89,20 @@ api.interceptors.response.use(
           processQueue(refreshError);
           isRefreshing = false;
           localStorage.removeItem('auth-storage');
-          window.location.href = '/login';
+          // nnly redirect if not already on login/register page
+          if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+            window.location.href = '/login';
+          }
           return Promise.reject(refreshError);
         }
       }
 
       isRefreshing = false;
       localStorage.removeItem('auth-storage');
-      window.location.href = '/login';
+      // nnly redirect if not already on login/register page
+      if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(error);

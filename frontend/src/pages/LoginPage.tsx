@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -21,6 +22,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
+    // clear any stale errors on mount
+    clearError();
+  }, [clearError]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       navigate("/project");
     }
@@ -31,9 +37,16 @@ export default function LoginPage() {
     clearError();
     try {
       await login(email, password);
-      navigate("/project");
+      // Navigation happens in useEffect when isAuthenticated becomes true
     } catch (err) {
       // error handled by store
+    }
+  };
+
+  const handleInputChange = (setter: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    if (error) {
+      clearError();
     }
   };
 
@@ -65,7 +78,8 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <FieldGroup>
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1">
+                  <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -77,7 +91,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="name@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleInputChange(setEmail)}
                   required
                   disabled={isLoading}
                   autoComplete="email"
@@ -92,7 +106,7 @@ export default function LoginPage() {
                   type="password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handleInputChange(setPassword)}
                   required
                   disabled={isLoading}
                   autoComplete="current-password"
