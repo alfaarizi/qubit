@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     MONGODB_DATABASE: str
 
+    # JWT Configuration
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
     # SQUANDER SSH Configuration
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None
