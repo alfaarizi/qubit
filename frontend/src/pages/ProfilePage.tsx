@@ -95,7 +95,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">User ID</label>
-                <p className="mt-1 text-base font-mono text-sm">{user?.id}</p>
+                <p className="mt-1 text-base font-mono">{user?.id}</p>
               </div>
             </CardContent>
           </Card>

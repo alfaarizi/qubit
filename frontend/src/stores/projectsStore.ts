@@ -29,8 +29,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         try {
             const projects = await projectsApi.list();
             set({ projects, isLoaded: true, isLoading: false });
-        } catch (error: any) {
-            set({ error: error.response?.data?.detail || 'failed to load projects', isLoading: false });
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to load projects';
+            set({ error: errorMessage, isLoading: false });
             throw error;
         }
     },
@@ -40,8 +41,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             const newProject = await projectsApi.create(project);
             set((state) => ({ projects: [...state.projects, newProject] }));
             return newProject.id;
-        } catch (error: any) {
-            set({ error: error.response?.data?.detail || 'failed to create project' });
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to create project';
+            set({ error: errorMessage });
             throw error;
         }
     },
@@ -58,13 +60,14 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             set((state) => ({
                 projects: state.projects.map((p) => (p.id === id ? updated : p)),
             }));
-        } catch (error: any) {
+        } catch (error) {
             if (optimisticUpdate) {
                 set((state) => ({
                     projects: state.projects.map((p) => (p.id === id ? optimisticUpdate : p)),
                 }));
             }
-            set({ error: error.response?.data?.detail || 'failed to update project' });
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to update project';
+            set({ error: errorMessage });
             throw error;
         }
     },
@@ -74,8 +77,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         set((state) => ({ projects: state.projects.filter((p) => p.id !== id) }));
         try {
             await projectsApi.delete(id);
-        } catch (error: any) {
-            set({ projects: backup, error: error.response?.data?.detail || 'failed to delete project' });
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to delete project';
+            set({ projects: backup, error: errorMessage });
             throw error;
         }
     },
@@ -88,8 +92,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             const duplicated = await projectsApi.duplicate(id);
             set((state) => ({ projects: [...state.projects, duplicated] }));
             return duplicated.id;
-        } catch (error: any) {
-            set({ error: error.response?.data?.detail || 'failed to duplicate project' });
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to duplicate project';
+            set({ error: errorMessage });
             throw error;
         }
     },

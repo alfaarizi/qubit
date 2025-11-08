@@ -74,4 +74,5 @@ export function ComposerProvider({ children }: { children: ReactNode }) {
 }
 
 // Re-export the hook with the same name for compatibility
+// eslint-disable-next-line react-refresh/only-export-components
 export const useComposer = useComposerStore;

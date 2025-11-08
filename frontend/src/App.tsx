@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/sonner"
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { FullScreenSpinner } from '@/components/common/FullScreenSpinner';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ProtectedRoute } from '@/components/common/ProtectedRoute.tsx';
 import { useJobManager } from '@/hooks/useJobManager';
 import '@/i18n/config';
 

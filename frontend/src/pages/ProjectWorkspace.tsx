@@ -56,7 +56,7 @@ export default function ProjectWorkspace() {
             JSON.stringify(project.circuits) !== JSON.stringify(circuits) ||
             project.activeCircuitId !== activeCircuitId;
         if (hasChanges) {
-            updateProject(projectId, {
+            void updateProject(projectId, {
                 name: projectName,
                 circuits,
                 activeCircuitId,

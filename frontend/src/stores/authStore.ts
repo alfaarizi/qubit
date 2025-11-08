@@ -41,9 +41,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
           await get().loadUser();
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Invalid email or password';
           set({
-            error: error.response?.data?.detail || 'Invalid email or password',
+            error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
           });
@@ -60,9 +61,10 @@ export const useAuthStore = create<AuthState>()(
             last_name: lastName,
           });
           await get().login(email, password);
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Registration failed. Please try again.';
           set({
-            error: error.response?.data?.detail || 'Registration failed. Please try again.',
+            error: errorMessage,
             isLoading: false,
           });
           throw error;
@@ -79,9 +81,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
           await get().loadUser();
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'OAuth login failed. Please try again.';
           set({
-            error: error.response?.data?.detail || 'OAuth login failed. Please try again.',
+            error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
           });
@@ -93,9 +96,10 @@ export const useAuthStore = create<AuthState>()(
         try {
           await authApi.sendEmailCode({ email });
           set({ isLoading: false });
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to send verification code. Please try again.';
           set({
-            error: error.response?.data?.detail || 'Failed to send verification code. Please try again.',
+            error: errorMessage,
             isLoading: false,
           });
           throw error;
@@ -112,9 +116,10 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
           await get().loadUser();
-        } catch (error: any) {
+        } catch (error) {
+          const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Invalid verification code. Please try again.';
           set({
-            error: error.response?.data?.detail || 'Invalid verification code. Please try again.',
+            error: errorMessage,
             isLoading: false,
             isAuthenticated: false,
           });
@@ -154,7 +159,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await authApi.me();
           set({ user, isAuthenticated: true });
-        } catch (error) {
+        } catch {
           // don't logout immediately, the refresh token might still be valid
           set({ user: null, accessToken: null, isAuthenticated: false });
         }
@@ -170,9 +175,9 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       // skip hydration of isLoading and error to prevent stale state
-      merge: (persistedState: any, currentState) => ({
+      merge: (persistedState: unknown, currentState) => ({
         ...currentState,
-        ...persistedState,
+        ...(persistedState as Partial<AuthState>),
         isLoading: false, // start with loading false
         error: null, // start with no error
       }),

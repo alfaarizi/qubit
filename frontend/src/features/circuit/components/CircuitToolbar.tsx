@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, startTransition } from 'react';
+import React, { useRef, useEffect, useCallback, useState, startTransition } from 'react';
 import { Undo2, Redo2, Trash2, Play, ChevronDown, FolderOpen, Eye, EyeOff, Square, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { useJobStore } from "@/stores/jobStore";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
+import type { SerializedGate } from "@/types";
 
 const PARTITION_BACKENDS = [
     { value: 'squander', label: 'SQUANDER' },
@@ -104,7 +105,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                 }
                 break;
         }
-    }, [job?.status, jobId, setExecutionStatus, setExecutionProgress, setIsExecuting]);
+    }, [job, setExecutionStatus, setExecutionProgress, setIsExecuting]);
 
     // Process job updates and calculate progress
     useEffect(() => {
@@ -134,23 +135,24 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         if (latest.type === 'phase' || latest.type === 'log') {
             setExecutionStatus(statusText);
         }
-    }, [job?.updates.length, setExecutionStatus, setExecutionProgress]);
+    }, [job?.updates, setExecutionStatus, setExecutionProgress]);
 
     useEffect(() => {
         if (!job || job.jobType !== 'import' || job.status !== 'complete') return;
         const completeUpdate = job.updates.find(u => u.type === 'complete');
-        const result = completeUpdate?.result as any;
-        if (!result || !result.num_qubits || !result.placed_gates) return;
+        const result = completeUpdate?.result as { num_qubits?: number; placed_gates?: unknown[] } | undefined;
+        if (!result || typeof result.num_qubits !== 'number' || !Array.isArray(result.placed_gates)) return;
 
         const constructGates = async () => {
-            const gates = result.placed_gates;
+            const numQubitsValue = result.num_qubits as number;
+            const gates = result.placed_gates as unknown[];
 
-            setNumQubits(result.num_qubits);
-            setMeasurements(Array(result.num_qubits).fill(true));
+            setNumQubits(numQubitsValue);
+            setMeasurements(Array(numQubitsValue).fill(true));
             setPlacedGates([], { skipHistory: true });
 
-            const deserializedGates: (Gate | Circuit)[] = gates.map((gateData: any) =>
-                deserializeGateFromAPI({ ...gateData, depth: 0 })
+            const deserializedGates: (Gate | Circuit)[] = gates.map((gateData: unknown) =>
+                deserializeGateFromAPI({ depth: 0, ...(gateData as Record<string, unknown>) } as SerializedGate)
             );
 
             const BATCH_SIZE = 100;
@@ -169,7 +171,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         };
 
         void constructGates();
-    }, [job?.status, job?.jobType, job?.updates.length, setPlacedGates, setNumQubits, setMeasurements, batchInjectGates]);
+    }, [job, setPlacedGates, setNumQubits, setMeasurements, batchInjectGates]);
 
     // Clean up abort toast when execution stops
     useEffect(() => {
@@ -235,7 +237,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                 fileInputRef.current.value = '';
             }
         }
-    }, [circuitId, sessionId, jobId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
+    }, [circuitId, sessionId, simulationTimeout, jobId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
     const handleRun = useCallback(async () => {
         if (!placedGates.length) {
