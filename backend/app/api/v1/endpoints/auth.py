@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pymongo.errors import DuplicateKeyError
-from app.schemas import UserCreate, UserLogin, Token, RefreshToken, UserResponse, OAuthLogin
+from app.schemas import (
+    UserCreate, UserLogin, Token, RefreshToken, UserResponse, OAuthLogin,
+    EmailVerificationRequest, EmailVerificationVerify
+)
 from app.models import User
 from app.core.security import (
     verify_password,
@@ -10,6 +13,7 @@ from app.core.security import (
     verify_token,
 )
 from app.core.oauth import verify_google_token, verify_microsoft_token
+from app.core.email import send_verification_email, verify_code
 from app.db import get_database
 from app.api.dependencies import get_current_user
 
@@ -194,4 +198,50 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         is_superuser=current_user.is_superuser,
         oauth_provider=current_user.oauth_provider,
         profile_url=current_user.profile_url,
+    )
+
+@router.post("/email/send-code", status_code=status.HTTP_200_OK)
+async def send_email_verification_code(request: EmailVerificationRequest):
+    """send verification code to email"""
+    try:
+        send_verification_email(request.email)
+        return {"message": "verification code sent"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"failed to send verification code: {str(e)}"
+        )
+
+@router.post("/email/verify", response_model=Token)
+async def verify_email_and_login(request: EmailVerificationVerify):
+    """verify email code and create/login user"""
+    if not verify_code(request.email, request.code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid or expired verification code"
+        )
+    db = get_database()
+    # check if user exists
+    user_data = db.users.find_one({"email": request.email})
+    if user_data:
+        # existing user
+        user = User.from_dict(user_data)
+    else:
+        # create new user without password (email-verified user)
+        user = User(email=request.email)
+        result = db.users.insert_one(user.to_dict())
+        user._id = result.inserted_id
+    # check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="inactive user"
+        )
+    # create tokens
+    access_token = create_access_token(subject=user.email)
+    refresh_token = create_refresh_token(subject=user.email)
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
     )

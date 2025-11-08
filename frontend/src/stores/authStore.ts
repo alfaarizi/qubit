@@ -12,6 +12,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
   oauthLogin: (token: string, provider: 'google' | 'microsoft') => Promise<void>;
+  sendEmailCode: (email: string) => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -79,6 +81,39 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: any) {
           set({
             error: error.response?.data?.detail || 'OAuth login failed. Please try again.',
+            isLoading: false,
+            isAuthenticated: false,
+          });
+          throw error;
+        }
+      },
+      sendEmailCode: async (email: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          await authApi.sendEmailCode({ email });
+          set({ isLoading: false });
+        } catch (error: any) {
+          set({
+            error: error.response?.data?.detail || 'Failed to send verification code. Please try again.',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+      verifyEmailCode: async (email: string, code: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const tokens = await authApi.verifyEmailCode({ email, code });
+          set({
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          await get().loadUser();
+        } catch (error: any) {
+          set({
+            error: error.response?.data?.detail || 'Invalid verification code. Please try again.',
             isLoading: false,
             isAuthenticated: false,
           });

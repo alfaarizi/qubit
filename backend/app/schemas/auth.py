@@ -45,4 +45,13 @@ class RefreshToken(BaseModel):
 class OAuthLogin(BaseModel):
     """schema for OAuth login"""
     token: str  # ID token from OAuth provider
-    provider: str  # "google" or "apple"
+    provider: str  # "google" or "microsoft"
+
+class EmailVerificationRequest(BaseModel):
+    """schema for requesting email verification code"""
+    email: EmailStr
+
+class EmailVerificationVerify(BaseModel):
+    """schema for verifying email code"""
+    email: EmailStr
+    code: str = Field(..., min_length=5, max_length=5)

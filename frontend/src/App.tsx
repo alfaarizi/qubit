@@ -19,8 +19,7 @@ const msalInstance = new PublicClientApplication(msalConfig);
 const Home = lazy(() => import('@/pages/HomePage'));
 const ProjectList = lazy(() => import('@/pages/ProjectListPage'));
 const ProjectWorkspace = lazy(() => import('@/pages/ProjectWorkspace'));
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
-const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
+const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 
 function AppContent() {
@@ -31,8 +30,8 @@ function AppContent() {
             <Suspense fallback={<FullScreenSpinner />}>
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/login" element={<AuthPage />} />
+                    <Route path="/register" element={<AuthPage />} />
                     <Route
                         path="/me"
                         element={

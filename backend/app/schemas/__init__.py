@@ -7,6 +7,8 @@ from app.schemas.auth import (
     TokenPayload,
     RefreshToken,
     OAuthLogin,
+    EmailVerificationRequest,
+    EmailVerificationVerify,
 )
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "TokenPayload",
     "RefreshToken",
     "OAuthLogin",
+    "EmailVerificationRequest",
+    "EmailVerificationVerify",
 ]

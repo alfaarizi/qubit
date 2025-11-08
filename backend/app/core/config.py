@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     MICROSOFT_CLIENT_ID: str
 
+    # Email Configuration
+    RESEND_API_KEY: str
+    EMAIL_FROM: str = "QubitKit <noreply@qubitkit.com>"
+
     # SQUANDER SSH Configuration
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None
