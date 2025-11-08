@@ -63,11 +63,9 @@ function AppContent() {
 }
 
 function App() {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-    console.log('Google Client ID loaded:', googleClientId ? 'Yes' : 'No', googleClientId.substring(0, 20) + '...');
     return (
         <MsalProvider instance={msalInstance}>
-            <GoogleOAuthProvider clientId={googleClientId}>
+            <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
                 <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
                     <Router>
                         <AppContent />

@@ -253,7 +253,6 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         );
 
         try {
-            console.log('[CircuitToolbar] Partition with timeout:', simulationTimeout);
             const response = await circuitsApi.partition(
                 circuitId,
                 numQubits,
