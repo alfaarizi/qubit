@@ -20,6 +20,7 @@ export default function AuthPage() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [code, setCode] = useState(["", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     clearError();
@@ -97,10 +98,15 @@ export default function AuthPage() {
   };
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    if (!credentialResponse.credential) return;
+    console.log('Google OAuth Success:');
+    if (!credentialResponse.credential) {
+      console.error('No credential in response');
+      return;
+    }
     try {
       await oauthLogin(credentialResponse.credential, 'google');
     } catch (err) {
+      console.error('OAuth login error:', err);
       // error handled by store
     }
   };
@@ -157,7 +163,7 @@ export default function AuthPage() {
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="relative w-full h-11">
-                    <div className="absolute inset-0 opacity-0 pointer-events-none">
+                    <div ref={googleButtonRef} className="absolute inset-0 opacity-0 pointer-events-none">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => clearError()}
@@ -169,8 +175,16 @@ export default function AuthPage() {
                       className="w-full h-11 justify-center"
                       disabled={isLoading}
                       onClick={() => {
-                        const googleBtn = document.querySelector('div[role="button"][aria-labelledby^="button-label"]') as HTMLElement;
-                        if (googleBtn) googleBtn.click();
+                        console.log('Custom Google button clicked');
+                        if (googleButtonRef.current) {
+                          const googleBtn = googleButtonRef.current.querySelector('div[role="button"]') as HTMLElement;
+                          console.log('Found Google button:', googleBtn);
+                          if (googleBtn) {
+                            googleBtn.click();
+                          } else {
+                            console.error('Google button not found in DOM');
+                          }
+                        }
                       }}
                     >
                       <div className="flex items-center justify-center gap-2">
