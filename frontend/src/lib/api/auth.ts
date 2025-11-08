@@ -25,6 +25,13 @@ export interface UserResponse {
   last_name?: string;
   is_active: boolean;
   is_superuser: boolean;
+  oauth_provider?: string;
+  profile_url?: string;
+}
+
+export interface OAuthLoginRequest {
+  token: string;
+  provider: 'google' | 'microsoft';
 }
 
 export const authApi = {
@@ -47,6 +54,11 @@ export const authApi = {
 
   me: async (): Promise<UserResponse> => {
     const response = await api.get<UserResponse>('/auth/me');
+    return response.data;
+  },
+
+  oauthLogin: async (data: OAuthLoginRequest): Promise<TokenResponse> => {
+    const response = await api.post<TokenResponse>('/auth/oauth/login', data);
     return response.data;
   },
 };

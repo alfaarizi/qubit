@@ -21,6 +21,8 @@ class UserResponse(UserBase):
     id: str
     is_active: bool
     is_superuser: bool
+    oauth_provider: Optional[str] = None
+    profile_url: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -39,3 +41,8 @@ class TokenPayload(BaseModel):
 class RefreshToken(BaseModel):
     """schema for refresh token request"""
     refresh_token: str
+
+class OAuthLogin(BaseModel):
+    """schema for OAuth login"""
+    token: str  # ID token from OAuth provider
+    provider: str  # "google" or "apple"

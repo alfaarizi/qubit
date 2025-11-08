@@ -49,8 +49,16 @@ export default function ProfilePage() {
         <div className="space-y-6">
           {/* Profile Header */}
           <div className="flex items-center gap-6">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white">
-              <span className="text-2xl font-semibold">{getInitials()}</span>
+            <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white overflow-hidden">
+              {user?.profile_url ? (
+                <img
+                  src={user.profile_url}
+                  alt={`${user.first_name || 'User'}'s profile`}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-2xl font-semibold">{getInitials()}</span>
+              )}
             </div>
             <div>
               <h1 className="text-3xl font-bold">

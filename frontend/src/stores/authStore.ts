@@ -11,6 +11,7 @@ interface AuthState {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  oauthLogin: (token: string, provider: 'google' | 'microsoft') => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -60,6 +61,26 @@ export const useAuthStore = create<AuthState>()(
           set({
             error: error.response?.data?.detail || 'Registration failed. Please try again.',
             isLoading: false,
+          });
+          throw error;
+        }
+      },
+      oauthLogin: async (token: string, provider: 'google' | 'microsoft') => {
+        set({ isLoading: true, error: null });
+        try {
+          const tokens = await authApi.oauthLogin({ token, provider });
+          set({
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          await get().loadUser();
+        } catch (error: any) {
+          set({
+            error: error.response?.data?.detail || 'OAuth login failed. Please try again.',
+            isLoading: false,
+            isAuthenticated: false,
           });
           throw error;
         }

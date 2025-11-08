@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # OAuth Configuration
+    GOOGLE_CLIENT_ID: str
+    MICROSOFT_CLIENT_ID: str
+
     # SQUANDER SSH Configuration
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None

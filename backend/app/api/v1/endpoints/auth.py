@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pymongo.errors import DuplicateKeyError
-from app.schemas import UserCreate, UserLogin, Token, RefreshToken, UserResponse
+from app.schemas import UserCreate, UserLogin, Token, RefreshToken, UserResponse, OAuthLogin
 from app.models import User
 from app.core.security import (
     verify_password,
@@ -9,6 +9,7 @@ from app.core.security import (
     create_refresh_token,
     verify_token,
 )
+from app.core.oauth import verify_google_token, verify_microsoft_token
 from app.db import get_database
 from app.api.dependencies import get_current_user
 
@@ -113,6 +114,74 @@ async def refresh_access_token(token_in: RefreshToken):
         token_type="bearer"
     )
 
+@router.post("/oauth/login", response_model=Token)
+async def oauth_login(oauth_in: OAuthLogin):
+    """login or register user using OAuth provider"""
+    db = get_database()
+    # verify token based on provider
+    if oauth_in.provider == "google":
+        user_info = verify_google_token(oauth_in.token)
+    elif oauth_in.provider == "microsoft":
+        user_info = verify_microsoft_token(oauth_in.token)
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"unsupported OAuth provider: {oauth_in.provider}")
+    oauth_id = user_info["sub"]
+    email = user_info["email"]
+    first_name = user_info.get("given_name")
+    last_name = user_info.get("family_name")
+    profile_url = user_info.get("picture")
+    # check if user exists with this OAuth provider
+    user_data = db.users.find_one({
+        "oauth_provider": oauth_in.provider,
+        "oauth_subject_id": oauth_id
+    })
+    if user_data:
+        # existing OAuth user
+        user = User.from_dict(user_data)
+    else:
+        # check if user exists with this email
+        user_data = db.users.find_one({"email": email})
+        if user_data:
+            # user exists with email, link OAuth account
+            user = User.from_dict(user_data)
+            db.users.update_one(
+                {"_id": user._id},
+                {"$set": {
+                    "oauth_provider": oauth_in.provider,
+                    "oauth_subject_id": oauth_id,
+                    "profile_url": profile_url
+                }}
+            )
+            user.oauth_provider = oauth_in.provider
+            user.oauth_subject_id = oauth_id
+            user.profile_url = profile_url
+        else:
+            # create new user
+            user = User(
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                oauth_provider=oauth_in.provider,
+                oauth_subject_id=oauth_id,
+                profile_url=profile_url,
+            )
+            result = db.users.insert_one(user.to_dict())
+            user._id = result.inserted_id
+    # check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="inactive user"
+        )
+    # create tokens
+    access_token = create_access_token(subject=user.email)
+    refresh_token = create_refresh_token(subject=user.email)
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
+    )
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """get current user information"""
@@ -123,4 +192,6 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         last_name=current_user.last_name,
         is_active=current_user.is_active,
         is_superuser=current_user.is_superuser,
+        oauth_provider=current_user.oauth_provider,
+        profile_url=current_user.profile_url,
     )
