@@ -111,7 +111,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
         link.download = `circuit_${getTimestamp()}.svg`;
         link.click();
         URL.revokeObjectURL(url);
-    }, [prepareSVG]);
+    }, [prepareSVG, svgRef]);
 
     const exportAsPNG = useCallback(() => {
         const node = prepareSVG();

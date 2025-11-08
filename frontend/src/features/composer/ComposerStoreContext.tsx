@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ReactNode } from 'react';
-import type { CircuitInfo } from '@/features/circuit/types';
+import type { CircuitInfo } from '@/types';
 
 interface ComposerState {
     projectName: string;
@@ -15,6 +15,7 @@ interface ComposerState {
     reorderCircuits: (circuits: CircuitInfo[]) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useComposerStore = create<ComposerState>()(
     persist(
         (set) => ({
@@ -73,4 +74,5 @@ export function ComposerProvider({ children }: { children: ReactNode }) {
 }
 
 // Re-export the hook with the same name for compatibility
+// eslint-disable-next-line react-refresh/only-export-components
 export const useComposer = useComposerStore;

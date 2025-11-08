@@ -5,24 +5,10 @@ import { useCircuitDAG } from '@/features/circuit/hooks/useCircuitDAG';
 import { GATE_CONFIG, GATE_DEFINITIONS } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import type { Gate } from '@/features/gates/types';
-
-interface GateDetail {
-    id: string;
-    name: string;
-    target_qubits: number[];
-    control_qubits: number[];
-}
-
-interface PartitionInfo {
-    index: number;
-    num_gates: number;
-    qubits: number[];
-    num_qubits: number;
-    gates: GateDetail[];
-}
+import type { Partition } from '@/types';
 
 interface PartitionCircuitViewerProps {
-    partitions: PartitionInfo[];
+    partitions: Partition[];
     maxPartitionSize?: number;
 }
 

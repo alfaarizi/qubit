@@ -63,7 +63,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             try {
                 sendJsonMessage(message);
                 return true;
-            } catch (error) {
+            } catch {
                 return false;
             }
         }

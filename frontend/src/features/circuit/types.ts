@@ -1,9 +1,9 @@
 import type { Gate, DagOperation } from "@/features/gates/types";
 
 /**
- * CircuitInfo - defines a custom circuit/partition template
+ * CircuitTemplate - defines a custom circuit/partition template
  */
-export interface CircuitInfo {
+export interface CircuitTemplate {
     id: string;
     name?: string;
     symbol: string;
@@ -15,6 +15,6 @@ export interface CircuitInfo {
  * Circuit - a circuit instance placed in the canvas
  */
 export interface Circuit extends DagOperation {
-    circuit: CircuitInfo;
+    circuit: CircuitTemplate;
     startQubit: number;
 }

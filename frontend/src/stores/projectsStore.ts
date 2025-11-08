@@ -1,76 +1,109 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { CircuitInfo } from '@/features/circuit/types';
+import { projectsApi } from '@/lib/api/projects';
+import type { Project, ProjectCreate, ProjectUpdate } from '@/types';
 
-export interface Project {
-    id: string;
-    name: string;
-    description?: string;
-    createdAt: number;
-    updatedAt: number;
-    circuits: CircuitInfo[];
-    activeCircuitId: string;
-}
+export type { Project };
 
 interface ProjectsState {
     projects: Project[];
-    addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => string;
-    updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'createdAt'>>) => void;
-    deleteProject: (id: string) => void;
+    isLoaded: boolean;
+    isLoading: boolean;
+    error: string | null;
+    loadProjects: () => Promise<void>;
+    addProject: (project: ProjectCreate) => Promise<string>;
+    updateProject: (id: string, updates: ProjectUpdate) => Promise<void>;
+    deleteProject: (id: string) => Promise<void>;
     getProject: (id: string) => Project | undefined;
-    duplicateProject: (id: string) => string | null;
+    duplicateProject: (id: string) => Promise<string>;
+    clearError: () => void;
+    clearProjects: () => void;
 }
 
-export const useProjectsStore = create<ProjectsState>()(
-    persist(
-        (set, get) => ({
-            projects: [],
-            addProject: (project) => {
-                const id = `${crypto.randomUUID()}`;
-                const now = Date.now();
-                const newProject: Project = {
-                    ...project,
-                    id,
-                    createdAt: now,
-                    updatedAt: now,
-                };
-                set((state) => ({
-                    projects: [...state.projects, newProject],
-                }));
-                return id;
-            },
-            updateProject: (id, updates) => {
-                set((state) => ({
-                    projects: state.projects.map((p) =>
-                        p.id === id
-                            ? { ...p, ...updates, updatedAt: Date.now() }
-                            : p
-                    ),
-                }));
-            },
-            deleteProject: (id) => {
-                set((state) => ({
-                    projects: state.projects.filter((p) => p.id !== id),
-                }));
-            },
-            getProject: (id) => {
-                return get().projects.find((p) => p.id === id);
-            },
-            duplicateProject: (id) => {
-                const project = get().getProject(id);
-                if (!project) return null;
-
-                const newId = get().addProject({
-                    name: `${project.name} (Copy)`,
-                    description: project.description,
-                    circuits: JSON.parse(JSON.stringify(project.circuits)),
-                    activeCircuitId: project.activeCircuitId,
-                });
-                return newId;
-            },
-        }),
-        {
-            name: 'projects-storage',
+export const useProjectsStore = create<ProjectsState>((set, get) => ({
+    projects: [],
+    isLoaded: false,
+    isLoading: false,
+    error: null,
+    loadProjects: async () => {
+        if (get().isLoaded || get().isLoading) return;
+        set({ isLoading: true, error: null });
+        try {
+            const projects = await projectsApi.list();
+            set({ projects, isLoaded: true, isLoading: false });
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to load projects';
+            set({ error: errorMessage, isLoading: false });
+            throw error;
         }
-    )
-);
+    },
+    addProject: async (project) => {
+        set({ error: null });
+        try {
+            const newProject = await projectsApi.create(project);
+            set((state) => ({ projects: [...state.projects, newProject] }));
+            return newProject.id;
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to create project';
+            set({ error: errorMessage });
+            throw error;
+        }
+    },
+    updateProject: async (id, updates) => {
+        set({ error: null });
+        const optimisticUpdate = get().projects.find(p => p.id === id);
+        if (optimisticUpdate) {
+            set((state) => ({
+                projects: state.projects.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+            }));
+        }
+        try {
+            const updated = await projectsApi.update(id, updates);
+            set((state) => ({
+                projects: state.projects.map((p) => (p.id === id ? updated : p)),
+            }));
+        } catch (error) {
+            if (optimisticUpdate) {
+                set((state) => ({
+                    projects: state.projects.map((p) => (p.id === id ? optimisticUpdate : p)),
+                }));
+            }
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to update project';
+            set({ error: errorMessage });
+            throw error;
+        }
+    },
+    deleteProject: async (id) => {
+        set({ error: null });
+        const backup = get().projects;
+        set((state) => ({ projects: state.projects.filter((p) => p.id !== id) }));
+        try {
+            await projectsApi.delete(id);
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to delete project';
+            set({ projects: backup, error: errorMessage });
+            throw error;
+        }
+    },
+    getProject: (id) => {
+        return get().projects.find((p) => p.id === id);
+    },
+    duplicateProject: async (id) => {
+        set({ error: null });
+        try {
+            const duplicated = await projectsApi.duplicate(id);
+            set((state) => ({ projects: [...state.projects, duplicated] }));
+            return duplicated.id;
+        } catch (error) {
+            const errorMessage = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'failed to duplicate project';
+            set({ error: errorMessage });
+            throw error;
+        }
+    },
+    clearError: () => set({ error: null }),
+    clearProjects: () => set({ 
+        projects: [], 
+        isLoaded: false, 
+        isLoading: false, 
+        error: null 
+    }),
+}));
