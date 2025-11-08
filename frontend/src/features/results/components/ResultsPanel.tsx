@@ -11,35 +11,14 @@ import {
 } from './visualizations';
 import { PartitionDistributionHistogram } from '@/features/results/components/visualizations';
 import { PartitionCircuitViewer } from './PartitionCircuitViewer';
-import { useResultsStore, type SimulationResults } from '@/stores/resultsStore';
-
-export interface GateDetail {
-    id: string;
-    name: string;
-    target_qubits: number[];
-    control_qubits: number[];
-}
-
-export interface PartitionInfo {
-    index: number;
-    num_gates: number;
-    qubits: number[];
-    num_qubits: number;
-    gates: GateDetail[];
-}
-
-export interface PartitionResult {
-    strategy: string;
-    max_partition_size: number;
-    total_partitions: number;
-    partitions: PartitionInfo[];
-}
+import { useResultsStore } from '@/stores/resultsStore';
+import type { SimulationResults, PartitionInfo } from '@/types';
 
 export type { SimulationResults };
 
 interface ResultsPanelProps {
     circuitId: string;
-    partitionResult?: PartitionResult;
+    partitionResult?: PartitionInfo;
     simulationResults?: SimulationResults;
 }
 

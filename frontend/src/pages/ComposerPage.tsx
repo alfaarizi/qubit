@@ -21,10 +21,11 @@ import { GatesPanel } from "@/features/gates/components/GatesPanel"
 import { CircuitProvider, useCircuitStore, getOrCreateCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
+import { CIRCUIT_CONFIG } from "@/features/circuit/constants";
 import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
-import type { PartitionResult, SimulationResults } from "@/features/results/components/ResultsPanel";
+import type { PartitionInfo, SimulationResults } from "@/types";
 import { ComposerProvider, useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { useJobStore } from "@/stores/jobStore";
@@ -80,7 +81,7 @@ function CircuitTabContent() {
         .sort((a, b) => b.createdAt - a.createdAt)[0];
 
     const completeUpdate = latestCompletedJob?.updates.find(update => update.type === 'complete');
-    const partitionResult = completeUpdate?.result?.partition_info as PartitionResult | undefined;
+    const partitionResult = completeUpdate?.result?.partition_info as PartitionInfo | undefined;
     const simulationResults = completeUpdate?.result as SimulationResults | undefined;
 
     return (
@@ -137,7 +138,7 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
             {...listeners}
         >
             <EditableText
-                value={circuit.name || circuit.symbol}
+                value={circuit.name}
                 onChange={(newName) => onUpdateName(circuit.id, newName)}
                 className="text-sm"
                 inputClassName="text-sm"
@@ -273,7 +274,7 @@ function ComposerContent() {
                                                             key={circuit.id}
                                                             circuit={circuit}
                                                             activeCircuitId={activeCircuitId}
-                                                            onClose={() => requestCircuitClose(circuit.id, circuit.name || circuit.symbol, () => {
+                                                            onClose={() => requestCircuitClose(circuit.id, circuit.name, () => {
                                                                 removeCircuit(circuit.id);
                                                             })}
                                                             onUpdateName={(id, name) => updateCircuit(id, { name })}
@@ -286,15 +287,17 @@ function ComposerContent() {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => {
-                                                const nums = circuits.map(c => parseInt(c.symbol.split('(')[1])).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                                                const nums = circuits.map(c => {
+                                                    const match = c.name.match(/Circuit\s*(\d+)/);
+                                                    return match ? parseInt(match[1]) : NaN;
+                                                }).filter(n => !isNaN(n)).sort((a, b) => a - b);
                                                 let next = 1;
                                                 for (const n of nums) if (n === next) next++; else break;
                                                 const circuitName = circuits.length === 0 ? 'Circuit' : `Circuit ${next}`;
                                                 addCircuit({
                                                     id: `circuit-${crypto.randomUUID()}`,
                                                     name: circuitName,
-                                                    symbol: circuits.length === 0 ? 'Circuit' : `Circuit (${next})`,
-                                                    color: '#3b82f6',
+                                                    numQubits: CIRCUIT_CONFIG.defaultNumQubits,
                                                     gates: [],
                                                 });
                                             }}

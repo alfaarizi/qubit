@@ -132,12 +132,12 @@ export default function ProjectListPage() {
         toast.success('Project updated successfully');
     };
 
-    const handleDuplicateProject = (projectId: string) => {
-        const newProjectId = duplicateProject(projectId);
-        if (newProjectId) {
+    const handleDuplicateProject = async (projectId: string) => {
+        try {
+            await duplicateProject(projectId);
             toast.success('Project duplicated successfully');
-        } else {
-            toast.error('Failed to duplicate composer');
+        } catch (error) {
+            toast.error('Failed to duplicate project');
         }
     };
 

@@ -247,7 +247,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         executionStartTimeRef.current = null;
 
         const toastId = toast.loading(
-            `Executing ${circuit?.symbol || 'Circuit'} (${partitionStrategy})...`
+            `Executing ${circuit?.name || 'Circuit'} (${partitionStrategy})...`
         );
 
         try {

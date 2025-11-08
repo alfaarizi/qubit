@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CircuitInfo } from '@/features/circuit/types';
+import type { CircuitTemplate } from '@/features/circuit/types';
 
 interface GroupCircuitState {
-    circuitDefinitions: CircuitInfo[];
-    defineCircuit: (circuit: CircuitInfo) => void;
+    circuitDefinitions: CircuitTemplate[];
+    defineCircuit: (circuit: CircuitTemplate) => void;
     undefineCircuit: (id: string) => void;
-    getCircuitDefinition: (id: string) => CircuitInfo | undefined;
+    getCircuitDefinition: (id: string) => CircuitTemplate | undefined;
 }
 
 export const useGroupCircuits = create<GroupCircuitState>()(

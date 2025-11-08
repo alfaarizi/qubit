@@ -1,35 +1,8 @@
 import { api } from './client';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
+import type { SerializedGate, PartitionResponse, ImportQasmResponse } from '@/types';
 import { GATE_DEFINITIONS } from '@/features/gates/constants';
-
-interface SerializedGate {
-    id: string;
-    depth: number;
-    gate?: {
-        name: string;
-    };
-    circuit?: {
-        id: string;
-        symbol: string;
-        gates: SerializedGate[];
-    };
-    target_qubits?: number[];
-    control_qubits?: number[];
-    start_qubit?: number;
-    parameters?: number[];
-}
-
-export interface PartitionResponse {
-    job_id: string;
-    status: string;
-    message: string;
-}
-
-export interface ImportQasmResponse {
-    job_id: string;
-    status: string;
-}
 
 const GATE_LOOKUP = new Map(
     GATE_DEFINITIONS.map(gate => [gate.symbol.toLowerCase(), gate])
