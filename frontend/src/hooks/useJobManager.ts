@@ -64,7 +64,7 @@ export const useJobManager = () => {
                 if (job.toastId) toast.dismiss(job.toastId);
 
                 const completeUpdate = job.updates.find(u => u.type === 'complete');
-                const result = completeUpdate?.result as any;
+                const result = completeUpdate?.result as { totalPartitions?: number; totalGates?: number; num_qubits?: number; placed_gates?: unknown[] } | undefined;
 
                 // Capitalize first letter of job type for display
                 const jobTypeDisplay = job.jobType.charAt(0).toUpperCase() + job.jobType.slice(1);

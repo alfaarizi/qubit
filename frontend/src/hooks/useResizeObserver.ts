@@ -32,6 +32,6 @@ export function useResizeObserver<T extends HTMLElement>(
                 cancelAnimationFrame(rafIdRef.current)
             }
         }
-    }, [enabled])
+    }, [enabled, ref])
     return { width, height }
 }

@@ -1,10 +1,10 @@
 import type { GateInfo } from "@/features/gates/types.ts";
-import type { CircuitInfo } from "@/features/circuit/types.ts";
+import type { CircuitTemplate } from "@/features/circuit/types.ts";
 import { GATE_CONFIG } from "@/features/gates/constants.ts";
 import type React from "react";
 
 interface GateIconProps extends React.ComponentPropsWithoutRef<'div'> {
-    item: GateInfo | CircuitInfo;
+    item: GateInfo | CircuitTemplate;
 }
 
 export function GateIcon({ item, className, style, ...props }: GateIconProps) {

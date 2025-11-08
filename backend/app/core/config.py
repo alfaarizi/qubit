@@ -20,6 +20,24 @@ class Settings(BaseSettings):
     FRONTEND_URL: str
     LOG_FILE_PATH: Optional[Path] = None
 
+    # MongoDB Configuration
+    MONGODB_URL: str
+    MONGODB_DATABASE: str
+
+    # JWT Configuration
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # OAuth Configuration
+    GOOGLE_CLIENT_ID: str
+    MICROSOFT_CLIENT_ID: str
+
+    # Email Configuration
+    RESEND_API_KEY: str
+    EMAIL_FROM: str = "QubitKit <noreply@qubitkit.com>"
+
     # SQUANDER SSH Configuration
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None

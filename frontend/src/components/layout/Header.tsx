@@ -2,7 +2,6 @@ import { Link } from "react-router-dom"
 import { HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
     Tooltip,
     TooltipContent,
@@ -10,6 +9,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ModeToggle } from "@/components/common/ModeToggle"
+import { UserNav } from "@/components/common/UserNav"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
 import {useComposer} from "@/features/composer/ComposerStoreContext.tsx";
 import { EditableText } from "@/components/common/EditableText";
@@ -17,7 +17,6 @@ import { EditableText } from "@/components/common/EditableText";
 interface HeaderProps {
     onShareClick?: () => void
     onHelpClick?: () => void
-    userInitials?: string
     githubUrl?: string
     emailUrl?: string
 }
@@ -25,7 +24,6 @@ interface HeaderProps {
 export function Header({
    onShareClick,
    onHelpClick,
-   userInitials = "JD",
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
@@ -160,12 +158,10 @@ export function Header({
                     <Separator orientation="vertical" />
                 </div>
 
-                {/* User Avatar */}
-                <Avatar className="w-5 h-5 bg-blue-600">
-                    <AvatarFallback className="bg-blue-600 text-white text-[8px] font-semibold">
-                        {userInitials}
-                    </AvatarFallback>
-                </Avatar>
+                {/* User Profile */}
+                <div className="scale-[0.7] origin-left">
+                    <UserNav />
+                </div>
             </div>
         </header>
     )

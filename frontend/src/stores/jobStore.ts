@@ -1,24 +1,5 @@
 import { create } from 'zustand';
-
-export interface JobUpdate {
-    type: 'phase' | 'log' | 'complete' | 'error';
-    phase?: string;
-    message?: string;
-    progress?: number;
-    result?: Record<string, unknown>;
-    timestamp?: number;
-}
-
-export interface Job {
-    jobId: string;
-    circuitId: string;
-    jobType: 'partition' | 'import';
-    status: 'pending' | 'running' | 'complete' | 'error';
-    updates: JobUpdate[];
-    error: string | null;
-    createdAt: number;
-    toastId?: string | number;
-}
+import type { Job, JobUpdate } from '@/types';
 
 interface JobState {
     queue: Map<string, Job>;

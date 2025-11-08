@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Plus,
@@ -42,6 +42,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ModeToggle } from '@/components/common/ModeToggle';
+import { UserNav } from '@/components/common/UserNav';
 import { DraggableDialog } from '@/components/common/DraggableDialog';
 import { useProjectsStore, type Project } from '@/stores/projectsStore';
 import { toast } from 'sonner';
@@ -61,7 +62,12 @@ const sidebarItems = [
 
 export default function ProjectListPage() {
     const navigate = useNavigate();
-    const { projects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
+    const { projects, loadProjects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
+
+    // Load projects from the backend when component mounts
+    useEffect(() => {
+        void loadProjects();
+    }, [loadProjects]);
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [searchQuery, setSearchQuery] = useState('');
@@ -84,8 +90,8 @@ export default function ProjectListPage() {
         )
         .filter(() => {
             // For now, all projects are "yours" - you can extend this later
-            if (filterType === 'yours' || filterType === 'all') return true;
-            return false;
+            return filterType === 'yours' || filterType === 'all';
+
         })
         .sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -119,7 +125,7 @@ export default function ProjectListPage() {
             return;
         }
 
-        updateProject(selectedProject.id, {
+        void updateProject(selectedProject.id, {
             name: renameProjectName.trim(),
             description: renameProjectDescription.trim() || undefined,
         });
@@ -131,19 +137,19 @@ export default function ProjectListPage() {
         toast.success('Project updated successfully');
     };
 
-    const handleDuplicateProject = (projectId: string) => {
-        const newProjectId = duplicateProject(projectId);
-        if (newProjectId) {
+    const handleDuplicateProject = async (projectId: string) => {
+        try {
+            await duplicateProject(projectId);
             toast.success('Project duplicated successfully');
-        } else {
-            toast.error('Failed to duplicate composer');
+        } catch {
+            toast.error('Failed to duplicate project');
         }
     };
 
     const handleDeleteProject = () => {
         if (!selectedProject) return;
 
-        deleteProject(selectedProject.id);
+        void deleteProject(selectedProject.id);
         setIsDeleteDialogOpen(false);
         setSelectedProject(null);
         toast.success('Project deleted successfully');
@@ -201,6 +207,9 @@ export default function ProjectListPage() {
                             </a>
                         </Button>
                         <ModeToggle />
+                        <div className="scale-75 origin-center">
+                            <UserNav />
+                        </div>
                     </div>
                 </div>
             </header>
@@ -349,7 +358,7 @@ export default function ProjectListPage() {
                                                             <FileEdit className="h-4 w-4 mr-2" />
                                                             Rename
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicateProject(project.id); }}>
+                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
                                                             <Copy className="h-4 w-4 mr-2" />
                                                             Duplicate
                                                         </DropdownMenuItem>
@@ -419,7 +428,7 @@ export default function ProjectListPage() {
                                                                 <FileEdit className="h-4 w-4 mr-2" />
                                                                 Rename
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicateProject(project.id); }}>
+                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
                                                                 <Copy className="h-4 w-4 mr-2" />
                                                                 Duplicate
                                                             </DropdownMenuItem>

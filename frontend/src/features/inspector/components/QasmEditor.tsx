@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Copy, Check } from 'lucide-react'
-import { useComposer } from '@/features/composer/ComposerStoreContext.tsx'
-import { getOrCreateCircuitStore } from '@/features/circuit/store/CircuitStoreContext'
-import { getQASMWithMetadata } from '@/lib/qasm/converter'
-import { useTheme } from '@/providers/ThemeProvider.tsx'
-import Editor from '@monaco-editor/react'
+import {useEffect, useMemo, useState} from 'react'
+import {Button} from '@/components/ui/button'
+import {Check, Copy} from 'lucide-react'
+import {useComposer} from '@/features/composer/ComposerStoreContext.tsx'
+import {getOrCreateCircuitStore} from '@/features/circuit/store/CircuitStoreContext'
+import {getQASMWithMetadata} from '@/lib/qasm/converter'
+import {useTheme} from '@/providers/ThemeProvider.tsx'
+import Editor, { type Monaco } from '@monaco-editor/react'
 
 const QASM_KEYWORDS = [
     'OPENQASM', 'include', 'qreg', 'creg', 'gate', 'measure', 'barrier', 'reset', 'if', 'opaque', 'U', 'CX'
@@ -19,7 +19,7 @@ const QASM_GATES = [
 
 export function QasmEditor() {
     const [copied, setCopied] = useState(false)
-    const [editorInstance, setEditorInstance] = useState<any>(null)
+    const [editorInstance, setEditorInstance] = useState<{ updateOptions: (options: { theme: string }) => void } | null>(null)
     const [, forceUpdate] = useState({})
     const { activeCircuitId } = useComposer()
     const { theme } = useTheme()
@@ -33,8 +33,7 @@ export function QasmEditor() {
 
     useEffect(() => {
         if (!activeCircuitId) return
-        const unsubscribe = getOrCreateCircuitStore(activeCircuitId).subscribe(() => forceUpdate({}))
-        return unsubscribe
+        return getOrCreateCircuitStore(activeCircuitId).subscribe(() => forceUpdate({}))
     }, [activeCircuitId])
 
     useEffect(() => {
@@ -44,14 +43,13 @@ export function QasmEditor() {
     }, [resolvedTheme, editorInstance])
 
     const circuitStore = activeCircuitId ? getOrCreateCircuitStore(activeCircuitId) : null
-    const numQubits = circuitStore?.getState().numQubits ?? 3
-    const placedGates = circuitStore?.getState().placedGates ?? []
-    const measurements = circuitStore?.getState().measurements ?? []
 
-    const qasmData = useMemo(() => 
-        getQASMWithMetadata(numQubits, placedGates, measurements),
-        [numQubits, placedGates, measurements]
-    )
+    const qasmData = useMemo(() => {
+        const numQubits = circuitStore?.getState().numQubits ?? 3
+        const placedGates = circuitStore?.getState().placedGates ?? []
+        const measurements = circuitStore?.getState().measurements ?? []
+        return getQASMWithMetadata(numQubits, placedGates, measurements)
+    }, [circuitStore])
 
     const handleCopy = async () => {
         await navigator.clipboard.writeText(qasmData.code)
@@ -59,7 +57,7 @@ export function QasmEditor() {
         setTimeout(() => setCopied(false), 2000)
     }
 
-    const registerQasmLanguage = (monaco: any) => {
+    const registerQasmLanguage = (monaco: Monaco) => {
         monaco.languages.register({ id: 'qasm' })
         monaco.languages.setMonarchTokensProvider('qasm', {
             keywords: QASM_KEYWORDS,
@@ -73,7 +71,7 @@ export function QasmEditor() {
                     [/\b\d+\.?\d*([eE][-+]?\d+)?\b/, 'number'],
                     [/\bpi\b/, 'number'],
                     [/\b[a-z_][a-z0-9_]*\b/, 'identifier'],
-                    [/[\[\]]/, 'delimiter.bracket'],
+                    [/[[\]]/, 'delimiter.bracket'],
                     [/[()]/, 'delimiter.parenthesis'],
                     [/[;,]/, 'delimiter'],
                     [/->/, 'operator'],
@@ -142,7 +140,7 @@ export function QasmEditor() {
                 </Button>
             </div>
 
-            <div className="flex-1 min-h-0 border rounded-md overflow-hidden bg-[#1e1e1e] dark:bg-[#1e1e1e] bg-[#ffffff] [&_.monaco-editor_.view-lines]:!pl-2">
+            <div className="flex-1 min-h-0 border rounded-md overflow-hidden bg-[#1e1e1e] dark:bg-[#1e1e1e] [&_.monaco-editor_.view-lines]:!pl-2">
                 <Editor
                     height="100%"
                     language="qasm"

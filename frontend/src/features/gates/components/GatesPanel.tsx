@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronLeft, ChevronRight, ChevronDown, Layers, Search } from "lucide-react";
 
 import type { GateInfo } from '@/features/gates/types';
-import type { CircuitInfo } from '@/features/circuit/types';
+import type { CircuitTemplate } from '@/features/circuit/types';
 import { GATE_CONFIG, GATE_DEFINITIONS } from '@/features/gates/constants';
 import { dragState } from '@/lib/dragState';
 import { GateIcon } from "@/features/gates/components/GateIcon";
@@ -17,9 +17,9 @@ import { useGroupCircuits } from '@/features/circuit/store/GroupCircuitStore';
 import { useInspector } from '@/features/inspector/InspectorContext';
 
 interface DraggableItemProps {
-    item: GateInfo | CircuitInfo;
+    item: GateInfo | CircuitTemplate;
     isDragging: boolean;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => void;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitTemplate) => void;
     onDragEnd: () => void;
 }
 
@@ -66,9 +66,9 @@ function DraggableItem({
 
 interface CategoryGroupProps {
     categoryName: string;
-    items: (GateInfo | CircuitInfo)[];
+    items: (GateInfo | CircuitTemplate)[];
     draggedItemId: string | null;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => void;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitTemplate) => void;
     onDragEnd: () => void;
     gridColumns: number;
 }
@@ -113,7 +113,7 @@ export function GatesPanel() {
     const { circuitDefinitions } = useGroupCircuits();
     const { gateSize } = GATE_CONFIG;
 
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitInfo) => {
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: GateInfo | CircuitTemplate) => {
         e.dataTransfer.effectAllowed = 'move';
         if ('gates' in item) {
             e.dataTransfer.setData('application/json', JSON.stringify({ type: 'circuit', circuit: item }));
@@ -171,7 +171,7 @@ export function GatesPanel() {
 
     // group items by category
     const groupedItems = useMemo(() => {
-        const grouped: Record<string, (GateInfo | CircuitInfo)[]> = {};
+        const grouped: Record<string, (GateInfo | CircuitTemplate)[]> = {};
         filteredItems.forEach(item => {
             const category = 'gates' in item ? 'Custom Partition' : item.category;
             (grouped[category] ||= []).push(item);

@@ -2,16 +2,10 @@ import { useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
-
-interface PartitionInfo {
-    index: number;
-    num_gates: number;
-    qubits: number[];
-    num_qubits: number;
-}
+import type { Partition } from '@/types';
 
 interface PartitionDistributionHistogramProps {
-    partitions: PartitionInfo[];
+    partitions: Partition[];
     strategy: string;
     maxPartitionSize: number;
 }

@@ -186,9 +186,9 @@ class QuantumCircuitSimulator:
         return entropy_data
 
 def serialize_complex_array(arr: np.ndarray) -> List:
-    """convert complex numpy array to JSON-serializable format"""
+    """convert complex numpy array to JSON-serializable format as [[real, imag], ...]"""
     if np.iscomplexobj(arr):
-        return [{'real': float(x.real), 'imag': float(x.imag)} for x in arr.flatten()]
+        return [[float(x.real), float(x.imag)] for x in arr.flatten()]
     return arr.tolist()
 
 def serialize_results(results: Dict) -> Dict:
