@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AlertCircle, Mail } from "lucide-react";
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/lib/msalConfig";
 import { Button } from "@/components/ui/button";
@@ -96,7 +96,8 @@ export default function AuthPage() {
     if (error) clearError();
   };
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) return;
     try {
       await oauthLogin(credentialResponse.credential, 'google');
     } catch (err) {
@@ -155,8 +156,8 @@ export default function AuthPage() {
                   </Alert>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
-                    <div className="absolute inset-0 pointer-events-none opacity-0">
+                  <div className="relative w-full h-11">
+                    <div className="absolute inset-0 opacity-0 pointer-events-none">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => clearError()}
@@ -168,7 +169,7 @@ export default function AuthPage() {
                       className="w-full h-11 justify-center"
                       disabled={isLoading}
                       onClick={() => {
-                        const googleBtn = document.querySelector('[role="button"][aria-labelledby]') as HTMLElement;
+                        const googleBtn = document.querySelector('div[role="button"][aria-labelledby^="button-label"]') as HTMLElement;
                         if (googleBtn) googleBtn.click();
                       }}
                     >
