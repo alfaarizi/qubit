@@ -166,7 +166,10 @@ export default function AuthPage() {
                     <div ref={googleButtonRef} className="absolute inset-0 opacity-0 pointer-events-none">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
-                        onError={() => clearError()}
+                        onError={() => {
+                          console.error('Google Login Error occurred');
+                          clearError();
+                        }}
                       />
                     </div>
                     <Button
@@ -176,6 +179,8 @@ export default function AuthPage() {
                       disabled={isLoading}
                       onClick={() => {
                         console.log('Custom Google button clicked');
+                        console.log('GoogleButtonRef container:', googleButtonRef.current);
+                        console.log('Container innerHTML:', googleButtonRef.current?.innerHTML);
                         if (googleButtonRef.current) {
                           const googleBtn = googleButtonRef.current.querySelector('div[role="button"]') as HTMLElement;
                           console.log('Found Google button:', googleBtn);
@@ -183,6 +188,7 @@ export default function AuthPage() {
                             googleBtn.click();
                           } else {
                             console.error('Google button not found in DOM');
+                            console.error('Available children:', googleButtonRef.current.children);
                           }
                         }
                       }}
