@@ -48,6 +48,8 @@ import { useProjectsStore, type Project } from '@/stores/projectsStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CircuitThumbnail } from '@/features/circuit/components/CircuitThumbnail';
+import { Badge } from '@/components/ui/badge';
+import { useAuthStore } from '@/stores/authStore';
 
 type ViewMode = 'grid' | 'list';
 type FilterType = 'all' | 'yours' | 'shared' | 'archived' | 'trashed';
@@ -62,9 +64,10 @@ const sidebarItems = [
 
 export default function ProjectListPage() {
     const navigate = useNavigate();
+    const currentUser = useAuthStore(state => state.user);
     const { projects, loadProjects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
 
-    // Load projects from the backend when component mounts
+    // load projects from the backend when component mounts
     useEffect(() => {
         void loadProjects();
     }, [loadProjects]);
@@ -82,16 +85,30 @@ export default function ProjectListPage() {
     const [renameProjectName, setRenameProjectName] = useState('');
     const [renameProjectDescription, setRenameProjectDescription] = useState('');
 
-    // Filter projects based on filter type (for now, just show all as "yours")
+    // filter projects based on filter type
     const filteredProjects = projects
         .filter((project) =>
             project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (project.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
         )
-        .filter(() => {
-            // For now, all projects are "yours" - you can extend this later
-            return filterType === 'yours' || filterType === 'all';
+        .filter((project) => {
+            const isOwner = project.owner_id === currentUser?.id;
+            const isShared = !isOwner && project.collaborators?.some(c => c.user_id === currentUser?.id);
 
+            switch (filterType) {
+                case 'yours':
+                    return isOwner;
+                case 'shared':
+                    return isShared;
+                case 'all':
+                    return true;
+                case 'archived':
+                    return false; // TODO: implement archived flag
+                case 'trashed':
+                    return false; // TODO: implement trashed flag
+                default:
+                    return true;
+            }
         })
         .sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -168,10 +185,15 @@ export default function ProjectListPage() {
     };
 
     const getProjectCount = () => {
-        if (filterType === 'shared') return 0;
-        if (filterType === 'archived') return 0;
-        if (filterType === 'trashed') return 0;
         return filteredProjects.length;
+    };
+
+    const isProjectOwner = (project: Project) => {
+        return project.owner_id === currentUser?.id;
+    };
+
+    const getCollaboratorCount = (project: Project) => {
+        return project.collaborators?.length || 0;
     };
 
     return (
@@ -222,7 +244,13 @@ export default function ProjectListPage() {
                         <nav className="space-y-1">
                             {sidebarItems.map((item) => {
                                 const Icon = item.icon;
-                                const count = item.id === 'all' || item.id === 'yours' ? projects.length : 0;
+                                const getCount = () => {
+                                    if (item.id === 'all') return projects.length;
+                                    if (item.id === 'yours') return projects.filter(p => p.owner_id === currentUser?.id).length;
+                                    if (item.id === 'shared') return projects.filter(p => p.owner_id !== currentUser?.id).length;
+                                    return 0;
+                                };
+                                const count = getCount();
                                 return (
                                     <button
                                         key={item.id}
@@ -336,9 +364,14 @@ export default function ProjectListPage() {
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between mb-3">
                                                 <div className="flex-1 min-w-0">
-                                                    <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
-                                                        {project.name}
-                                                    </h3>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
+                                                            {project.name}
+                                                        </h3>
+                                                        {!isProjectOwner(project) && (
+                                                            <Badge variant="secondary" className="text-xs">Shared</Badge>
+                                                        )}
+                                                    </div>
                                                     <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                                                         {project.description || 'No description'}
                                                     </p>
@@ -354,29 +387,47 @@ export default function ProjectListPage() {
                                                             <FolderOpen className="h-4 w-4 mr-2" />
                                                             Open
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
-                                                            <FileEdit className="h-4 w-4 mr-2" />
-                                                            Rename
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
-                                                            <Copy className="h-4 w-4 mr-2" />
-                                                            Duplicate
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
-                                                            className="text-destructive focus:text-destructive"
-                                                        >
-                                                            <Trash2 className="h-4 w-4 mr-2" />
-                                                            Delete
-                                                        </DropdownMenuItem>
+                                                        {isProjectOwner(project) && (
+                                                            <>
+                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
+                                                                    <FileEdit className="h-4 w-4 mr-2" />
+                                                                    Rename
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
+                                                                    <Copy className="h-4 w-4 mr-2" />
+                                                                    Duplicate
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                        {!isProjectOwner(project) && (
+                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
+                                                                <Copy className="h-4 w-4 mr-2" />
+                                                                Duplicate
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
 
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                <Clock className="h-3 w-3" />
-                                                {format(project.updatedAt, 'MMM d, yyyy')}
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {format(project.updatedAt, 'MMM d, yyyy')}
+                                                </div>
+                                                {getCollaboratorCount(project) > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                        <Users className="h-3 w-3" />
+                                                        {getCollaboratorCount(project)}
+                                                    </div>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -396,9 +447,14 @@ export default function ProjectListPage() {
                                                     <div className="flex items-center gap-3">
                                                         <FolderOpen className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                                         <div className="min-w-0 flex-1">
-                                                            <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
-                                                                {project.name}
-                                                            </h3>
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
+                                                                    {project.name}
+                                                                </h3>
+                                                                {!isProjectOwner(project) && (
+                                                                    <Badge variant="secondary" className="text-xs">Shared</Badge>
+                                                                )}
+                                                            </div>
                                                             <p className="text-sm text-muted-foreground truncate">
                                                                 {project.description || 'No description'}
                                                             </p>
@@ -407,8 +463,14 @@ export default function ProjectListPage() {
                                                 </div>
 
                                                 <div className="flex items-center gap-6 ml-4">
-                                                    <div className="text-sm text-muted-foreground hidden sm:block">
-                                                        {project.circuits.length} {project.circuits.length === 1 ? 'circuit' : 'circuits'}
+                                                    <div className="text-sm text-muted-foreground hidden sm:flex items-center gap-3">
+                                                        <span>{project.circuits.length} {project.circuits.length === 1 ? 'circuit' : 'circuits'}</span>
+                                                        {getCollaboratorCount(project) > 0 && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Users className="h-3.5 w-3.5" />
+                                                                {getCollaboratorCount(project)}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-sm text-muted-foreground hidden md:block min-w-[100px] text-right">
                                                         {format(project.updatedAt, 'MMM d, yyyy')}
@@ -424,22 +486,32 @@ export default function ProjectListPage() {
                                                                 <FolderOpen className="h-4 w-4 mr-2" />
                                                                 Open
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
-                                                                <FileEdit className="h-4 w-4 mr-2" />
-                                                                Rename
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
-                                                                <Copy className="h-4 w-4 mr-2" />
-                                                                Duplicate
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
-                                                                className="text-destructive focus:text-destructive"
-                                                            >
-                                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                                Delete
-                                                            </DropdownMenuItem>
+                                                            {isProjectOwner(project) && (
+                                                                <>
+                                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
+                                                                        <FileEdit className="h-4 w-4 mr-2" />
+                                                                        Rename
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
+                                                                        <Copy className="h-4 w-4 mr-2" />
+                                                                        Duplicate
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
+                                                                        className="text-destructive focus:text-destructive"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                                        Delete
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            {!isProjectOwner(project) && (
+                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
+                                                                    <Copy className="h-4 w-4 mr-2" />
+                                                                    Duplicate
+                                                                </DropdownMenuItem>
+                                                            )}
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </div>

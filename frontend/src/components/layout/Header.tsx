@@ -13,12 +13,14 @@ import { UserNav } from "@/components/common/UserNav"
 import {SaveIndicator} from "@/components/common/SaveIndicator";
 import {useComposer} from "@/features/composer/ComposerStoreContext.tsx";
 import { EditableText } from "@/components/common/EditableText";
+import type { ReactNode } from "react";
 
 interface HeaderProps {
     onShareClick?: () => void
     onHelpClick?: () => void
     githubUrl?: string
     emailUrl?: string
+    collaboratorPresence?: ReactNode
 }
 
 export function Header({
@@ -26,6 +28,7 @@ export function Header({
    onHelpClick,
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
+   collaboratorPresence,
 }: HeaderProps) {
     const { activeCircuitId, projectName, setProjectName } = useComposer();
 
@@ -65,6 +68,9 @@ export function Header({
 
             {/* Column 3: Actions */}
             <div className="flex items-center gap-2 shrink-0">
+            {/* Collaborators Presence */}
+                {collaboratorPresence}
+
             {/* Share Button */}
                 <TooltipProvider>
                     <Tooltip>

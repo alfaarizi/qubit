@@ -21,6 +21,7 @@ const ProjectList = lazy(() => import('@/pages/ProjectListPage'));
 const ProjectWorkspace = lazy(() => import('@/pages/ProjectWorkspace'));
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const JoinProject = lazy(() => import('@/pages/JoinProjectPage'));
 
 function AppContent() {
     useJobManager();
@@ -32,6 +33,14 @@ function AppContent() {
                     <Route path="/" element={<Home />} />
                     <Route path="/login" element={<AuthPage />} />
                     <Route path="/register" element={<AuthPage />} />
+                    <Route
+                        path="/join/:token"
+                        element={
+                            <ProtectedRoute>
+                                <JoinProject />
+                            </ProtectedRoute>
+                        }
+                    />
                     <Route
                         path="/me"
                         element={

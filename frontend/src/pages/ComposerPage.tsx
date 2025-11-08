@@ -29,6 +29,11 @@ import type { PartitionInfo, SimulationResults } from "@/types";
 import { ComposerProvider, useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { useJobStore } from "@/stores/jobStore";
+import { ShareDialog } from '@/components/common/ShareDialog';
+import { CollaboratorPresence } from '@/components/common/CollaboratorPresence';
+import { Separator } from '@/components/ui/separator';
+import { useCollaborationStore } from '@/stores/collaborationStore';
+import { useParams } from 'react-router-dom';
 
 
 const DEFAULT_INSPECTOR_SIZE = 30;
@@ -163,6 +168,10 @@ function ComposerContent() {
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
     const sessionIdRef = useRef<string>(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
+    const { projectId } = useParams<{ projectId: string }>()
+    const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+    const isOwner = useCollaborationStore(state => state.isOwner())
+    const projectName = useComposer(state => state.projectName)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -246,6 +255,15 @@ function ComposerContent() {
                 <Header
                     githubUrl="https://github.com/alfaarizi/qubit"
                     emailUrl="mailto:ocswom@inf.elte.hu"
+                    onShareClick={() => setIsShareDialogOpen(true)}
+                    collaboratorPresence={
+                        projectId ? (
+                            <>
+                                <CollaboratorPresence />
+                                <Separator orientation="vertical" className="h-4" />
+                            </>
+                        ) : null
+                    }
                 />
             </Layout.Header>
 
@@ -374,6 +392,16 @@ function ComposerContent() {
             <Layout.Footer>
                 <StatusBar />
             </Layout.Footer>
+
+            {projectId && (
+                <ShareDialog
+                    open={isShareDialogOpen}
+                    onOpenChange={setIsShareDialogOpen}
+                    projectId={projectId}
+                    projectName={projectName}
+                    isOwner={isOwner}
+                />
+            )}
         </Layout>
     )
 }

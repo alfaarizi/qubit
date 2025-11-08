@@ -1,4 +1,5 @@
 import type { SimulationResults, SerializedGate } from '@/types';
+import type { ProjectPermission } from './collaboration';
 
 // circuit within a project with gates and simulation results
 export interface CircuitInfo {
@@ -19,6 +20,8 @@ export interface Project {
   activeCircuitId: string;
   createdAt: number;
   updatedAt: number;
+  owner_id: string;
+  collaborators?: ProjectPermission[];
 }
 
 // payload for creating a new project
