@@ -8,7 +8,7 @@ const GATE_LOOKUP = new Map(
     GATE_DEFINITIONS.map(gate => [gate.symbol.toLowerCase(), gate])
 );
 
-function serializeGateForAPI(item: Gate | Circuit): SerializedGate {
+export function serializeGateForAPI(item: Gate | Circuit): SerializedGate {
     if ('circuit' in item) {
         return {
             id: item.id,

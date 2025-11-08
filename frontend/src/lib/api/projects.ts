@@ -1,6 +1,5 @@
 import { api } from './client';
 import type {
-  SimulationResults,
   Project,
   ProjectCreate,
   ProjectUpdate,
@@ -28,10 +27,6 @@ export const projectsApi = {
   },
   duplicate: async (id: string): Promise<Project> => {
     const response = await api.post<Project>(`/projects/${id}/duplicate`);
-    return response.data;
-  },
-  updateCircuitResults: async (projectId: string, circuitId: string, results: SimulationResults): Promise<Project> => {
-    const response = await api.put<Project>(`/projects/${projectId}/circuits/${circuitId}/results`, results);
     return response.data;
   },
 };

@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from bson import ObjectId
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
-from app.models import Project, User, SimulationResults
+from app.models import Project, User
 from app.db import get_database
 from app.api.dependencies import get_current_user
 
@@ -139,33 +139,4 @@ async def duplicate_project(project_id: str, current_user: User = Depends(get_cu
         activeCircuitId=new_project.active_circuit_id,
         createdAt=int(new_project.created_at.timestamp() * 1000),
         updatedAt=int(new_project.updated_at.timestamp() * 1000),
-    )
-
-@router.put("/{project_id}/circuits/{circuit_id}/results", response_model=ProjectResponse)
-async def update_circuit_results(project_id: str, circuit_id: str, results: SimulationResults, current_user: User = Depends(get_current_user)):
-    """update simulation results for a specific circuit"""
-    db = get_database()
-    try:
-        project_data = db.projects.find_one({"_id": ObjectId(project_id), "user_id": current_user.email})
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
-    if not project_data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
-    from datetime import datetime, timezone
-    result_dict = results.model_dump()
-    result_dict["timestamp"] = int(datetime.now(timezone.utc).timestamp() * 1000)
-    db.projects.update_one(
-        {"_id": ObjectId(project_id), "circuits.id": circuit_id},
-        {"$set": {"circuits.$.results": result_dict, "updated_at": datetime.now(timezone.utc)}}
-    )
-    updated_data = db.projects.find_one({"_id": ObjectId(project_id)})
-    project = Project.from_dict(updated_data)
-    return ProjectResponse(
-        id=str(project.id),
-        name=project.name,
-        description=project.description,
-        circuits=[c.model_dump() for c in project.circuits],
-        activeCircuitId=project.active_circuit_id,
-        createdAt=int(project.created_at.timestamp() * 1000),
-        updatedAt=int(project.updated_at.timestamp() * 1000),
     )

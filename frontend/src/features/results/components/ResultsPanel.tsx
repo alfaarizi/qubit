@@ -25,14 +25,10 @@ interface ResultsPanelProps {
 export function ResultsPanel({ circuitId, partitionResult, simulationResults }: ResultsPanelProps) {
     const { setCircuitResults, getCircuitResults } = useResultsStore();
 
-    // Persist results when they change
+    // store results in memory only - persistence happens via ProjectWorkspace
     useEffect(() => {
         if (simulationResults && circuitId) {
-            try {
-                setCircuitResults(circuitId, simulationResults);
-            } catch (error) {
-                console.error('[ResultsPanel] Failed to persist results:', error);
-            }
+            void setCircuitResults(circuitId, simulationResults);
         }
     }, [circuitId, simulationResults, setCircuitResults]);
 

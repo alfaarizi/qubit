@@ -16,6 +16,7 @@ interface ProjectsState {
     getProject: (id: string) => Project | undefined;
     duplicateProject: (id: string) => Promise<string>;
     clearError: () => void;
+    clearProjects: () => void;
 }
 
 export const useProjectsStore = create<ProjectsState>((set, get) => ({
@@ -99,4 +100,10 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         }
     },
     clearError: () => set({ error: null }),
+    clearProjects: () => set({ 
+        projects: [], 
+        isLoaded: false, 
+        isLoading: false, 
+        error: null 
+    }),
 }));

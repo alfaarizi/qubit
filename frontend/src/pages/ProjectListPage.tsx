@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Plus,
@@ -62,7 +62,12 @@ const sidebarItems = [
 
 export default function ProjectListPage() {
     const navigate = useNavigate();
-    const { projects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
+    const { projects, loadProjects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
+
+    // Load projects from the backend when component mounts
+    useEffect(() => {
+        void loadProjects();
+    }, [loadProjects]);
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [searchQuery, setSearchQuery] = useState('');

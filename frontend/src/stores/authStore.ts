@@ -134,6 +134,21 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           error: null,
         });
+        // clear all user-specific data when logging out
+        import('@/stores/projectsStore').then(({ useProjectsStore }) => {
+          useProjectsStore.getState().clearProjects();
+        });
+        import('@/stores/resultsStore').then(({ useResultsStore }) => {
+          useResultsStore.getState().clearAllResults();
+        });
+        // clear circuit stores from localStorage
+        if (typeof window !== 'undefined') {
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('circuit-store-')) {
+              localStorage.removeItem(key);
+            }
+          });
+        }
       },
       refreshAuth: async () => {
         const { refreshToken } = get();
