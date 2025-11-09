@@ -1,0 +1,626 @@
+@startuml backend_uml_class_diagram
+
+' --- diagram behavior ---
+skinparam style strictuml
+skinparam classAttributeIconSize 0
+skinparam sequenceMessageAlign center
+skinparam linetype ortho
+skinparam wrapWidth 320
+left to right direction
+scale 0.5
+
+' --- global font defaults ---
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+skinparam class {
+    StereotypeFontSize 10
+}
+
+skinparam package {
+    FontSize 14
+    BorderThickness 1
+}
+
+package "app" <<folder>> {
+    class main << utility >> {
+        +{static} setup_logging(): void
+        +{static} create_application(): FastAPI
+        +{static} main(): void
+    }
+}
+
+package "app.core" <<folder>> {
+    class Settings << BaseSettings >> {
+        +PROJECT_NAME: String
+        +VERSION: String
+        +API_V1_STR: String
+        +DEBUG: Boolean
+        +HOST: String
+        +PORT: Integer
+        +FRONTEND_URL: String
+        +LOG_FILE_PATH: Path
+        +MONGODB_URL: String
+        +MONGODB_DATABASE: String
+        +SECRET_KEY: String
+        +ALGORITHM: String
+        +ACCESS_TOKEN_EXPIRE_MINUTES: Integer
+        +REFRESH_TOKEN_EXPIRE_DAYS: Integer
+        +GOOGLE_CLIENT_ID: String
+        +MICROSOFT_CLIENT_ID: String
+        +RESEND_API_KEY: String
+        +EMAIL_FROM: String
+        +SQUANDER_SSH_HOST: String
+        +SQUANDER_SSH_USER: String
+        +SQUANDER_SSH_PATH: String
+        +SQUANDER_EXEC_TIMEOUT: Integer
+        +SSH_KEY_PATH: String
+        +SSH_TIMEOUT: Integer
+        +BACKEND_CORS_ORIGINS: List<String>
+    }
+
+    class security << utility >> {
+        +{static} verify_password(plain_password: String, hashed_password: String): Boolean
+        +{static} get_password_hash(password: String): String
+        +{static} create_access_token(subject: String, expires_delta: TimeDelta): String
+        +{static} create_refresh_token(subject: String, expires_delta: TimeDelta): String
+        +{static} verify_token(token: String, token_type: String): String
+    }
+
+    class oauth << utility >> {
+        +{static} verify_google_token(token: String): Map<String, Any>
+        +{static} verify_microsoft_token(token: String): Map<String, Any>
+    }
+
+    class email << utility >> {
+        +{static} generate_verification_code(): String
+        +{static} send_verification_email(email: String): String
+        +{static} verify_code(email: String, code: String): Boolean
+        +{static} cleanup_expired_codes(): void
+    }
+}
+
+package "app.db" <<folder>> {
+    class mongodb << utility >> {
+        +{static} get_database(): Database
+        +{static} close_database(): void
+    }
+}
+
+package "app.models" <<folder>> {
+    class User {
+        +email: String
+        +hashed_password: String
+        +first_name: String
+        +last_name: String
+        +is_active: Boolean
+        +is_superuser: Boolean
+        +oauth_provider: String
+        +oauth_subject_id: String
+        +profile_url: String
+        +created_at: DateTime
+        +updated_at: DateTime
+        -_id: ObjectId
+        +User(email: String, hashed_password: String, first_name: String, last_name: String, is_active: Boolean, is_superuser: Boolean, oauth_provider: String, oauth_subject_id: String, profile_url: String, created_at: DateTime, updated_at: DateTime, _id: ObjectId)
+        +to_dict(): Map<String, Any>
+        +{static} from_dict(data: Map<String, Any>): User
+    }
+
+    class PartitionGate << BaseModel >> {
+        +id: String
+        +name: String
+        +target_qubits: List<Integer>
+        +control_qubits: List<Integer>
+    }
+
+    class Partition << BaseModel >> {
+        +index: Integer
+        +num_gates: Integer
+        +qubits: List<Integer>
+        +num_qubits: Integer
+        +gates: List<PartitionGate>
+    }
+
+    class PartitionInfo << BaseModel >> {
+        +strategy: String
+        +max_partition_size: Integer
+        +total_partitions: Integer
+        +partitions: List<Partition>
+    }
+
+    class DensityMatrix << BaseModel >> {
+        +real: List<List<Float>>
+        +imag: List<List<Float>>
+    }
+
+    class EntropyScaling << BaseModel >> {
+        +subsystem_size: Integer
+        +entropy: Float
+    }
+
+    class QuantumState << BaseModel >> {
+        +state_vector: List<List<Float>>
+        +probabilities: List<Float>
+        +counts: Map<String, Integer>
+        +density_matrix: DensityMatrix
+        +entropy_scaling: List<EntropyScaling>
+        +unitary: List<List<Float>>
+    }
+
+    class SimulationComparison << BaseModel >> {
+        +fidelity: Float
+        +probability_difference: List<Float>
+        +max_difference: Float
+    }
+
+    class SimulationError << BaseModel >> {
+        +stage: String
+        +error: String
+        +timeout: Boolean
+    }
+
+    class SimulationResults << BaseModel >> {
+        +num_qubits: Integer
+        +num_shots: Integer
+        +errors: List<SimulationError>
+        +partition_info: PartitionInfo
+        +original: QuantumState
+        +partitioned: QuantumState
+        +comparison: SimulationComparison
+        +timestamp: Integer
+    }
+
+    class GateDefinition << BaseModel >> {
+        +name: String
+    }
+
+    class SerializedCircuit << BaseModel >> {
+        +id: String
+        +symbol: String
+        +gates: List<SerializedGate>
+    }
+
+    class SerializedGate << BaseModel >> {
+        +id: String
+        +depth: Integer
+        +gate: GateDefinition
+        +circuit: SerializedCircuit
+        +target_qubits: List<Integer>
+        +control_qubits: List<Integer>
+        +start_qubit: Integer
+        +parameters: List<Float>
+    }
+
+    class CircuitInfo << BaseModel >> {
+        +id: String
+        +name: String
+        +numQubits: Integer
+        +gates: List<SerializedGate>
+        +metadata: Map<String, Any>
+        +results: SimulationResults
+    }
+
+    class Project << BaseModel >> {
+        +id: String
+        +user_id: String
+        +name: String
+        +description: String
+        +circuits: List<CircuitInfo>
+        +active_circuit_id: String
+        +created_at: DateTime
+        +updated_at: DateTime
+        +to_dict(): Map<String, Any>
+        +{static} from_dict(data: Map<String, Any>): Project
+    }
+}
+
+package "app.schemas.auth" <<folder>> {
+    class UserBase << BaseModel >> {
+        +email: EmailStr
+        +first_name: String
+        +last_name: String
+    }
+
+    class UserCreate << BaseModel >> {
+        +email: EmailStr
+        +first_name: String
+        +last_name: String
+        +password: String
+    }
+
+    class UserLogin << BaseModel >> {
+        +email: EmailStr
+        +password: String
+    }
+
+    class UserResponse << BaseModel >> {
+        +id: String
+        +email: EmailStr
+        +first_name: String
+        +last_name: String
+        +is_active: Boolean
+        +is_superuser: Boolean
+        +oauth_provider: String
+        +profile_url: String
+    }
+
+    class Token << BaseModel >> {
+        +access_token: String
+        +refresh_token: String
+        +token_type: String
+    }
+
+    class TokenPayload << BaseModel >> {
+        +sub: String
+        +exp: Integer
+        +type: String
+    }
+
+    class RefreshToken << BaseModel >> {
+        +refresh_token: String
+    }
+
+    class OAuthLogin << BaseModel >> {
+        +token: String
+        +provider: String
+    }
+
+    class EmailVerificationRequest << BaseModel >> {
+        +email: EmailStr
+    }
+
+    class EmailVerificationVerify << BaseModel >> {
+        +email: EmailStr
+        +code: String
+    }
+}
+
+package "app.schemas.project" <<folder>> {
+    class CircuitInfoSchema << BaseModel >> {
+        +id: String
+        +name: String
+        +numQubits: Integer
+        +gates: List<SerializedGate>
+        +metadata: Map<String, Any>
+        +results: SimulationResults
+    }
+
+    class ProjectCreate << BaseModel >> {
+        +name: String
+        +description: String
+        +circuits: List<CircuitInfoSchema>
+        +active_circuit_id: String
+    }
+
+    class ProjectUpdate << BaseModel >> {
+        +name: String
+        +description: String
+        +circuits: List<CircuitInfoSchema>
+        +active_circuit_id: String
+    }
+
+    class ProjectResponse << BaseModel >> {
+        +id: String
+        +name: String
+        +description: String
+        +circuits: List<CircuitInfoSchema>
+        +activeCircuitId: String
+        +createdAt: Integer
+        +updatedAt: Integer
+    }
+}
+
+package "app.services" <<folder>> {
+    class GateSpec << NamedTuple >> {
+        +method: String
+        +num_qubits: Integer
+        +params: List<Float>
+    }
+
+    class GateRegistry {
+        +{static} SQUANDER_GATES: Map<String, GateSpec>
+    }
+
+    class CircuitConverter {
+        +{static} qasm_to_squander(qasm_file: String): Tuple<Circuit, Array, Integer>
+        +{static} qiskit_to_squander(qiskit_circuit: Any): Tuple<Circuit, Array, Integer>
+        +{static} bqskit_to_squander(bqskit_circuit: Any): Tuple<Circuit, Array, Integer>
+        +{static} json_to_squander(circuit_data: Map<String, Any>, start_qubit: Integer, gate_ids: List<Any>): Tuple<Circuit, Array, Integer>
+        +{static} squander_to_qasm(circuit: Circuit, parameters: Array, output_file: String): void
+        +{static} squander_to_qiskit(circuit: Circuit, parameters: Array): Any
+        +{static} squander_to_bqskit(circuit: Circuit, parameters: Array): Any
+        +{static} qasm_to_json(qasm_file: String, output_file: String): void
+        +{static} json_to_qasm(json_file: String, output_file: String): void
+    }
+
+    class convert << utility >> {
+        +{static} add_gate(circuit: Circuit, gate_name: String, target_qubits: List<Integer>, control_qubits: List<Integer>, gate_params: List<Float>): List<Float>
+    }
+
+    class TimeoutError << exception >> {
+    }
+
+    class QuantumCircuitSimulator {
+        +num_qubits: Integer
+        +circuit: Circuit
+        +parameters: Array
+        +matrix_size: Integer
+        +gate_ids: List<Any>
+        +QuantumCircuitSimulator(num_qubits: Integer)
+        +partition_circuit(circuit: Circuit, parameters: Array, max_partition_size: Integer, strategy: String): Map<String, Any>
+        +simulate_statevector(circuit: Circuit, parameters: Array): Array
+        +get_probabilities(state_vector: Array): Array
+        +get_density_matrix(state_vector: Array): Array
+        +calculate_entropy(circuit: Circuit, parameters: Array, qubit_subset: List<Integer>): Float
+        +calculate_fidelity(state1: Array, state2: Array): Float
+        +sample_measurements(state_vector: Array, num_shots: Integer): Map<String, Integer>
+        +get_unitary_matrix(circuit: Circuit, parameters: Array): Array
+        +analyze_entanglement_scaling(circuit: Circuit, parameters: Array): List<Map<String, Any>>
+    }
+
+    class simulate << utility >> {
+        +{static} run_with_timeout(func: Callable, args: Tuple, kwargs: Map<String, Any>, timeout_seconds: Integer): Any
+        +{static} serialize_complex_array(arr: Array): List<Any>
+        +{static} serialize_results(results: Map<String, Any>): Map<String, Any>
+        +{static} run_simulation(circuit_data: Map<String, Any>, max_partition_size: Integer, strategy: String, num_shots: Integer, progress_callback: Callable, simulation_timeout: Integer): Map<String, Any>
+    }
+
+    class SquanderExecutionError << exception >> {
+    }
+
+    class SSHConnectionError << exception >> {
+    }
+
+    class SquanderClient {
+        +session_id: String
+        +last_used: Float
+        -ssh_client: SSHClient
+        -sftp_client: SFTPClient
+        -is_connected: Boolean
+        +SquanderClient(session_id: String)
+        +{static} get_pooled_client(session_id: String): SquanderClient
+        +{static} cleanup_stale_connections(max_idle_seconds: Integer): void
+        +connect(): void
+        +disconnect(): void
+        +execute_command(command: String): Tuple<String, String, Integer>
+        +stream_command_output(command: String): AsyncGenerator<Map<String, Any>, void>
+        +upload_file(local_path: String, remote_path: String): void
+        +download_file(remote_path: String, local_path: String): void
+        +run_partition(job_id: String, num_qubits: Integer, placed_gates: List<Any>, measurements: List<Any>, options: Map<String, Any>, strategy: String): AsyncGenerator<Map<String, Any>, void>
+        +import_qasm(qasm_code: String, options: Map<String, Any>): AsyncGenerator<Map<String, Any>, void>
+        -_connect_blocking(): void
+        -{static} _parse_progress(line: String): Integer
+    }
+
+    class ClientMessage << enum >> {
+        +PING
+        +JOIN_ROOM
+        +LEAVE_ROOM
+        +BROADCAST
+        +ROOM_BROADCAST
+        +GET_STATS
+    }
+
+    class ServerMessage << enum >> {
+        +CONNECTION_ESTABLISHED
+        +CONNECTION_UPDATE
+        +PONG
+        +ROOM_JOINED
+        +ROOM_LEFT
+        +NOTIFICATION
+        +ROOM_NOTIFICATION
+        +STATS
+        +ERROR
+        +HTTP_BROADCAST
+        +HTTP_ROOM_BROADCAST
+    }
+
+    class ConnectionEvent << enum >> {
+        +USER_CONNECTED
+        +USER_DISCONNECTED
+        +USER_JOINED_ROOM
+        +USER_LEFT_ROOM
+    }
+
+    class ConnectionManager {
+        -connections: Map<String, WebSocket>
+        -sessions: Map<String, Map<String, Any>>
+        -rooms: Map<String, Set<String>>
+        +ConnectionManager()
+        +connect(websocket: WebSocket, client_id: String): String
+        +disconnect(connection_id: String): void
+        +join_room(connection_id: String, room: String): Boolean
+        +leave_room(connection_id: String, room: String): Boolean
+        +send_message(connection_id: String, message: Any): Boolean
+        +broadcast_to_room(room: String, message: Any, exclude_connection: String): void
+        +broadcast_to_all(message: Any, exclude_connection: String): void
+        +update_session(connection_id: String, updates: Map<String, Any>): Boolean
+        +get_session(connection_id: String): Map<String, Any>
+        +get_room_connections(room: String): Set<String>
+        +get_connection_rooms(connection_id: String): Set<String>
+        +get_stats(): Map<String, Any>
+        -_send_message_safe(websocket: WebSocket, connection_id: String, message: String): void
+    }
+}
+
+package "app.api" <<folder>> {
+    class dependencies << utility >> {
+        +{static} get_current_user(credentials: HTTPAuthorizationCredentials): User
+        +{static} get_current_superuser(current_user: User): User
+    }
+
+    package "app.api.v1" <<folder>> {
+        class api_router << APIRouter >> {
+        }
+        
+        package "app.api.v1.endpoints" <<folder>> {
+            class auth_router << APIRouter >> {
+                +{static} register(user_in: UserCreate): UserResponse
+                +{static} login(user_in: UserLogin): Token
+                +{static} refresh_access_token(token_in: RefreshToken): Token
+                +{static} oauth_login(oauth_in: OAuthLogin): Token
+                +{static} get_current_user_info(current_user: User): UserResponse
+                +{static} send_email_verification_code(request: EmailVerificationRequest): Map<String, String>
+                +{static} verify_email_and_login(request: EmailVerificationVerify): Token
+            }
+
+            class PartitionRequest << BaseModel >> {
+                +num_qubits: Integer
+                +placed_gates: List<Any>
+                +measurements: List<Any>
+                +options: Map<String, Any>
+                +strategy: String
+                +session_id: String
+            }
+
+            class ImportQasmRequest << BaseModel >> {
+                +qasm_code: String
+                +session_id: String
+                +options: Map<String, Any>
+            }
+
+            class circuits_router << APIRouter >> {
+                +{static} verify_job_ownership(job_id: String, user_id: String): Boolean
+                +{static} partition_circuit(circuit_id: String, request: PartitionRequest, current_user: User): Map<String, Any>
+                +{static} list_jobs(circuit_id: String, current_user: User): Map<String, Any>
+                +{static} get_job(circuit_id: String, job_id: String, current_user: User): Map<String, Any>
+                +{static} import_qasm(circuit_id: String, request: ImportQasmRequest, current_user: User): Map<String, Any>
+                -{static} _wait_for_room_connection(room: String, check_interval: Float): void
+                -{static} run_import_qasm(job_id: String, circuit_id: String, qasm_code: String, session_id: String, options: Map<String, Any>): void
+                -{static} run_partition(job_id: String, circuit_id: String, num_qubits: Integer, placed_gates: List<Any>, measurements: List<Any>, options: Map<String, Any>, strategy: String, session_id: String): void
+            }
+
+            class health_router << APIRouter >> {
+                +{static} get_dependencies(): List<String>
+                +{static} check_dependency(package: String): String
+                +{static} health_check(): JSONResponse
+            }
+
+            class projects_router << APIRouter >> {
+                +{static} list_projects(current_user: User): List<ProjectResponse>
+                +{static} create_project(project_in: ProjectCreate, current_user: User): ProjectResponse
+                +{static} get_project(project_id: String, current_user: User): ProjectResponse
+                +{static} update_project(project_id: String, project_update: ProjectUpdate, current_user: User): ProjectResponse
+                +{static} delete_project(project_id: String, current_user: User): void
+                +{static} duplicate_project(project_id: String, current_user: User): ProjectResponse
+            }
+
+            class BroadcastMessage << BaseModel >> {
+                +content: String
+                +metadata: Map<String, Any>
+            }
+
+            class websocket_router << APIRouter >> {
+                +{static} websocket_endpoint(websocket: WebSocket, token: String, client_id: String): void
+                +{static} room_websocket_endpoint(websocket: WebSocket, room_name: String, token: String, client_id: String, job_id: String): void
+                +{static} get_websocket_stats(current_user: User): JSONResponse
+                +{static} broadcast(message: BroadcastMessage, current_user: User): JSONResponse
+                +{static} broadcast_to_room(room_name: String, message: BroadcastMessage, current_user: User): JSONResponse
+                -{static} handle_message(connection_id: String, message_data: Map<String, Any>): void
+            }
+        }
+    }
+}
+
+' relationships - inheritance
+UserCreate --|> UserBase
+UserResponse --|> UserBase
+
+' relationships - composition (multiplicity omitted when 1)
+PartitionInfo *-- "0..*" Partition
+Partition *-- "0..*" PartitionGate
+QuantumState *-- "0..1" DensityMatrix
+QuantumState *-- "0..*" EntropyScaling
+SimulationResults *-- "0..1" PartitionInfo
+SimulationResults *-- "0..1" QuantumState : original
+SimulationResults *-- "0..1" QuantumState : partitioned
+SimulationResults *-- "0..1" SimulationComparison
+SimulationResults *-- "0..*" SimulationError
+SerializedGate *-- "0..1" GateDefinition
+SerializedGate *-- "0..1" SerializedCircuit
+SerializedCircuit *-- "0..*" SerializedGate
+CircuitInfo *-- "0..*" SerializedGate
+CircuitInfo *-- "0..1" SimulationResults
+Project *-- "0..*" CircuitInfo
+
+CircuitInfoSchema *-- "0..*" SerializedGate
+CircuitInfoSchema *-- "0..1" SimulationResults
+ProjectCreate *-- "0..*" CircuitInfoSchema
+ProjectUpdate *-- "0..*" CircuitInfoSchema
+ProjectResponse *-- "0..*" CircuitInfoSchema
+
+GateRegistry *-- "0..*" GateSpec
+
+' relationships - aggregation
+api_router o-- auth_router
+api_router o-- health_router
+api_router o-- websocket_router
+api_router o-- circuits_router
+api_router o-- projects_router
+
+QuantumCircuitSimulator o-- CircuitConverter : uses
+
+' relationships - dependencies
+main ..> Settings : uses
+main ..> api_router : uses
+main ..> SquanderClient : uses
+
+auth_router ..> UserCreate : uses
+auth_router ..> UserLogin : uses
+auth_router ..> UserResponse : uses
+auth_router ..> Token : uses
+auth_router ..> RefreshToken : uses
+auth_router ..> OAuthLogin : uses
+auth_router ..> EmailVerificationRequest : uses
+auth_router ..> EmailVerificationVerify : uses
+auth_router ..> User : creates
+auth_router ..> security : uses
+auth_router ..> oauth : uses
+auth_router ..> email : uses
+auth_router ..> mongodb : uses
+auth_router ..> dependencies : uses
+
+circuits_router ..> PartitionRequest : uses
+circuits_router ..> ImportQasmRequest : uses
+circuits_router ..> SquanderClient : uses
+circuits_router ..> ConnectionManager : uses
+circuits_router ..> dependencies : uses
+
+projects_router ..> ProjectCreate : uses
+projects_router ..> ProjectUpdate : uses
+projects_router ..> ProjectResponse : uses
+projects_router ..> Project : creates
+projects_router ..> mongodb : uses
+projects_router ..> dependencies : uses
+
+websocket_router ..> BroadcastMessage : uses
+websocket_router ..> ConnectionManager : uses
+websocket_router ..> ClientMessage : uses
+websocket_router ..> ServerMessage : uses
+websocket_router ..> ConnectionEvent : uses
+websocket_router ..> dependencies : uses
+websocket_router ..> security : uses
+
+health_router ..> Settings : uses
+
+dependencies ..> User : returns
+dependencies ..> security : uses
+dependencies ..> mongodb : uses
+
+ConnectionManager ..> ClientMessage : uses
+ConnectionManager ..> ServerMessage : uses
+ConnectionManager ..> ConnectionEvent : uses
+
+SquanderClient ..> SquanderExecutionError : throws
+SquanderClient ..> SSHConnectionError : throws
+SquanderClient ..> convert : uses
+SquanderClient ..> simulate : uses
+
+simulate ..> TimeoutError : throws
+simulate ..> QuantumCircuitSimulator : uses
+simulate ..> CircuitConverter : uses
+
+convert ..> GateRegistry : uses
+convert ..> GateSpec : uses
+
+@enduml
