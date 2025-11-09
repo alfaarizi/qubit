@@ -1,24 +1,47 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useProjectsStore } from '@/stores/projectsStore';
 import { useComposerStore } from '@/features/composer/ComposerStoreContext.tsx';
 import { useResultsStore } from '@/stores/resultsStore';
 import { getOrCreateCircuitStore } from '@/features/circuit/store/CircuitStoreContext';
 import { deserializeGateFromAPI, serializeGateForAPI } from '@/lib/api/circuits';
+import { collaborationApi } from '@/lib/api/collaboration';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
 import type { CircuitInfo } from '@/types';
 import ComposerPage from './ComposerPage';
+import { toast } from 'sonner';
 
 export default function ProjectWorkspace() {
     const { projectId } = useParams<{ projectId: string }>();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { projects, loadProjects, getProject, updateProject } = useProjectsStore();
     const { getCircuitResults, setCircuitResults } = useResultsStore();
     const { projectName, circuits, activeCircuitId, setProjectName, setActiveCircuitId, reorderCircuits } = useComposerStore();
-
     const isInitializedRef = useRef(false);
     const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // handle share link token
+    useEffect(() => {
+        const shareToken = searchParams.get('share_token');
+        if (shareToken && projectId) {
+            const joinProject = async () => {
+                try {
+                    await collaborationApi.joinViaShareLink(shareToken, projectId);
+                    toast.success('Successfully joined project');
+                    // remove token from URL
+                    navigate(`/project/${projectId}`, { replace: true });
+                    // reload projects to get updated access
+                    await loadProjects();
+                } catch (error) {
+                    toast.error('Failed to join project via share link');
+                    navigate('/project');
+                }
+            };
+            void joinProject();
+        }
+    }, [searchParams, projectId, navigate, loadProjects]);
 
     // load projects from backend
     useEffect(() => {

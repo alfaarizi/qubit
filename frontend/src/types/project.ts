@@ -1,4 +1,5 @@
 import type { SimulationResults, SerializedGate } from '@/types';
+import type { Collaborator, ShareLink, CollaboratorRole } from '@/features/collaboration/types';
 
 // circuit within a project with gates and simulation results
 export interface CircuitInfo {
@@ -17,8 +18,11 @@ export interface Project {
   description?: string;
   circuits: CircuitInfo[];
   activeCircuitId: string;
+  collaborators: Collaborator[];
+  shareLinks: ShareLink[];
   createdAt: number;
   updatedAt: number;
+  userRole?: CollaboratorRole;
 }
 
 // payload for creating a new project

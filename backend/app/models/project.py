@@ -3,6 +3,36 @@ from typing import Optional, List, Dict, Union
 from datetime import datetime, timezone
 from bson import ObjectId
 from pydantic import BaseModel, Field
+from enum import Enum
+
+class CollaboratorRole(str, Enum):
+    """collaborator role enum"""
+    OWNER = "owner"
+    EDITOR = "editor"
+    VIEWER = "viewer"
+
+class Collaborator(BaseModel):
+    """collaborator information"""
+    user_id: str
+    email: str
+    role: CollaboratorRole
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    profile_url: Optional[str] = None
+    added_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ShareLinkType(str, Enum):
+    """share link type enum"""
+    EDIT = "edit"
+    VIEW = "view"
+
+class ShareLink(BaseModel):
+    """shareable link information"""
+    token: str
+    link_type: ShareLinkType
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None
+    is_active: bool = True
 
 class PartitionGate(BaseModel):
     """gate in a partition"""
@@ -106,6 +136,8 @@ class Project(BaseModel):
     description: Optional[str] = None
     circuits: List[CircuitInfo] = []
     active_circuit_id: str
+    collaborators: List[Collaborator] = []
+    share_links: List[ShareLink] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     class Config:

@@ -1,7 +1,9 @@
-import { useState, useRef, memo } from 'react'
+import { useState, useRef, memo, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 
 import { ChevronRight, ChevronLeft, Plus, X } from 'lucide-react'
 import { EditableText } from '@/components/common/EditableText'
+import { ShareDialog } from '@/features/collaboration/components/ShareDialog'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import type { ImperativePanelHandle } from "react-resizable-panels"
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -16,6 +18,9 @@ import { Layout } from "@/components/layout/Layout"
 import { StatusBar } from "@/components/layout/StatusBar"
 import { Panel } from "@/components/layout/Panel"
 import { toast } from "sonner";
+import { CollaborationProvider } from '@/features/collaboration/CollaborationContext';
+import { useOptionalCollaborationContext } from '@/features/collaboration/CollaborationContext';
+import { useProjectsStore } from '@/stores/projectsStore';
 
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
 import { CircuitProvider, useCircuitStore, getOrCreateCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
@@ -158,12 +163,28 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
 }
 
 function ComposerContent() {
+    const { projectId } = useParams<{ projectId: string }>();
+    const { getProject, updateProject } = useProjectsStore();
     const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit, reorderCircuits } = useComposer()
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
+    const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
     const sessionIdRef = useRef<string>(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`)
+    const collaboration = useOptionalCollaborationContext();
+    const currentProject = projectId ? getProject(projectId) : null;
 
+    // reload project when new collaborator joins
+    useEffect(() => {
+        if (!collaboration || !projectId) return;
+        const reloadOnPresenceChange = () => {
+            // reload project to get updated collaborator list
+            void useProjectsStore.getState().loadProjects();
+        };
+        // add a small delay to avoid race conditions
+        const timeoutId = setTimeout(reloadOnPresenceChange, 500);
+        return () => clearTimeout(timeoutId);
+    }, [collaboration?.presence.length, projectId]);
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -174,15 +195,12 @@ function ComposerContent() {
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-
         if (over && active.id !== over.id) {
             const oldIndex = circuits.findIndex((c) => c.id === active.id);
             const newIndex = circuits.findIndex((c) => c.id === over.id);
-
             const newCircuits = [...circuits];
             const [movedCircuit] = newCircuits.splice(oldIndex, 1);
             newCircuits.splice(newIndex, 0, movedCircuit);
-
             reorderCircuits(newCircuits);
         }
     };
@@ -190,7 +208,6 @@ function ComposerContent() {
     const requestCircuitClose = (circuitId: string, circuitSymbol: string, onConfirm: () => void) => {
         const jobs = useJobStore.getState().getCircuitJobs(circuitId);
         const hasRunningJob = jobs.some((job) => job.status === 'running' || job.status === 'pending');
-
         if (hasRunningJob) {
             toast(`Close ${circuitSymbol}?`, {
                 description: 'This circuit is executing. Closing will abort it.',
@@ -204,12 +221,10 @@ function ComposerContent() {
                                 useJobStore.getState().dequeueJob(job.jobId);
                             }
                         });
-                        
                         const store = getOrCreateCircuitStore(circuitId);
                         store.getState().setIsExecuting(false);
                         store.getState().setExecutionProgress(0);
                         store.getState().setExecutionStatus('');
-                        
                         toast.dismiss();
                         toast.error('Execution aborted');
                         onConfirm();
@@ -246,9 +261,20 @@ function ComposerContent() {
                 <Header
                     githubUrl="https://github.com/alfaarizi/qubit"
                     emailUrl="mailto:ocswom@inf.elte.hu"
+                    onShareClick={() => setIsShareDialogOpen(true)}
+                    presence={collaboration?.presence || []}
                 />
             </Layout.Header>
-
+            <ShareDialog
+                open={isShareDialogOpen}
+                onOpenChange={setIsShareDialogOpen}
+                project={currentProject || null}
+                onProjectUpdate={(updatedProject) => {
+                    if (projectId) {
+                        void updateProject(projectId, updatedProject);
+                    }
+                }}
+            />
             <Layout.Content>
                 <div className="grid grid-cols-[auto_1fr] h-full overflow-hidden">
                     <GatesPanel />
@@ -331,7 +357,6 @@ function ComposerContent() {
                                     )}
                                 </div>
                             </Tabs>
-                            {/* Inspector Toggle Button */}
                             <Button
                                 variant="default"
                                 size="icon"
@@ -348,7 +373,6 @@ function ComposerContent() {
                                 }
                             </Button>
                         </ResizablePanel>
-
                         <ResizableHandle withHandle/>
 
                         <ResizablePanel
@@ -370,7 +394,6 @@ function ComposerContent() {
                     </ResizablePanelGroup>
                 </div>
             </Layout.Content>
-
             <Layout.Footer>
                 <StatusBar />
             </Layout.Footer>
@@ -379,10 +402,13 @@ function ComposerContent() {
 }
 
 export default function ComposerPage() {
+    const { projectId } = useParams<{ projectId: string }>();
     return (
         <ComposerProvider>
             <InspectorProvider>
-                <ComposerContent />
+                <CollaborationProvider projectId={projectId || ''} enabled={!!projectId}>
+                    <ComposerContent />
+                </CollaborationProvider>
             </InspectorProvider>
         </ComposerProvider>
     )

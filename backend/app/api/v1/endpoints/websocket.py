@@ -27,6 +27,9 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
         session["activity"]["last_seen_inbound"] = datetime.now(UTC)
         session["activity"]["messages_received"] += 1
     message_type = message_data.get("type")
+    # skip logging for frequent messages
+    if message_type not in ["cursor_move", "selection_change", "gate_operation"]:
+        logger.debug(f"[WebSocket] Handling message type: {message_type}")
     try:
         if message_type == ClientMessage.PING:
             await manager.send_message(connection_id, {
@@ -36,15 +39,31 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
         elif message_type == ClientMessage.JOIN_ROOM:
             room = message_data.get("room")
             job_id = message_data.get("job_id")
+            user_info = message_data.get("user")
             if room:
                 success = await manager.join_room(connection_id, room)
+                # update session with user info if provided
+                if user_info and session:
+                    manager.update_session(connection_id, user=user_info)
+                # send presence to new user
+                presence = manager.get_room_presence(room)
                 await manager.send_message(connection_id, {
                     "type": ServerMessage.ROOM_JOINED,
                     "room": room,
                     "job_id": job_id,
                     "success": success,
+                    "presence": presence,
                     "timestamp": datetime.now(UTC).isoformat()
                 })
+                # broadcast presence update to others in room
+                if success and user_info:
+                    await manager.broadcast_to_room(room, {
+                        "type": ServerMessage.USER_PRESENCE,
+                        "event": "joined",
+                        "connectionId": connection_id,
+                        "user": user_info,
+                        "timestamp": datetime.now(UTC).isoformat()
+                    }, exclude_connection=connection_id)
         elif message_type == ClientMessage.LEAVE_ROOM:
             room = message_data.get("room")
             job_id = message_data.get("job_id")
@@ -57,6 +76,84 @@ async def handle_message(connection_id: str, message_data: Dict[str, Any]) -> No
                     "success": success,
                     "timestamp": datetime.now(UTC).isoformat()
                 })
+                # broadcast presence update
+                if success:
+                    await manager.broadcast_to_room(room, {
+                        "type": ServerMessage.USER_PRESENCE,
+                        "event": "left",
+                        "connectionId": connection_id,
+                        "timestamp": datetime.now(UTC).isoformat()
+                    })
+        elif message_type == ClientMessage.CURSOR_MOVE:
+            room = message_data.get("room")
+            position = message_data.get("position")
+            if room and position:
+                await manager.broadcast_to_room(room, {
+                    "type": ServerMessage.CURSOR_UPDATE,
+                    "connectionId": connection_id,
+                    "position": position,
+                    "timestamp": datetime.now(UTC).isoformat()
+                }, exclude_connection=connection_id)
+        elif message_type == ClientMessage.GATE_OPERATION:
+            room = message_data.get("room")
+            operation = message_data.get("operation")
+            data = message_data.get("data")
+            if room and operation:
+                await manager.broadcast_to_room(room, {
+                    "type": ServerMessage.GATE_OP_UPDATE,
+                    "connectionId": connection_id,
+                    "operation": operation,
+                    "data": data,
+                    "timestamp": datetime.now(UTC).isoformat()
+                }, exclude_connection=connection_id)
+        elif message_type == ClientMessage.GATE_LOCK:
+            room = message_data.get("room")
+            gate_id = message_data.get("gateId")
+            if room and gate_id:
+                success = manager.lock_gate(room, gate_id, connection_id)
+                await manager.send_message(connection_id, {
+                    "type": ServerMessage.GATE_LOCKED,
+                    "gateId": gate_id,
+                    "success": success,
+                    "timestamp": datetime.now(UTC).isoformat()
+                })
+                if success:
+                    # notify others
+                    await manager.broadcast_to_room(room, {
+                        "type": ServerMessage.GATE_LOCKED,
+                        "gateId": gate_id,
+                        "connectionId": connection_id,
+                        "timestamp": datetime.now(UTC).isoformat()
+                    }, exclude_connection=connection_id)
+        elif message_type == ClientMessage.GATE_UNLOCK:
+            room = message_data.get("room")
+            gate_id = message_data.get("gateId")
+            if room and gate_id:
+                success = manager.unlock_gate(room, gate_id, connection_id)
+                await manager.send_message(connection_id, {
+                    "type": ServerMessage.GATE_UNLOCKED,
+                    "gateId": gate_id,
+                    "success": success,
+                    "timestamp": datetime.now(UTC).isoformat()
+                })
+                if success:
+                    # notify others
+                    await manager.broadcast_to_room(room, {
+                        "type": ServerMessage.GATE_UNLOCKED,
+                        "gateId": gate_id,
+                        "connectionId": connection_id,
+                        "timestamp": datetime.now(UTC).isoformat()
+                    }, exclude_connection=connection_id)
+        elif message_type == ClientMessage.SELECTION_CHANGE:
+            room = message_data.get("room")
+            selected_gates = message_data.get("selectedGates", [])
+            if room:
+                await manager.broadcast_to_room(room, {
+                    "type": ServerMessage.SELECTION_UPDATE,
+                    "connectionId": connection_id,
+                    "selectedGates": selected_gates,
+                    "timestamp": datetime.now(UTC).isoformat()
+                }, exclude_connection=connection_id)
         elif message_type == ClientMessage.BROADCAST:
             content = message_data.get("content", "")
             await manager.broadcast_to_all({
@@ -130,7 +227,6 @@ async def websocket_endpoint(
             raise
         while True:
             data = await websocket.receive_text()
-            logger.debug(f"[WebSocket] Message received okfewfegregreg: {connection_id} - {data}")
             try:
                 message_data = json.loads(data)
                 if not isinstance(message_data, dict):

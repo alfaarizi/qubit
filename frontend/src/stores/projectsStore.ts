@@ -11,7 +11,7 @@ interface ProjectsState {
     error: string | null;
     loadProjects: () => Promise<void>;
     addProject: (project: ProjectCreate) => Promise<string>;
-    updateProject: (id: string, updates: ProjectUpdate) => Promise<void>;
+    updateProject: (id: string, updates: ProjectUpdate | Project) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     getProject: (id: string) => Project | undefined;
     duplicateProject: (id: string) => Promise<string>;
@@ -50,6 +50,14 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     },
     updateProject: async (id, updates) => {
         set({ error: null });
+        // if updates is a full Project object, just replace it
+        if ('id' in updates && 'createdAt' in updates) {
+            set((state) => ({
+                projects: state.projects.map((p) => (p.id === id ? updates as Project : p)),
+            }));
+            return;
+        }
+        // otherwise do normal update
         const optimisticUpdate = get().projects.find(p => p.id === id);
         if (optimisticUpdate) {
             set((state) => ({
@@ -57,7 +65,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             }));
         }
         try {
-            const updated = await projectsApi.update(id, updates);
+            const updated = await projectsApi.update(id, updates as ProjectUpdate);
             set((state) => ({
                 projects: state.projects.map((p) => (p.id === id ? updated : p)),
             }));

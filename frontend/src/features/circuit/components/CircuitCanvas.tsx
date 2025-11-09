@@ -16,6 +16,10 @@ import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { useCircuitStore, useCircuitSvgRef } from "@/features/circuit/store/CircuitStoreContext";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
+import { useOptionalCollaborationContext } from '@/features/collaboration/CollaborationContext';
+import { CollaboratorCursors } from '@/features/collaboration/components/CollaboratorCursors';
+import { useGateCollaboration } from '@/features/collaboration/hooks/useGateCollaboration';
+import { usePlacedGatesBroadcast } from '@/features/collaboration/hooks/usePlacedGatesBroadcast';
 
 interface QubitLabelsProps {
     numQubits: number;
@@ -127,7 +131,6 @@ export const MeasurementToggles = memo(function MeasurementToggles({ measurement
 
 export function CircuitCanvas() {
     const svgRef = useCircuitSvgRef();
-
     const numQubits = useCircuitStore((state) => state.numQubits);
     const placedGates = useCircuitStore((state) => state.placedGates);
     const measurements = useCircuitStore((state) => state.measurements);
@@ -135,10 +138,13 @@ export function CircuitCanvas() {
     const isExecuting = useCircuitStore((state) => state.isExecuting);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
-
     const maxDepth = placedGates.length > 0 ? getMaxDepth(placedGates) + 1 : CIRCUIT_CONFIG.defaultMaxDepth;
     const scrollableDepth = maxDepth + CIRCUIT_CONFIG.defaultScrollPaddingDepth;
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
+    const collaboration = useOptionalCollaborationContext();
+    useGateCollaboration(); // listen for remote changes
+    usePlacedGatesBroadcast(); // broadcast local changes
 
     const addQubit = useCallback(() => {
         updateCircuit(prev => ({
@@ -202,6 +208,27 @@ export function CircuitCanvas() {
         preventClearSelection,
     });
 
+    // broadcast selection changes (debounced)
+    const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSelectionHashRef = useRef<string>('');
+    useEffect(() => {
+        if (!collaboration) return;
+        const currentHash = Array.from(selectedGateIds).sort().join(',');
+        if (currentHash === lastSelectionHashRef.current) return;
+        lastSelectionHashRef.current = currentHash;
+        if (selectionTimeoutRef.current) {
+            clearTimeout(selectionTimeoutRef.current);
+        }
+        selectionTimeoutRef.current = setTimeout(() => {
+            collaboration.updateSelection(Array.from(selectedGateIds));
+        }, 300);
+        return () => {
+            if (selectionTimeoutRef.current) {
+                clearTimeout(selectionTimeoutRef.current);
+            }
+        };
+    }, [selectedGateIds, collaboration]);
+
     const scrollPosRef = useRef(0);
     useEffect(() => {
         const viewport = scrollContainerRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
@@ -213,6 +240,7 @@ export function CircuitCanvas() {
         }
         return () => viewport.removeEventListener('scroll', saveScroll);
     }, [selectedGateIds]);
+
 
     useEffect(() => {
         if ((draggableGate || isExecuting) && selectedGateIds.size > 0) {
@@ -233,8 +261,58 @@ export function CircuitCanvas() {
         handleMouseDown: isExecuting ? undefined : handleMouseDown,
     });
 
+    // track cursor position for collaboration
+    const lastCursorUpdate = useRef(0);
+    const pendingCursorUpdate = useRef<NodeJS.Timeout | null>(null);
+
+    const sendCursorUpdate = useCallback((x: number, y: number, immediate = false) => {
+        if (!collaboration) return;
+        const now = Date.now();
+        // clear any pending updates
+        if (pendingCursorUpdate.current) {
+            clearTimeout(pendingCursorUpdate.current);
+            pendingCursorUpdate.current = null;
+        }
+        // send immediately if forced or throttle time elapsed
+        if (immediate || now - lastCursorUpdate.current >= 100) {
+            lastCursorUpdate.current = now;
+            collaboration.updateCursor({ x, y });
+        } else {
+            // schedule update for remaining throttle time
+            const delay = 100 - (now - lastCursorUpdate.current);
+            pendingCursorUpdate.current = setTimeout(() => {
+                lastCursorUpdate.current = Date.now();
+                collaboration.updateCursor({ x, y });
+                pendingCursorUpdate.current = null;
+            }, delay);
+        }
+    }, [collaboration]);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!collaboration || !canvasContainerRef.current) return;
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        sendCursorUpdate(x, y);
+    }, [collaboration, sendCursorUpdate]);
+
+    const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!collaboration || !canvasContainerRef.current) return;
+        // send final position at canvas edge when leaving (immediate, no throttle)
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+        const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+        sendCursorUpdate(x, y, true); // immediate = true
+    }, [collaboration, sendCursorUpdate]);
+
     return (
-        <div onContextMenu={e => e.preventDefault()} className="relative">
+        <div 
+            ref={canvasContainerRef}
+            onContextMenu={e => e.preventDefault()} 
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            className="relative"
+        >
             <Card className="flex flex-col rounded-none border-border/50 bg-card/95 gap-0 p-4 pt-0 h-fit">
                 <CardContent className="flex-1 p-0 flex overflow-hidden">
                     <QubitLabels
@@ -293,7 +371,11 @@ export function CircuitCanvas() {
                     }}
                 />
             )}
+            {collaboration && collaboration.presence.length > 0 && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <CollaboratorCursors presence={collaboration.presence} scrollContainerRef={scrollContainerRef} />
+                </div>
+            )}
         </div>
-
     );
 }

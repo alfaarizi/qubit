@@ -82,16 +82,19 @@ export default function ProjectListPage() {
     const [renameProjectName, setRenameProjectName] = useState('');
     const [renameProjectDescription, setRenameProjectDescription] = useState('');
 
-    // Filter projects based on filter type (for now, just show all as "yours")
+    // filter projects based on filter type
     const filteredProjects = projects
         .filter((project) =>
             project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (project.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
         )
-        .filter(() => {
-            // For now, all projects are "yours" - you can extend this later
-            return filterType === 'yours' || filterType === 'all';
-
+        .filter((project) => {
+            if (filterType === 'all') return true;
+            if (filterType === 'yours') return project.userRole === 'owner';
+            if (filterType === 'shared') return project.userRole && project.userRole !== 'owner';
+            if (filterType === 'archived') return false; // todo: implement archived
+            if (filterType === 'trashed') return false; // todo: implement trashed
+            return true;
         })
         .sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -168,9 +171,6 @@ export default function ProjectListPage() {
     };
 
     const getProjectCount = () => {
-        if (filterType === 'shared') return 0;
-        if (filterType === 'archived') return 0;
-        if (filterType === 'trashed') return 0;
         return filteredProjects.length;
     };
 
@@ -222,7 +222,10 @@ export default function ProjectListPage() {
                         <nav className="space-y-1">
                             {sidebarItems.map((item) => {
                                 const Icon = item.icon;
-                                const count = item.id === 'all' || item.id === 'yours' ? projects.length : 0;
+                                let count = 0;
+                                if (item.id === 'all') count = projects.length;
+                                else if (item.id === 'yours') count = projects.filter(p => p.userRole === 'owner').length;
+                                else if (item.id === 'shared') count = projects.filter(p => p.userRole && p.userRole !== 'owner').length;
                                 return (
                                     <button
                                         key={item.id}

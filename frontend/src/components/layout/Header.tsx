@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
+import { HelpCircle, Share2, Github, Mail, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -10,15 +10,18 @@ import {
 } from "@/components/ui/tooltip"
 import { ModeToggle } from "@/components/common/ModeToggle"
 import { UserNav } from "@/components/common/UserNav"
-import {SaveIndicator} from "@/components/common/SaveIndicator";
-import {useComposer} from "@/features/composer/ComposerStoreContext.tsx";
+import { SaveIndicator } from "@/components/common/SaveIndicator";
+import { PresenceAvatars } from "@/features/collaboration/components/PresenceAvatars";
+import { useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { EditableText } from "@/components/common/EditableText";
+import type { UserPresence } from "@/features/collaboration/types";
 
 interface HeaderProps {
     onShareClick?: () => void
     onHelpClick?: () => void
     githubUrl?: string
     emailUrl?: string
+    presence?: UserPresence[]
 }
 
 export function Header({
@@ -26,6 +29,7 @@ export function Header({
    onHelpClick,
    githubUrl = "https://github.com",
    emailUrl = "mailto:contact@example.com",
+   presence = [],
 }: HeaderProps) {
     const { activeCircuitId, projectName, setProjectName } = useComposer();
 
@@ -65,7 +69,15 @@ export function Header({
 
             {/* Column 3: Actions */}
             <div className="flex items-center gap-2 shrink-0">
-            {/* Share Button */}
+                {/* Presence Avatars */}
+                {presence.length > 0 && (
+                    <>
+                        <PresenceAvatars presence={presence} maxVisible={3} size="sm" />
+                        <Separator orientation="vertical" className="h-4" />
+                    </>
+                )}
+
+                {/* Share Button */}
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>

@@ -1,9 +1,13 @@
 """project schemas"""
 from typing import Optional, List, Dict, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from app.models.project import (
     SimulationResults,
     SerializedGate,
+    Collaborator,
+    CollaboratorRole,
+    ShareLink,
+    ShareLinkType,
 )
 
 class CircuitInfoSchema(BaseModel):
@@ -33,6 +37,24 @@ class ProjectUpdate(BaseModel):
     class Config:
         populate_by_name = True
 
+class CollaboratorSchema(BaseModel):
+    """schema for collaborator"""
+    userId: str
+    email: str
+    role: CollaboratorRole
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    profileUrl: Optional[str] = None
+    addedAt: int
+
+class ShareLinkSchema(BaseModel):
+    """schema for share link"""
+    token: str
+    linkType: ShareLinkType
+    createdAt: int
+    expiresAt: Optional[int] = None
+    isActive: bool
+
 class ProjectResponse(BaseModel):
     """schema for project response"""
     id: str
@@ -40,5 +62,27 @@ class ProjectResponse(BaseModel):
     description: Optional[str] = None
     circuits: List[CircuitInfoSchema] = []
     activeCircuitId: str
+    collaborators: List[CollaboratorSchema] = []
+    shareLinks: List[ShareLinkSchema] = []
     createdAt: int
     updatedAt: int
+    userRole: Optional[CollaboratorRole] = None
+
+class InviteCollaboratorRequest(BaseModel):
+    """schema for inviting collaborator"""
+    email: EmailStr
+    role: CollaboratorRole
+
+class UpdateCollaboratorRoleRequest(BaseModel):
+    """schema for updating collaborator role"""
+    role: CollaboratorRole
+
+class GenerateShareLinkRequest(BaseModel):
+    """schema for generating share link"""
+    linkType: ShareLinkType
+
+class ShareLinkResponse(BaseModel):
+    """schema for share link response"""
+    url: str
+    token: str
+    linkType: ShareLinkType

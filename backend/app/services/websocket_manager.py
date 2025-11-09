@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Set, Any
+from typing import Dict, Optional, Set, Any, List
 from datetime import datetime, UTC
 from enum import Enum
 import logging
@@ -17,6 +17,12 @@ class ClientMessage(str, Enum):
     BROADCAST = "broadcast"
     ROOM_BROADCAST = "room_broadcast"
     GET_STATS = "get_stats"
+    # collaboration messages
+    CURSOR_MOVE = "cursor_move"
+    GATE_OPERATION = "gate_operation"
+    GATE_LOCK = "gate_lock"
+    GATE_UNLOCK = "gate_unlock"
+    SELECTION_CHANGE = "selection_change"
 
 class ServerMessage(str, Enum):
     CONNECTION_ESTABLISHED = "connection_established"
@@ -30,6 +36,13 @@ class ServerMessage(str, Enum):
     ERROR = "error"
     HTTP_BROADCAST = "http_broadcast"
     HTTP_ROOM_BROADCAST = "http_room_broadcast"
+    # collaboration messages
+    CURSOR_UPDATE = "cursor_update"
+    GATE_OP_UPDATE = "gate_op_update"
+    GATE_LOCKED = "gate_locked"
+    GATE_UNLOCKED = "gate_unlocked"
+    SELECTION_UPDATE = "selection_update"
+    USER_PRESENCE = "user_presence"
 
 class ConnectionEvent(str, Enum):
     USER_CONNECTED = "user_connected"
@@ -42,6 +55,7 @@ class ConnectionManager:
         self.connections: Dict[str, WebSocket] = {}
         self.sessions: Dict[str, Dict[str, Any]] = {}
         self.rooms: Dict[str, Set[str]] = {}
+        self.gate_locks: Dict[str, Dict[str, str]] = {}  # {room: {gate_id: connection_id}}
 
     async def connect(self, websocket: WebSocket, client_id: Optional[str] = None) -> str:
         await websocket.accept()
@@ -72,6 +86,10 @@ class ConnectionManager:
     def disconnect(self, connection_id: str):
         if connection_id not in self.connections:
             return
+        
+        # release all gate locks held by this connection
+        self.release_all_locks(connection_id)
+        
         if connection_id in self.sessions:
             rooms = self.sessions[connection_id]["rooms"].copy()
             for room in rooms:
@@ -147,7 +165,10 @@ class ConnectionManager:
             logger.warning(f"Room '{room}' does not exist. Connections in room: none. Active rooms: {list(self.rooms.keys())}")
             return
         message_str = json.dumps(message) if isinstance(message, dict) else str(message)
-        logger.debug(f"Broadcasting to room '{room}': {message}")
+        # skip logging for frequent messages
+        msg_type = message.get("type") if isinstance(message, dict) else None
+        if msg_type not in ["cursor_update", "selection_update", "gate_op_update"]:
+            logger.debug(f"Broadcasting to room '{room}': {message}")
         await asyncio.gather(
             *(
                 self._send_message_safe(self.connections[connection_id], connection_id, message_str)
@@ -189,6 +210,62 @@ class ConnectionManager:
 
     def get_connection_rooms(self, connection_id: str) -> Set[str]:
         return self.sessions[connection_id]["rooms"].copy() if connection_id in self.sessions else set()
+
+    def lock_gate(self, room: str, gate_id: str, connection_id: str) -> bool:
+        """lock a gate for editing"""
+        if room not in self.gate_locks:
+            self.gate_locks[room] = {}
+        
+        if gate_id in self.gate_locks[room]:
+            # already locked by someone else
+            return False
+        
+        self.gate_locks[room][gate_id] = connection_id
+        return True
+    
+    def unlock_gate(self, room: str, gate_id: str, connection_id: str) -> bool:
+        """unlock a gate"""
+        if room not in self.gate_locks:
+            return False
+        
+        if gate_id not in self.gate_locks[room]:
+            return False
+        
+        # only the lock owner can unlock
+        if self.gate_locks[room][gate_id] != connection_id:
+            return False
+        
+        del self.gate_locks[room][gate_id]
+        return True
+    
+    def get_gate_lock_owner(self, room: str, gate_id: str) -> Optional[str]:
+        """get the connection_id that owns the lock"""
+        if room not in self.gate_locks:
+            return None
+        return self.gate_locks[room].get(gate_id)
+    
+    def release_all_locks(self, connection_id: str):
+        """release all locks held by a connection"""
+        for room, locks in self.gate_locks.items():
+            gates_to_unlock = [gate_id for gate_id, owner in locks.items() if owner == connection_id]
+            for gate_id in gates_to_unlock:
+                del locks[gate_id]
+
+    def get_room_presence(self, room: str) -> List[Dict[str, Any]]:
+        """get presence info for all users in a room"""
+        if room not in self.rooms:
+            return []
+        
+        presence = []
+        for connection_id in self.rooms[room]:
+            if connection_id in self.sessions:
+                session = self.sessions[connection_id]
+                presence.append({
+                    "connectionId": connection_id,
+                    "user": session.get("user", {}),
+                    "client": session.get("client", {}),
+                })
+        return presence
 
     def get_stats(self) -> Dict[str, Any]:
         return {
