@@ -1,0 +1,134 @@
+@startuml package_diagram
+
+' --- diagram behavior ---
+skinparam style strictuml
+skinparam classAttributeIconSize 0
+skinparam sequenceMessageAlign center
+skinparam linetype ortho
+left to right direction
+
+' --- global font defaults ---
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+' === backend system ===
+package "backend" <<subsystem>> {
+    package "app" <<subsystem>> {
+        package "core" <<subsystem>>
+        package "db"
+        package "models"
+        package "schemas"
+        package "services" <<subsystem>>
+        package "api" <<subsystem>> {
+            package "v1" {
+                package "endpoints"
+            }
+        }
+        package "main"
+    }
+}
+
+' === frontend system ===
+package "frontend" <<subsystem>> {
+    package "src" <<subsystem>> {
+        package "types"
+        package "lib" {
+            package "apiServices"
+            package "qasm"
+        }
+        package "providers"
+        package "hooks"
+        package "stores"
+        package "components" {
+            package "common"
+            package "layout"
+            package "ui"
+        }
+        package "pages"
+        package "features" <<subsystem>> {
+            package "circuit" <<subsystem>> {
+                package "circuitComponents"
+                package "circuitHooks"
+                package "circuitStore"
+            }
+            package "gates" <<subsystem>> {
+                package "gatesComponents"
+            }
+            package "inspector" <<subsystem>> {
+                package "inspectorComponents"
+            }
+            package "results" <<subsystem>> {
+                package "resultsComponents" {
+                    package "visualizations"
+                }
+            }
+            package "composer" <<subsystem>>
+        }
+        package "i18n" {
+            package "locales"
+        }
+        package "assets"
+        package "styles"
+    }
+}
+
+' === backend internal dependencies ===
+core ..> db : << access >>
+schemas ..> models : << import >>
+services ..> core : << import >>
+api ..> schemas : << import >>
+api ..> models : << import >>
+api ..> services : << import >>
+api ..> db : << import >>
+endpoints ..> core : << import >>
+main ..> api : << import >>
+main ..> db : << import >>
+
+' === frontend internal dependencies ===
+pages ..> stores : << import >>
+pages ..> features : << import >>
+pages ..> components : << import >>
+pages ..> lib : << import >>
+pages ..> types : << import >>
+pages ..> i18n : << import >>
+
+features ..> stores : << import >>
+features ..> components : << import >>
+features ..> hooks : << import >>
+features ..> lib : << import >>
+features ..> types : << import >>
+
+stores ..> lib : << import >>
+stores ..> types : << import >>
+
+hooks ..> stores : << import >>
+
+components ..> lib : << import >>
+components ..> stores : << import >>
+components ..> hooks : << import >>
+
+' important nested relationships within circuit
+circuitComponents ..> circuitStore : << import >>
+circuitComponents ..> circuitHooks : << import >>
+circuitHooks ..> circuitStore : << import >>
+
+' important cross-feature dependencies
+circuit ..> gates : << import >>
+gates ..> circuit : << import >>
+gates ..> inspector : << import >>
+inspector ..> circuit : << import >>
+inspector ..> composer : << import >>
+results ..> circuit : << import >>
+results ..> gates : << import >>
+composer ..> pages : << import >>
+
+' important lib nested dependencies
+apiServices ..> types : << import >>
+qasm ..> types : << import >>
+
+providers ..> lib : << import >>
+
+' === cross-system dependencies ===
+apiServices ..> app : << import >>
+
+@enduml
