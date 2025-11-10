@@ -1,0 +1,190 @@
+@startuml user_authentication_sequence_diagram
+
+!define BACKEND_COLOR #E1F5FF
+!define EXTERNAL_COLOR #F3E5F5
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+
+' === participants ===
+actor "User" as User
+participant "AuthPage\n<<page>>" as AuthPage
+box External EXTERNAL_COLOR
+participant "OAuth Provider\n<<external>>" as OAuthProvider
+end box
+participant "authAPI\n<<service>>" as AuthAPI
+participant "apiClient\n<<service>>" as ApiClient
+box Backend BACKEND_COLOR
+participant "Auth Endpoints\n<<endpoints>>" as AuthEndpoints
+participant "OAuthVerification\n<<utility>>" as OAuthVerify
+participant "Database\n<<db>>" as Database
+participant "SecurityUtils\n<<utility>>" as Security
+end box
+participant "authStore\n<<store>>" as AuthStore
+
+== OAuth Initialization ==
+
+User -> AuthPage: clicks "Sign in with Google/Microsoft"
+activate AuthPage
+
+AuthPage -> OAuthProvider: initiate OAuth flow\n(redirectUri, clientId, scopes)
+activate OAuthProvider
+
+note right of AuthPage: opens popup or redirects\nto OAuth consent screen
+
+deactivate AuthPage
+
+== User Authentication ==
+
+OAuthProvider -> OAuthProvider: show consent dialog
+activate OAuthProvider
+
+User -> OAuthProvider: user authenticates &\nauthenticated with provider
+activate User
+
+note right of User: user enters credentials\nand grants permissions
+
+deactivate User
+
+OAuthProvider -> AuthPage: return OAuth token\n(in redirect or popup)
+activate AuthPage
+
+deactivate OAuthProvider
+
+note right of OAuthProvider: token is JWT from provider
+
+== Token Exchange ==
+
+AuthPage -> AuthAPI: login(oauthToken, provider)
+activate AuthAPI
+
+AuthAPI -> ApiClient: post(/auth/login,\n{token, provider})
+activate ApiClient
+
+note right of AuthAPI: includes OAuth token in body
+
+ApiClient -> AuthEndpoints: HTTP POST request
+activate AuthEndpoints
+
+note right of ApiClient: includes OAuth token and provider info
+
+AuthEndpoints -> AuthEndpoints: validate request format
+activate AuthEndpoints
+
+deactivate AuthEndpoints
+
+== OAuth Token Verification ==
+
+AuthEndpoints -> OAuthVerify: verify_google_token(token)\nor verify_microsoft_token(token)
+activate OAuthVerify
+
+note right of AuthEndpoints: calls OAuth provider\nto validate token signature
+
+OAuthVerify -> OAuthProvider: validate token request
+activate OAuthProvider
+
+OAuthProvider --> OAuthVerify: token valid + user info\n(email, name, picture)
+deactivate OAuthProvider
+
+deactivate OAuthVerify
+
+== User Lookup/Creation ==
+
+AuthEndpoints -> Database: findUser(email)
+activate Database
+
+note right of AuthEndpoints: query by email from\nOAuth token
+
+alt user exists in database
+    Database --> AuthEndpoints: return existing user
+    activate AuthEndpoints
+    
+    AuthEndpoints -> AuthEndpoints: fetch user record
+    activate AuthEndpoints
+    
+    deactivate AuthEndpoints
+    deactivate AuthEndpoints
+    
+else user does not exist
+    Database --> AuthEndpoints: user not found
+    
+    AuthEndpoints -> Database: createUser(email, name, picture)
+    activate AuthEndpoints
+    activate Database
+    
+    note right of AuthEndpoints: auto-create account\non first OAuth login
+    
+    Database --> AuthEndpoints: return new user
+    deactivate Database
+    
+    deactivate AuthEndpoints
+    
+end
+
+deactivate Database
+
+== JWT Token Generation ==
+
+AuthEndpoints -> Security: generateTokens(user_id,\nuser_email)
+activate Security
+
+note right of Security: creates access token\n(short-lived) and refresh token (long-lived)
+
+Security -> Security: sign JWT tokens\nwith secret key
+activate Security
+
+deactivate Security
+
+Security --> AuthEndpoints: return {accessToken,\nrefreshToken, expiresIn}
+deactivate Security
+
+== Response ==
+
+AuthEndpoints --> ApiClient: HTTP 200 OK\n{user, tokens}
+deactivate AuthEndpoints
+
+ApiClient --> AuthAPI: response with tokens\nand user data
+deactivate ApiClient
+
+AuthAPI -> AuthAPI: parse response
+activate AuthAPI
+
+deactivate AuthAPI
+
+== Frontend State Management ==
+
+AuthAPI -> AuthStore: login(user, accessToken,\nrefreshToken)
+activate AuthStore
+
+note right of AuthAPI: stores tokens and user info
+
+AuthStore -> AuthStore: setTokens(accessToken,\nrefreshToken)\nsetUser(userInfo)
+activate AuthStore
+
+note right of AuthStore: persists to localStorage\nand updates store state
+
+deactivate AuthStore
+deactivate AuthStore
+
+AuthStore --> AuthPage: authentication complete
+deactivate AuthAPI
+
+== Navigation ==
+
+AuthPage -> AuthPage: redirect to /project
+activate AuthPage
+
+note right of AuthPage: user is now authenticated\nand can access protected routes
+
+deactivate AuthPage
+
+note over User, AuthStore
+    user authentication completed: user logged in with a valid JWT token and can access protected API endpoints
+end note
+
+@enduml

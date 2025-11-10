@@ -1,0 +1,244 @@
+@startuml realtime_job_updates_sequence_diagram
+
+!define BACKEND_COLOR #E1F5FF
+
+skinparam style strictuml
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+' === participants ===
+participant "useJobManager\n<<hook>>" as JobManager
+participant "WebSocket\n<<communication>>" as WSClient
+participant "useMessageBus\n<<hook>>" as MessageBus
+participant "jobStore\n<<store>>" as JobStore
+participant "CircuitToolbar\n<<component>>" as Toolbar
+box Backend BACKEND_COLOR
+participant "WebSocket Server\n<<service>>" as WSServer
+participant "WSManager\n<<service>>" as WSManager
+participant "PartitionService\n<<service>>" as PartitionSvc
+participant "Message Queue\n<<internal>>" as MsgQueue
+end box
+
+== WebSocket Connection Setup ==
+
+JobManager -> WSClient: useWebSocket({endpoint: /ws/,\nenabled: true})
+activate WSClient
+
+WSClient -> WSServer: WebSocket connect\n(url: /api/v1/ws/)
+activate WSServer
+
+WSServer -> WSServer: accept connection &\nallocate client session
+activate WSServer
+
+deactivate WSServer
+
+WSServer --> WSClient: connection established\n(readyState: OPEN)
+deactivate WSServer
+
+deactivate WSClient
+
+== Join Job Room ==
+
+JobManager -> JobManager: enqueueJob(job_id,\ncircuitId)
+activate JobManager
+
+JobManager -> WSClient: sendMessage({type: join_room,\nroom: job_{job_id}})
+activate WSClient
+
+WSClient -> WSServer: WebSocket send\njoin_room message
+activate WSServer
+
+WSServer -> WSManager: receive join_room message
+activate WSManager
+
+WSManager -> WSManager: create/get job room\nstore connection
+activate WSManager
+
+WSManager -> MsgQueue: subscribe(job_{job_id})
+activate MsgQueue
+
+deactivate MsgQueue
+deactivate WSManager
+deactivate WSManager
+
+deactivate WSServer
+deactivate WSClient
+deactivate JobManager
+
+== Job Execution Phase ==
+
+loop while job is executing
+    group backend processing
+        PartitionSvc -> PartitionSvc: processPartition()\nor executeSimulation()
+        activate PartitionSvc
+        
+        PartitionSvc -> PartitionSvc: calculate progress\nupdate phase
+        activate PartitionSvc
+        
+        PartitionSvc -> MsgQueue: enqueue(job_id,\n{type: phase, phase: str,\nprogress: int, timestamp: time})
+        activate MsgQueue
+        
+        note right of PartitionSvc: multiple updates per job\n(e.g., parsing, partitioning, simulating)
+        
+        deactivate PartitionSvc
+        deactivate MsgQueue
+        
+        MsgQueue -> WSManager: get message from queue
+        activate WSManager
+        
+        WSManager -> WSServer: broadcast message\nto job room
+        activate WSServer
+        
+        note right of WSManager: broadcasts phase, log,\nor completion message
+        
+        deactivate WSServer
+        deactivate WSManager
+        deactivate PartitionSvc
+    end
+    
+    group frontend receiving and updating
+        WSServer -> WSClient: WebSocket message\n(phase/log/complete)
+        activate WSClient
+        
+        note right of WSServer: sends to all clients\nin job room
+        
+        WSClient -> MessageBus: broadcastMessage(message)
+        activate MessageBus
+        
+        note right of WSClient: broadcasts to all\nmessage listeners
+        
+        MessageBus -> JobStore: receive message via\nlistener callback
+        activate JobStore
+        
+        JobStore -> JobStore: addUpdate(job_id, update)
+        activate JobStore
+        
+        note right of JobStore: stores phase/progress/result
+        
+        deactivate JobStore
+        
+        JobStore -> JobStore: notify subscribers\n(Toolbar, etc.)
+        activate JobStore
+        
+        deactivate JobStore
+        deactivate JobStore
+        deactivate MessageBus
+        deactivate WSClient
+        
+        Toolbar -> JobStore: query job status\nget progress
+        activate Toolbar
+        
+        JobStore --> Toolbar: return progress & status
+        
+        Toolbar -> Toolbar: setExecutionProgress(progress)\nsetExecutionStatus(message)
+        activate Toolbar
+        
+        note right of Toolbar: update UI with\nreal-time progress
+        
+        deactivate Toolbar
+        deactivate Toolbar
+    end
+end
+
+== Job Completion ==
+
+PartitionSvc -> MsgQueue: enqueue(job_id,\n{type: complete, result: {...}})
+activate PartitionSvc
+
+note right of PartitionSvc: final message with results
+
+deactivate PartitionSvc
+
+MsgQueue -> WSManager: get completion message
+activate MsgQueue
+activate WSManager
+
+deactivate MsgQueue
+
+WSManager -> WSServer: broadcast completion\nto room
+activate WSServer
+
+deactivate WSManager
+
+WSServer -> WSClient: WebSocket message\n(complete with results)
+activate WSClient
+
+deactivate WSServer
+
+WSClient -> MessageBus: broadcastMessage(completion)
+activate MessageBus
+
+deactivate WSClient
+
+MessageBus -> JobStore: receive completion
+activate JobStore
+
+deactivate MessageBus
+
+JobStore -> JobStore: completeJob(job_id)\nstatus = complete
+activate JobStore
+
+deactivate JobStore
+
+JobStore -> JobStore: setResults(circuitId,\nresults)
+activate JobStore
+
+note right of JobStore: extract simulation results\nfrom message
+
+deactivate JobStore
+
+JobStore -> JobStore: notify subscribers
+activate JobStore
+
+deactivate JobStore
+deactivate JobStore
+
+Toolbar -> Toolbar: setIsExecuting(false)
+activate Toolbar
+
+Toolbar -> Toolbar: setExecutionStatus('Complete!')
+activate Toolbar
+
+Toolbar -> Toolbar: setExecutionProgress(100)
+activate Toolbar
+
+deactivate Toolbar
+deactivate Toolbar
+deactivate Toolbar
+
+== Cleanup ==
+
+JobManager -> JobManager: [if needed] dequeueJob(job_id)
+activate JobManager
+
+deactivate JobManager
+
+JobManager -> WSClient: sendMessage({type: leave_room,\nroom: job_{job_id}})
+activate JobManager
+activate WSClient
+
+WSClient -> WSServer: leave_room message
+activate WSServer
+
+deactivate WSClient
+
+WSServer -> WSManager: receive leave_room
+activate WSManager
+
+deactivate WSServer
+
+WSManager -> MsgQueue: unsubscribe(job_{job_id})
+activate MsgQueue
+
+note right of WSManager: client no longer receives\nupdates for this job
+
+deactivate MsgQueue
+deactivate WSManager
+deactivate JobManager
+
+note over JobManager, MsgQueue
+    real-time updates completed: frontend received all job progress updates via WebSocket, stored them in the store, and displayed all state changes
+end note
+
+@enduml

@@ -1,0 +1,251 @@
+@startuml circuit_execution_sequence_diagram
+
+!define BACKEND_COLOR #E1F5FF
+!define FRONTEND_COLOR #FFF3E0
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+' === participants ===
+actor "User" as User
+participant "CircuitToolbar\n<<component>>" as Toolbar
+participant "CircuitStore\n<<context>>" as CStore
+participant "circuitsAPI\n<<service>>" as CircuitsAPI
+participant "apiClient\n<<service>>" as ApiClient
+box Backend BACKEND_COLOR
+participant "API Endpoints\n<<endpoints>>" as APIEndpoints
+participant "PartitionService\n<<service>>" as PartitionSvc
+participant "SimulationService\n<<service>>" as SimSvc
+participant "jobStore\n<<internal>>" as JobStoreBackend
+participant "WebSocketManager\n<<service>>" as WSManager
+end box
+participant "WebSocket\n<<protocol>>" as WS
+participant "jobStore\n<<store>>" as JobStoreFrontend
+participant "ResultsPanel\n<<component>>" as ResultsPanel
+
+== User Initiates Execution ==
+
+User -> Toolbar: clicks execute button
+activate Toolbar
+
+note right of User: user selects partition strategy,\nbackend, and max partition size
+
+Toolbar -> CStore: get circuit state\n(numQubits, gates, measurements)
+activate CStore
+
+CStore --> Toolbar: return state
+deactivate CStore
+
+== API Request ==
+
+Toolbar -> CircuitsAPI: partition(circuitId, circuit data,\noptions)
+activate CircuitsAPI
+
+CircuitsAPI -> ApiClient: post(/circuits/{id}/partition,\nrequest payload)
+activate ApiClient
+
+note right of CircuitsAPI: serializes gates for API\nand includes strategy options
+
+ApiClient -> APIEndpoints: HTTP POST request
+activate APIEndpoints
+
+note right of ApiClient: includes JWT token in header
+
+== Backend Processing ==
+
+APIEndpoints -> APIEndpoints: validate request & auth
+activate APIEndpoints
+
+deactivate APIEndpoints
+
+APIEndpoints -> JobStoreBackend: create new job\nwith circuitId & strategy
+activate JobStoreBackend
+
+JobStoreBackend -> JobStoreBackend: allocate job_id\nset status = pending
+activate JobStoreBackend
+
+deactivate JobStoreBackend
+deactivate JobStoreBackend
+
+APIEndpoints -> PartitionSvc: enqueue(job_id, circuit, options)
+activate PartitionSvc
+
+note right of APIEndpoints: returns job_id immediately\nfor async processing
+
+deactivate PartitionSvc
+
+APIEndpoints --> ApiClient: HTTP 202 Accepted\nresponse with job_id
+deactivate APIEndpoints
+
+note right of APIEndpoints: returns before execution completes
+
+== Frontend Response Handling ==
+
+ApiClient --> CircuitsAPI: response
+deactivate ApiClient
+
+CircuitsAPI -> JobStoreFrontend: enqueueJob(job_id, circuitId)
+activate JobStoreFrontend
+
+deactivate CircuitsAPI
+
+CircuitsAPI --> Toolbar: return job_id
+deactivate CircuitsAPI
+
+Toolbar -> Toolbar: setIsExecuting(true)\nshow progress bar
+activate Toolbar
+
+note right of Toolbar: immediate UI feedback\nwhile job executes in background
+
+deactivate Toolbar
+
+== Asynchronous Execution ==
+
+opt execution in background (asynchronous)
+    loop while job is executing
+        group backend execution
+            PartitionSvc -> PartitionSvc: process partition\nupdate phase & progress
+            activate PartitionSvc
+            
+            PartitionSvc -> JobStoreBackend: addUpdate(job_id,\nphase_update)
+            activate JobStoreBackend
+            
+            note right of PartitionSvc: job status being\nconstantly updated
+            
+            deactivate JobStoreBackend
+            deactivate PartitionSvc
+            
+            JobStoreBackend -> WSManager: broadcast(job_id,\nphase message)
+            activate WSManager
+            
+            note right of JobStoreBackend: message includes phase,\nprogress %, timestamp
+            
+            WSManager -> WS: send message to room
+            activate WS
+            
+            note right of WSManager: sends only to clients\nin job room
+            
+            deactivate WS
+            deactivate WSManager
+        end
+        
+        group frontend receiving
+            WS -> WS: propagate to connected clients
+            activate WS
+            
+            WS -> JobStoreFrontend: message received
+            activate JobStoreFrontend
+            
+            JobStoreFrontend -> JobStoreFrontend: addUpdate(job_id, update)
+            activate JobStoreFrontend
+            
+            note right of JobStoreFrontend: updates store subscribers
+            
+            deactivate JobStoreFrontend
+            deactivate JobStoreFrontend
+            deactivate WS
+            
+            Toolbar -> JobStoreFrontend: query job status
+            activate Toolbar
+            
+            JobStoreFrontend --> Toolbar: return progress & status
+            deactivate JobStoreFrontend
+            
+            Toolbar -> Toolbar: update progress display
+            activate Toolbar
+            
+            deactivate Toolbar
+            deactivate Toolbar
+        end
+    end
+    
+    group job completion
+        alt partition successful
+            PartitionSvc -> SimSvc: simulate(partitions)
+            activate PartitionSvc
+            activate SimSvc
+            
+            SimSvc -> SimSvc: execute quantum simulation
+            activate SimSvc
+            
+            deactivate SimSvc
+            deactivate SimSvc
+            
+            SimSvc -> JobStoreBackend: complete with results
+            activate JobStoreBackend
+            
+            deactivate JobStoreBackend
+            deactivate PartitionSvc
+            
+        else partition error
+            PartitionSvc -> JobStoreBackend: setJobError(job_id, error)
+            activate PartitionSvc
+            activate JobStoreBackend
+            
+            deactivate JobStoreBackend
+            deactivate PartitionSvc
+        end
+    end
+end
+
+== Results Display ==
+
+JobStoreBackend -> WSManager: broadcast(job_id,\ncomplete message with results)
+activate JobStoreBackend
+activate WSManager
+
+note right of JobStoreBackend: final message includes\nresults or error info
+
+deactivate WSManager
+
+WSManager -> WS: send completion message
+activate WS
+
+WS --> JobStoreFrontend: receive complete
+deactivate WS
+
+JobStoreFrontend -> JobStoreFrontend: completeJob(job_id)
+activate JobStoreFrontend
+
+JobStoreFrontend -> JobStoreFrontend: setResults(circuitId, results)
+activate JobStoreFrontend
+
+deactivate JobStoreFrontend
+deactivate JobStoreFrontend
+
+Toolbar -> JobStoreFrontend: query final job
+activate Toolbar
+
+JobStoreFrontend --> Toolbar: job complete with results
+deactivate JobStoreFrontend
+
+Toolbar -> Toolbar: setIsExecuting(false)\nhide progress bar
+activate Toolbar
+
+deactivate Toolbar
+deactivate Toolbar
+
+ResultsPanel -> JobStoreFrontend: getResults(circuitId)
+activate ResultsPanel
+activate JobStoreFrontend
+
+JobStoreFrontend --> ResultsPanel: return results
+deactivate JobStoreFrontend
+
+ResultsPanel -> ResultsPanel: render visualizations\n(BlochSphere, Histogram, etc.)
+activate ResultsPanel
+
+note right of ResultsPanel: results are now displayed and user\ncan analyze partition info and quantum state
+
+deactivate ResultsPanel
+deactivate ResultsPanel
+
+note over User, ResultsPanel
+    circuit execution completed: job submitted, backend processed partitioning and simulation, and frontend displayed results
+end note
+
+@enduml
