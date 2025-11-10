@@ -1,0 +1,340 @@
+@startuml frontend_component_diagram
+
+' --- diagram behavior ---
+skinparam style strictuml
+skinparam classAttributeIconSize 0
+skinparam sequenceMessageAlign center
+skinparam componentStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+' --- global font defaults ---
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+' --- application root ---
+package "Root" {
+    [App] <<component>>
+    [AppContent] <<component>>
+    note right of [App]
+        entry point with providers:
+        - OAuth (Google/Microsoft)
+        - theme management
+        - routing
+    end note
+}
+
+' --- providers ---
+package "Providers" {
+    [ThemeProvider] <<provider>>
+    [GoogleOAuthProvider] <<provider>>
+    [MsalProvider] <<provider>>
+}
+[ThemeProvider] -- () IThemeContext : provides
+
+' --- pages ---
+package "Pages" {
+    [HomePage] <<page>>
+    [AuthPage] <<page>>
+    [ProfilePage] <<page>>
+    [ProjectListPage] <<page>>
+    [ProjectWorkspace] <<page>>
+    [ComposerPage] <<page>>
+    note bottom of [ComposerPage]
+        main workspace for circuit design
+        - manages circuit tabs
+        - coordinates all features
+        - handles execution state
+    end note
+}
+
+' --- layout ---
+package "Layout Components" {
+    [Layout] <<component>>
+    [Header] <<component>>
+    [Sidebar] <<component>>
+    [Panel] <<component>>
+    [StatusBar] <<component>>
+}
+[Layout] -- () ILayoutHeader : provides
+[Layout] -- () ILayoutContent : provides
+[Layout] -- () ILayoutFooter : provides
+
+' --- common components ---
+package "Common Components" {
+    [ProtectedRoute] <<component>>
+    [FullScreenSpinner] <<component>>
+    [CreateCircuitDialog] <<dialog>>
+    [CustomDialog] <<dialog>>
+    [DraggableDialog] <<dialog>>
+    [EditableText] <<component>>
+    [EditGateDialog] <<dialog>>
+    [HealthCheck] <<component>>
+    [InputDialog] <<dialog>>
+    [LanguageSwitcher] <<component>>
+    [LaTeX] <<component>>
+    [ModeToggle] <<component>>
+    [SaveIndicator] <<component>>
+    [UserNav] <<component>>
+}
+
+' --- circuit feature subsystem ---
+package "Circuit Feature" <<subsystem>> {
+    [CircuitCanvas] <<component>>
+    [CircuitExportButton] <<component>>
+    [CircuitThumbnail] <<component>>
+    [CircuitToolbar] <<component>>
+    [GateContextMenu] <<component>>
+    [SelectionContextMenu] <<component>>
+    [CircuitStoreContext] <<context>>
+    [GroupCircuitStore] <<store>>
+    note right of [CircuitCanvas]
+        renders quantum circuit
+        - drag & drop gates
+        - visual representation
+        - real-time updates
+    end note
+}
+[CircuitStoreContext] -- () ICircuitStore : provides
+[CircuitCanvas] --( ICircuitStore : requires
+[CircuitToolbar] --( ICircuitStore : requires
+[CircuitThumbnail] --( ICircuitStore : requires
+[GateContextMenu] --( ICircuitStore : requires
+[SelectionContextMenu] --( ICircuitStore : requires
+
+() useCircuitDAG <<hook>>
+() useCircuitRenderer <<hook>>
+() useDraggableGate <<hook>>
+() useGateSelection <<hook>>
+
+[CircuitCanvas] ..> useCircuitRenderer : uses
+[CircuitCanvas] ..> useDraggableGate : uses
+[CircuitCanvas] ..> useGateSelection : uses
+[CircuitCanvas] ..> useCircuitDAG : uses
+
+' --- gates feature subsystem ---
+package "Gates Feature" <<subsystem>> {
+    [GateIcon] <<component>>
+    [GatesPanel] <<component>>
+    note bottom of [GatesPanel]
+        displays available quantum gates
+        - supports drag to canvas
+        - organized by category
+    end note
+}
+
+' --- inspector feature subsystem ---
+package "Inspector Feature" <<subsystem>> {
+    [GateProperties] <<component>>
+    [QasmEditor] <<component>>
+    [InspectorContext] <<context>>
+}
+[InspectorContext] -- () IInspectorContext : provides
+[GateProperties] --( IInspectorContext : requires
+[QasmEditor] --( IInspectorContext : requires
+
+' --- results feature subsystem ---
+package "Results Feature" <<subsystem>> {
+    [ResultsPanel] <<component>>
+    [PartitionCircuitViewer] <<component>>
+    package "Visualizations" {
+        [BlochSphere] <<component>>
+        [DensityMatrixHeatmap] <<component>>
+        [EntanglementEntropyChart] <<component>>
+        [MeasurementHistogram] <<component>>
+        [PartitionDistributionHistogram] <<component>>
+        [ProbabilityComparison] <<component>>
+        [StateVectorVisualization] <<component>>
+    }
+    note right of [ResultsPanel]
+        displays simulation results
+        - quantum state visualization
+        - measurement outcomes
+        - partition analysis
+    end note
+}
+
+' --- composer feature ---
+package "Composer Feature" <<subsystem>> {
+    [ComposerStoreContext] <<context>>
+}
+[ComposerStoreContext] -- () IComposerContext : provides
+
+' --- state management ---
+package "State Management" {
+    [authStore] <<store>>
+    [jobStore] <<store>>
+    [projectsStore] <<store>>
+    [resultsStore] <<store>>
+    note bottom of [authStore]
+        manages authentication state
+        - user session
+        - OAuth tokens
+        - persistence
+    end note
+    note bottom of [jobStore]
+        manages execution jobs
+        - job queue
+        - status tracking
+        - WebSocket updates
+    end note
+}
+[authStore] -- () IAuthStore : provides
+[jobStore] -- () IJobStore : provides
+[projectsStore] -- () IProjectsStore : provides
+[resultsStore] -- () IResultsStore : provides
+
+[ProtectedRoute] --( IAuthStore : requires
+[UserNav] --( IAuthStore : requires
+[AuthPage] --( IAuthStore : requires
+[ProfilePage] --( IAuthStore : requires
+
+[SaveIndicator] --( IProjectsStore : requires
+[ProjectListPage] --( IProjectsStore : requires
+
+[ResultsPanel] --( IResultsStore : requires
+[ResultsPanel] --( IJobStore : requires
+
+' --- custom hooks ---
+package "Custom Hooks" {
+    () useContextMenu <<hook>>
+    () useJobManager <<hook>>
+    () useKeyboardShortcuts <<hook>>
+    () useMessageBus <<hook>>
+    () useResizeObserver <<hook>>
+    () useWebSocket <<hook>>
+    () useWebSocketHealth <<hook>>
+}
+
+' --- API layer ---
+package "API Layer" {
+    [authAPI] <<service>>
+    [circuitsAPI] <<service>>
+    [projectsAPI] <<service>>
+    [apiClient] <<service>>
+    note right of [apiClient]
+        HTTP client with:
+        - auth interceptors
+        - error handling
+        - token refresh
+    end note
+}
+
+' --- utilities ---
+package "Utilities" {
+    [qasmConverter] <<utility>>
+    [dragState] <<utility>>
+    [msalConfig] <<config>>
+    [utils] <<utility>>
+    [i18nConfig] <<config>>
+}
+
+' application root composition
+[App] *-- [AppContent] : contains
+[App] *-- [ThemeProvider] : wraps
+[App] *-- [GoogleOAuthProvider] : provides auth
+[App] *-- [MsalProvider] : provides auth
+
+' providers
+[ThemeProvider] ..> [utils] : uses
+
+' app content to pages (1 to many routing)
+[AppContent] o-- "0..*" [HomePage] : routes to
+[AppContent] o-- "0..*" [AuthPage] : routes to
+[AppContent] o-- "0..*" [ProfilePage] : routes to
+[AppContent] o-- "0..*" [ProjectListPage] : routes to
+[AppContent] o-- "0..*" [ProjectWorkspace] : routes to
+[AppContent] *-- [ProtectedRoute] : uses
+[AppContent] *-- [FullScreenSpinner] : uses
+[AppContent] ..> useJobManager : uses
+
+' pages relationships
+[ProjectWorkspace] o-- [ComposerPage] : renders
+[ProjectListPage] *-- "0..*" [CircuitThumbnail] : displays
+
+' composer page composition
+[ComposerPage] *-- [Layout] : uses
+[ComposerPage] *-- [CircuitCanvas] : displays
+[ComposerPage] *-- [GatesPanel] : displays
+[ComposerPage] *-- [ResultsPanel] : displays
+[ComposerPage] *-- [ComposerStoreContext] : provides
+[ComposerPage] *-- [InspectorContext] : provides
+
+' layout composition
+[Layout] *-- [Header] : contains
+[Layout] *-- [Sidebar] : contains
+[Layout] *-- [Panel] : contains
+[Layout] *-- [StatusBar] : contains
+
+[Header] *-- [UserNav] : contains
+[Header] *-- [ModeToggle] : contains
+[Header] *-- [SaveIndicator] : contains
+[Header] *-- [EditableText] : uses
+
+' circuit feature relationships
+[CircuitCanvas] *-- [GateContextMenu] : shows
+[CircuitCanvas] *-- [SelectionContextMenu] : shows
+
+[CircuitToolbar] *-- [CircuitExportButton] : contains
+
+[GateContextMenu] *-- [EditGateDialog] : opens
+[SelectionContextMenu] *-- [CreateCircuitDialog] : uses
+
+[CircuitStoreContext] *-- [GroupCircuitStore] : manages
+
+' gates feature
+[GatesPanel] *-- "0..*" [GateIcon] : displays
+[GatesPanel] ..> useDraggableGate : uses
+
+' inspector feature
+[GateProperties] *-- [LaTeX] : renders
+[GateProperties] *-- [EditableText] : uses
+
+[QasmEditor] ..> [qasmConverter] : converts
+
+' results feature composition
+[ResultsPanel] *-- [PartitionCircuitViewer] : contains
+[ResultsPanel] *-- [BlochSphere] : displays
+[ResultsPanel] *-- [DensityMatrixHeatmap] : displays
+[ResultsPanel] *-- [EntanglementEntropyChart] : displays
+[ResultsPanel] *-- [MeasurementHistogram] : displays
+[ResultsPanel] *-- [PartitionDistributionHistogram] : displays
+[ResultsPanel] *-- [ProbabilityComparison] : displays
+[ResultsPanel] *-- [StateVectorVisualization] : displays
+
+' common components inheritance/extension
+[CreateCircuitDialog] --|> [CustomDialog] : extends
+[EditGateDialog] --|> [DraggableDialog] : extends
+[InputDialog] --|> [CustomDialog] : extends
+
+' hooks dependencies
+useJobManager ..> [jobStore] : manages
+useJobManager ..> useWebSocket : uses
+useJobManager ..> useMessageBus : listens
+
+useWebSocket ..> useMessageBus : broadcasts
+useWebSocket ..> useWebSocketHealth : monitors
+
+useMessageBus ..> [jobStore] : updates
+
+[CircuitCanvas] ..> useResizeObserver : uses
+[GateContextMenu] ..> useContextMenu : uses
+
+useCircuitRenderer ..> [CircuitStoreContext] : reads
+useDraggableGate ..> [dragState] : uses
+useGateSelection ..> useKeyboardShortcuts : uses
+
+' stores to API dependencies
+[authStore] ..> [authAPI] : calls
+[projectsStore] ..> [projectsAPI] : calls
+[jobStore] ..> [circuitsAPI] : calls
+[resultsStore] ..> [circuitsAPI] : calls
+
+' API layer dependencies
+[authAPI] ..> [apiClient] : uses
+[circuitsAPI] ..> [apiClient] : uses
+[projectsAPI] ..> [apiClient] : uses
+
+[HealthCheck] ..> [authAPI] : health check
+
+@enduml
