@@ -1,0 +1,266 @@
+@startuml project_management_sequence_diagram
+
+!define BACKEND_COLOR #E1F5FF
+!define FRONTEND_COLOR #FFF3E0
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam participant BackgroundColor FRONTEND_COLOR
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+skinparam sequence {
+    LifeLineBackgroundColor #EFEFEF
+}
+
+' === participants ===
+actor "User" as User
+participant "ProjectListPage\n<<page>>" as ProjectPage
+participant "projectsStore\n<<store>>" as ProjectStore
+participant "projectsAPI\n<<service>>" as ProjectsAPI
+participant "apiClient\n<<service>>" as ApiClient
+box Backend BACKEND_COLOR
+participant "projects endpoints\n<<controller>>" as ProjectsEndpoint
+participant "Database\n<<db>>" as Database
+end box
+
+== display projects ==
+
+User -> ProjectPage: navigate to projects page
+activate ProjectPage
+
+ProjectPage -> ProjectStore: loadProjects()
+activate ProjectStore
+
+note right of ProjectStore: skip if already loaded\nor currently loading
+
+ProjectStore -> ProjectsAPI: fetch all projects
+activate ProjectsAPI
+
+ProjectsAPI -> ApiClient: get(/projects)
+activate ApiClient
+
+note right of ApiClient: include JWT token in header
+
+ApiClient -> ProjectsEndpoint: HTTP GET request
+activate ProjectsEndpoint
+
+ProjectsEndpoint -> Database: query projects\n(find by user)
+activate Database
+
+Database --> ProjectsEndpoint: projects: Project[]
+deactivate Database
+
+ProjectsEndpoint --> ApiClient: HTTP 200 OK\n{projects: Project[]}
+deactivate ProjectsEndpoint
+
+ApiClient --> ProjectsAPI: response.data (projects: Project[])
+deactivate ApiClient
+
+ProjectsAPI --> ProjectStore: projects: Project[]
+deactivate ProjectsAPI
+
+ProjectStore --> ProjectPage: {projects, isLoaded: true,\nisLoading: false}
+deactivate ProjectStore
+
+note right of ProjectPage: apply search filter,\ngroup by ownership, sort by date,\nthen render project list
+
+deactivate ProjectPage
+
+== create new project ==
+
+User -> ProjectPage: click "Create Project"
+activate ProjectPage
+
+ProjectPage -> ProjectPage: show create dialog
+activate ProjectPage
+deactivate ProjectPage
+
+User -> ProjectPage: enter name, description,\nand click save
+
+ProjectPage -> ProjectStore: addProject(projectData)
+activate ProjectStore
+
+note right of ProjectStore: reset error field\nbefore sending request
+
+ProjectStore -> ProjectsAPI: create(projectData) - insert new project
+activate ProjectsAPI
+
+ProjectsAPI -> ApiClient: post(/projects, projectData)
+activate ApiClient
+
+ApiClient -> ProjectsEndpoint: HTTP POST request
+activate ProjectsEndpoint
+
+ProjectsEndpoint -> Database: insert project\nwith name, description
+activate Database
+
+Database --> ProjectsEndpoint: Project {id, name, ...}
+deactivate Database
+
+ProjectsEndpoint --> ApiClient: HTTP 201 Created
+deactivate ProjectsEndpoint
+
+ApiClient --> ProjectsAPI: response.data (Project)
+deactivate ApiClient
+
+ProjectsAPI --> ProjectStore: Project
+deactivate ProjectsAPI
+
+ProjectStore --> ProjectPage: return projectId\n(add to projects list)
+deactivate ProjectStore
+
+ProjectPage -> ProjectPage: dismiss dialog\nnavigate to project
+activate ProjectPage
+deactivate ProjectPage
+
+deactivate ProjectPage
+
+== update project ==
+
+User -> ProjectPage: click "Edit Project"
+activate ProjectPage
+
+ProjectPage -> ProjectPage: show rename dialog\nwith current name, description
+activate ProjectPage
+deactivate ProjectPage
+
+User -> ProjectPage: modify name, description,\nclick save
+
+ProjectPage -> ProjectStore: updateProject(id, updates)
+activate ProjectStore
+
+note right of ProjectStore: find project, apply\noptimistic update
+
+ProjectStore -> ProjectsAPI: update(id, updates) - modify project
+activate ProjectsAPI
+
+ProjectsAPI -> ApiClient: put(/projects/{id}, updates)
+activate ApiClient
+
+ApiClient -> ProjectsEndpoint: HTTP PUT request
+activate ProjectsEndpoint
+
+ProjectsEndpoint -> Database: update project\n(name, description)
+activate Database
+
+Database --> ProjectsEndpoint: Project (updated)
+deactivate Database
+
+ProjectsEndpoint --> ApiClient: HTTP 200 OK
+deactivate ProjectsEndpoint
+
+ApiClient --> ProjectsAPI: response.data (Project)
+deactivate ApiClient
+
+ProjectsAPI --> ProjectStore: Project (updated)
+deactivate ProjectsAPI
+
+ProjectStore --> ProjectPage: update list\nwith new project
+deactivate ProjectStore
+
+ProjectPage -> ProjectPage: dismiss dialog\nshow success
+activate ProjectPage
+deactivate ProjectPage
+
+deactivate ProjectPage
+
+== delete project ==
+
+User -> ProjectPage: click "Delete Project"
+activate ProjectPage
+
+ProjectPage -> ProjectPage: show delete confirmation
+activate ProjectPage
+deactivate ProjectPage
+
+User -> ProjectPage: confirm delete
+
+ProjectPage -> ProjectStore: deleteProject(projectId)
+activate ProjectStore
+
+note right of ProjectStore: backup projects,\nremove from list (optimistic)
+
+ProjectStore -> ProjectsAPI: delete(id) - remove project
+activate ProjectsAPI
+
+ProjectsAPI -> ApiClient: delete(/projects/{id})
+activate ApiClient
+
+ApiClient -> ProjectsEndpoint: HTTP DELETE request
+activate ProjectsEndpoint
+
+ProjectsEndpoint -> Database: delete project\nwith cascade\n(circuits, jobs)
+activate Database
+
+Database --> ProjectsEndpoint: deletion successful
+deactivate Database
+
+ProjectsEndpoint --> ApiClient: HTTP 204 No Content
+deactivate ProjectsEndpoint
+
+ApiClient --> ProjectsAPI: (no response body)
+deactivate ApiClient
+
+ProjectsAPI --> ProjectStore: deletion success
+deactivate ProjectsAPI
+
+ProjectStore --> ProjectPage: deletion confirmed
+deactivate ProjectStore
+
+ProjectPage -> ProjectPage: show success notification
+activate ProjectPage
+deactivate ProjectPage
+
+deactivate ProjectPage
+
+== duplicate project ==
+
+User -> ProjectPage: click "Duplicate Project"
+activate ProjectPage
+
+ProjectPage -> ProjectStore: duplicateProject(projectId)
+activate ProjectStore
+
+note right of ProjectStore: reset error field\nbefore sending request
+
+ProjectStore -> ProjectsAPI: duplicate(id) - copy project with new id
+activate ProjectsAPI
+
+ProjectsAPI -> ApiClient: post(/projects/{id}/duplicate)
+activate ApiClient
+
+ApiClient -> ProjectsEndpoint: HTTP POST request
+activate ProjectsEndpoint
+
+ProjectsEndpoint -> Database: read project,\ninsert copy with new id
+activate Database
+
+Database --> ProjectsEndpoint: Project (duplicated)
+deactivate Database
+
+ProjectsEndpoint --> ApiClient: HTTP 201 Created
+deactivate ProjectsEndpoint
+
+ApiClient --> ProjectsAPI: response.data (Project)
+deactivate ApiClient
+
+ProjectsAPI --> ProjectStore: Project (duplicated)
+deactivate ProjectsAPI
+
+ProjectStore --> ProjectPage: return duplicated.id\n(add to projects list)
+deactivate ProjectStore
+
+ProjectPage -> ProjectPage: add to list\nshow success
+activate ProjectPage
+deactivate ProjectPage
+
+deactivate ProjectPage
+
+note over User, Database
+    project management completed: user successfully created, updated, deleted, or duplicated projects synced to backend
+end note
+
+@enduml

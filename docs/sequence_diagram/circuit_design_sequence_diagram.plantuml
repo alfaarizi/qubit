@@ -1,0 +1,367 @@
+@startuml circuit_design_sequence_diagram
+
+!define BACKEND_COLOR #E1F5FF
+!define FRONTEND_COLOR #FFF3E0
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam participant BackgroundColor FRONTEND_COLOR
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+' === participants ===
+actor "User" as User
+participant "ComposerPage\n<<page>>" as ComposerPage
+participant "GatesPanel\n<<component>>" as GatesPanel
+participant "CircuitCanvas\n<<component>>" as CircuitCanvas
+participant "CircuitStore\n<<store>>" as CircuitStore
+participant "circuitsAPI\n<<service>>" as CircuitsAPI
+participant "apiClient\n<<service>>" as ApiClient
+box Backend BACKEND_COLOR
+participant "circuits endpoints\n<<controller>>" as CircuitsEndpoint
+participant "Database\n<<db>>" as Database
+end box
+
+== circuit initialization ==
+
+User -> ComposerPage: open composer page
+activate ComposerPage
+
+ComposerPage -> CircuitStore: initialize circuit state\n(numQubits, placedGates, measurements)
+activate CircuitStore
+
+note right of CircuitStore: default values are set from store or \nloaded from backend if existing
+
+deactivate CircuitStore
+
+alt load existing circuit
+    ComposerPage -> CircuitsAPI: fetchCircuit(circuitId)
+    activate CircuitsAPI
+    
+    CircuitsAPI -> ApiClient: get(/circuits/{id})
+    activate ApiClient
+    
+    ApiClient -> CircuitsEndpoint: HTTP GET request
+    activate CircuitsEndpoint
+    
+    CircuitsEndpoint -> Database: find circuit
+    activate Database
+    
+    Database --> CircuitsEndpoint: circuit data
+    deactivate Database
+    
+    CircuitsEndpoint --> ApiClient: circuit JSON
+    deactivate CircuitsEndpoint
+    
+    ApiClient --> CircuitsAPI: response
+    deactivate ApiClient
+    
+    CircuitsAPI -> CircuitStore: loadCircuit(circuitData)
+    activate CircuitStore
+    
+    deactivate CircuitsAPI
+    deactivate CircuitStore
+end
+
+CircuitCanvas -> CircuitStore: subscribe to updates
+activate CircuitCanvas
+
+deactivate ComposerPage
+deactivate CircuitCanvas
+
+== gate placement and editing ==
+
+loop while user edits circuit
+    group add gate
+        User -> GatesPanel: drag gate
+        activate GatesPanel
+        
+        GatesPanel -> CircuitCanvas: drop gate (gateType, qubit, params)
+        activate CircuitCanvas
+        
+        note right of GatesPanel: gate has default type and parameters
+        
+        CircuitCanvas -> CircuitCanvas: useDraggableGate()
+        activate CircuitCanvas
+        
+        note right of CircuitCanvas: handles canvas bounds\nand gate placement events
+        
+        deactivate CircuitCanvas
+        
+        CircuitCanvas -> CircuitStore: addGate(gateType, qubit, params)
+        activate CircuitStore
+        
+        CircuitStore -> CircuitStore: injectGate(newGate, placedGates)\n[from useCircuitDAG]
+        activate CircuitStore
+        
+        note right of CircuitStore: insert gate in DAG structure,\npush overlapping gates forward,\nupdate dependencies and ordering
+        
+        deactivate CircuitStore
+        deactivate CircuitStore
+        
+        CircuitCanvas -> CircuitCanvas: useCircuitRenderer(placedGates)
+        activate CircuitCanvas
+        
+        CircuitStore --> CircuitCanvas: notify on placedGates change
+        
+        note right of CircuitCanvas: re-render when gate structure changes
+        
+        deactivate CircuitCanvas
+        deactivate CircuitCanvas
+        deactivate GatesPanel
+    end
+    
+    opt user edits gate parameters
+        User -> CircuitCanvas: right-click gate → edit
+        activate CircuitCanvas
+        
+        CircuitCanvas -> CircuitCanvas: showEditGateDialog()
+        activate CircuitCanvas
+        
+        User -> CircuitCanvas: adjust parameters\n(targets, controls, parameters, etc.)
+        
+        group update gate
+            CircuitCanvas -> CircuitStore: updateGate(gateId, newParams)
+            activate CircuitStore
+            
+            CircuitStore -> CircuitStore: ejectGate(gate, placedGates)\n[from useCircuitDAG]
+            activate CircuitStore
+            
+            note right of CircuitStore: temporarily remove gate\nwhile updating
+            
+            deactivate CircuitStore
+            
+            CircuitStore -> CircuitStore: injectGate(updatedGate,\nplacedGates)\n[from useCircuitDAG]
+            activate CircuitStore
+            
+            note right of CircuitStore: re-insert with new parameters
+            
+            deactivate CircuitStore
+            deactivate CircuitStore
+        end
+        
+        CircuitCanvas -> CircuitCanvas: useCircuitRenderer(placedGates)
+        activate CircuitCanvas
+        
+        CircuitStore --> CircuitCanvas: notify on placedGates change
+
+        note right of CircuitCanvas: re-render when gate structure changes
+        
+        deactivate CircuitCanvas
+        
+        deactivate CircuitCanvas
+        deactivate CircuitCanvas
+    end
+    
+    opt user moves gate
+        User -> CircuitCanvas: drag-and-drop gate → new position
+        activate CircuitCanvas
+        
+        CircuitCanvas -> CircuitCanvas: useDraggableGate()
+        activate CircuitCanvas
+        
+        CircuitCanvas -> CircuitStore: moveGate(gateId, newPosition)\n[from useCircuitDAG]
+        activate CircuitStore
+        
+        CircuitStore -> CircuitStore: ejectGate(gate, placedGates)\n[from useCircuitDAG]
+        activate CircuitStore
+        deactivate CircuitStore
+        
+        CircuitStore -> CircuitStore: injectGate(movedGate, placedGates)\n[from useCircuitDAG]
+        activate CircuitStore
+        deactivate CircuitStore
+        
+        deactivate CircuitStore
+        
+        CircuitCanvas -> CircuitCanvas: useCircuitRenderer(placedGates)
+        activate CircuitCanvas
+        
+        CircuitStore --> CircuitCanvas: notify on placedGates change
+
+        note right of CircuitCanvas: re-render when gate structure changes
+        
+        deactivate CircuitCanvas
+        
+        deactivate CircuitCanvas
+        deactivate CircuitCanvas
+    end
+    
+    opt user groups gates
+        User -> CircuitCanvas: select multiple gates & right-click → group
+        activate CircuitCanvas
+        
+        CircuitCanvas -> CircuitCanvas: useGateSelection()
+        activate CircuitCanvas
+        
+        note right of CircuitCanvas: detect selected gates
+        
+        deactivate CircuitCanvas
+        
+        group group gates
+            CircuitCanvas -> CircuitStore: groupGates(selectedGateIds)
+            activate CircuitStore
+            
+            CircuitStore -> CircuitStore: ejectGates(selectedGates)\n[from useCircuitDAG]
+            activate CircuitStore
+            
+            deactivate CircuitStore
+            
+            CircuitStore -> CircuitStore: createCompositeGate(gateList)
+            activate CircuitStore
+            
+            note right of CircuitStore: create Circuit from gates
+            
+            deactivate CircuitStore
+            
+            CircuitStore -> CircuitStore: injectGate(compositeGate,\nplacedGates)\n[from useCircuitDAG]
+            activate CircuitStore
+            
+            deactivate CircuitStore
+            
+            CircuitStore -> GatesPanel: addCompositeGate(compositeGate)
+            activate GatesPanel
+            
+            note right of GatesPanel: add composite circuit to available gates
+            
+            deactivate GatesPanel
+            deactivate CircuitStore
+        end
+        
+        CircuitCanvas -> CircuitCanvas: useCircuitRenderer(placedGates)
+        activate CircuitCanvas
+        
+        CircuitStore --> CircuitCanvas: notify on placedGates change
+
+        note right of CircuitCanvas: re-render when gate structure changes
+        
+        deactivate CircuitCanvas
+        
+        deactivate CircuitCanvas
+    end
+    
+    opt user ungroups composite gate
+        User -> CircuitCanvas: right-click composite gate → ungroup
+        activate CircuitCanvas
+        
+        group ungroup gate
+            CircuitCanvas -> CircuitStore: ungroupGate(compositeGateId)
+            activate CircuitStore
+            
+            CircuitStore -> CircuitStore: ejectGate(compositeGate)\n[from useCircuitDAG]
+            activate CircuitStore
+            
+            deactivate CircuitStore
+            
+            CircuitStore -> CircuitStore: extractGates(compositeGate)
+            activate CircuitStore
+            
+            note right of CircuitStore: extract gates from composite circuit
+            
+            deactivate CircuitStore
+            
+            CircuitStore -> CircuitStore: injectGates(extractedGates, placedGates)\n[from useCircuitDAG]
+            activate CircuitStore
+            
+            deactivate CircuitStore
+            deactivate CircuitStore
+        end
+        
+        CircuitCanvas -> CircuitCanvas: useCircuitRenderer(placedGates)
+        activate CircuitCanvas
+        
+        CircuitStore --> CircuitCanvas: notify on placedGates change
+
+        note right of CircuitCanvas: re-render when gate structure changes
+        
+        deactivate CircuitCanvas
+        
+        deactivate CircuitCanvas
+    end
+    
+    opt user deletes gate
+        User -> CircuitCanvas: select gate(s) & press Delete
+        activate CircuitCanvas
+        
+        CircuitCanvas -> CircuitCanvas: useKeyboardShortcuts()
+        activate CircuitCanvas
+        
+        note right of CircuitCanvas: detect Delete key press
+        
+        deactivate CircuitCanvas
+        
+        CircuitCanvas -> CircuitStore: removeGate(gateId)\n[from useCircuitDAG]
+        activate CircuitStore
+        
+        CircuitStore -> CircuitStore: ejectGate(gate, placedGates)\n[from useCircuitDAG]
+        activate CircuitStore
+        
+        note right of CircuitStore: remove gate from DAG
+        
+        deactivate CircuitStore
+        deactivate CircuitStore
+        
+        CircuitCanvas -> CircuitCanvas: useCircuitRenderer(placedGates)
+        activate CircuitCanvas
+        
+        CircuitStore --> CircuitCanvas: notify on placedGates change
+
+        note right of CircuitCanvas: re-render when gate structure changes
+        
+        deactivate CircuitCanvas
+        
+        deactivate CircuitCanvas
+    end
+end
+
+== auto-save circuit ==
+
+ComposerPage -> ComposerPage: detectCircuitChanges()
+activate ComposerPage
+
+note right of ComposerPage: circuits are automatically synced to backend\nwhen circuit data changes (debounced every 1 second)
+
+deactivate ComposerPage
+
+ComposerPage -> CircuitStore: getState()
+activate ComposerPage
+activate CircuitStore
+
+CircuitStore --> ComposerPage: placedGates, numQubits,\nmeasurements
+deactivate CircuitStore
+
+ComposerPage -> CircuitsAPI: updateProject(projectId, projectData)
+activate CircuitsAPI
+
+note right of ComposerPage: includes all circuits with current state
+note right of CircuitsAPI: serialize all circuit gates and metadata
+
+CircuitsAPI -> ApiClient: put(/projects/{id}, projectData)
+activate ApiClient
+
+ApiClient -> CircuitsEndpoint: HTTP PUT request
+activate CircuitsEndpoint
+
+CircuitsEndpoint -> Database: update project and circuits
+activate Database
+
+Database --> CircuitsEndpoint: updated project
+deactivate Database
+
+CircuitsEndpoint --> ApiClient: HTTP 200 OK
+deactivate CircuitsEndpoint
+
+ApiClient --> CircuitsAPI: response
+deactivate ApiClient
+
+CircuitsAPI --> ComposerPage: project saved
+deactivate CircuitsAPI
+
+deactivate ComposerPage
+
+note over User, Database
+    circuit design completed: user initialized circuit, performed gate operations (add, edit, move, group, ungroup, delete), and all changes were automatically synced to backend via debounced auto-save mechanism
+end note
+
+@enduml

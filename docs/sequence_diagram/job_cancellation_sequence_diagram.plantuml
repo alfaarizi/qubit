@@ -1,0 +1,202 @@
+@startuml job_cancellation_sequence_diagram
+
+!define BACKEND_COLOR #E1F5FF
+!define FRONTEND_COLOR #FFF3E0
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam participant BackgroundColor FRONTEND_COLOR
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+
+skinparam sequence {
+    LifeLineBackgroundColor #EFEFEF
+}
+
+' === participants ===
+actor "User" as User
+participant "CircuitToolbar\n<<component>>" as Toolbar
+participant "CircuitStore\n<<store>>" as CircuitStore
+participant "circuitsAPI\n<<service>>" as CircuitsAPI
+participant "apiClient\n<<service>>" as ApiClient
+box Backend BACKEND_COLOR
+participant "circuits endpoints\n<<controller>>" as CircuitsEndpoint
+participant "active_jobs\n<<internal>>" as JobStore
+participant "PartitionService\n<<service>>" as PartitionSvc
+participant "WebSocketManager\n<<service>>" as WSManager
+end box
+participant "WebSocket\n<<protocol>>" as WS
+participant "jobStore\n<<store>>" as jobStore
+
+== job initialization with timeout ==
+
+User -> Toolbar: set simulationTimeout\nand click "execute"
+activate Toolbar
+
+note left of Toolbar: timeout is in seconds,\n0 (none) by default
+
+Toolbar -> CircuitStore: get circuit data
+activate CircuitStore
+
+CircuitStore --> Toolbar: circuitData\n(placedGates, numQubits, measurements)
+deactivate CircuitStore
+
+Toolbar -> CircuitsAPI: partition(circuitId, circuitData,\npartitionStrategy, options: {simulationTimeout})
+activate CircuitsAPI
+
+CircuitsAPI -> ApiClient: post(/circuits/{id}/partition, circuitData,\npartitionStrategy, options: {simulationTimeout})
+activate ApiClient
+
+ApiClient -> CircuitsEndpoint: HTTP POST
+activate CircuitsEndpoint
+
+group job creation
+    CircuitsEndpoint -> JobStore: store job\n(job_id, circuitId, simulationTimeout)
+    activate JobStore
+    
+    JobStore --> CircuitsEndpoint: job stored in active_jobs
+    deactivate JobStore
+    
+    CircuitsEndpoint -> PartitionSvc: asyncio.create_task(run_partition(job_id, simulationTimeout))
+    activate PartitionSvc
+    
+    PartitionSvc --> CircuitsEndpoint: background task created
+    deactivate PartitionSvc
+end
+
+CircuitsEndpoint --> ApiClient: HTTP 202 Accepted\n{job_id}
+deactivate CircuitsEndpoint
+
+ApiClient --> CircuitsAPI: {job_id}
+deactivate ApiClient
+
+CircuitsAPI --> Toolbar: {job_id}
+deactivate CircuitsAPI
+
+Toolbar -> jobStore: enqueueJob(job_id, circuitId, 'partition'/'import')
+activate jobStore
+deactivate jobStore
+
+Toolbar -> jobStore: setJobToastId(job_id, toastId)
+activate jobStore
+deactivate jobStore
+
+Toolbar -> Toolbar: show progress bar with abort button
+activate Toolbar
+deactivate Toolbar
+
+== termination and cleanup ==
+
+alt execution timeout detected
+    note over PartitionSvc
+        elapsed_time >= simulationTimeout, timeout triggered in worker process
+    end note
+    
+    PartitionSvc -> PartitionSvc: stop execution, cleanup resources
+    activate PartitionSvc
+    deactivate PartitionSvc
+    
+else user aborts job
+    User -> Toolbar: click "Abort Job"
+    activate Toolbar
+    
+    Toolbar -> jobStore: get job (find from circuitId)
+    activate jobStore
+    jobStore --> Toolbar: jobId from circuit
+    deactivate jobStore
+    
+    Toolbar -> CircuitsAPI: abortJob(circuitId, jobId)
+    activate CircuitsAPI
+    
+    CircuitsAPI -> ApiClient: post(/circuits/{id}/abort, {job_id})
+    activate ApiClient
+    
+    ApiClient -> CircuitsEndpoint: HTTP POST request
+    activate CircuitsEndpoint
+    
+    CircuitsEndpoint -> PartitionSvc: stop execution (signal abort to running task)
+    activate PartitionSvc
+    
+    PartitionSvc --> CircuitsEndpoint: stopped
+    deactivate PartitionSvc
+    
+    CircuitsEndpoint --> ApiClient: HTTP 200 OK
+    deactivate CircuitsEndpoint
+    
+    ApiClient --> CircuitsAPI: response
+    deactivate ApiClient
+    
+    CircuitsAPI --> Toolbar: acknowledge
+    deactivate CircuitsAPI
+    
+    deactivate Toolbar
+end
+
+group cleanup
+    PartitionSvc -> JobStore: delete active_jobs[job_id]
+    activate JobStore
+    JobStore --> PartitionSvc: removed
+    deactivate JobStore
+    
+    note right of PartitionSvc: broadcast termination with reason\n(timeout or user_abort)
+    
+    PartitionSvc -> WSManager: broadcastJobStatus\n(job_id, "terminated", {reason, partial_results})
+    activate WSManager
+    
+    WSManager -> WS: send to room job_{job_id}
+    activate WS
+    
+    WS --> jobStore: store job result\nwith termination message\n{reason, partial_results}
+    deactivate WS
+    
+    deactivate WSManager
+    deactivate PartitionSvc
+end
+
+== frontend state update ==
+
+jobStore <- jobStore: addUpdate\n(job_id,{type: 'error', message: reason})
+activate jobStore
+deactivate jobStore
+
+jobStore <- jobStore: setJobError(job_id, reason)
+activate jobStore
+deactivate jobStore
+
+note left of jobStore: job status marked as 'error'
+
+jobStore --> Toolbar: notify subscribers
+activate Toolbar
+
+Toolbar -> Toolbar: setIsExecuting(false)
+activate Toolbar
+deactivate Toolbar
+
+Toolbar -> Toolbar: setExecutionStatus(reason)
+activate Toolbar
+deactivate Toolbar
+
+Toolbar -> jobStore: get job (find from circuitId)
+activate jobStore
+jobStore --> Toolbar: jobId from circuit (with updates and error message)
+deactivate jobStore
+
+opt job status is 'complete' with results
+    Toolbar -> Toolbar: display partial results in ResultsPanel
+    activate Toolbar
+    deactivate Toolbar
+end
+
+Toolbar -> Toolbar: show error notification with reason
+activate Toolbar
+deactivate Toolbar
+
+deactivate Toolbar
+
+note over User, jobStore
+    job termination completed: either timeout expired or user aborted,\nbackend stopped processing and cleaned up resources,\nfrontend received notification and displayed termination status with reason and partial results
+end note
+
+@enduml
