@@ -1,12 +1,10 @@
 @startuml circuit_design_sequence_diagram
 
 !define BACKEND_COLOR #E1F5FF
-!define FRONTEND_COLOR #FFF3E0
 
 skinparam style strictuml
 skinparam actorBackgroundColor #FFFFFF
 skinparam actorBorderColor #000000
-skinparam participant BackgroundColor FRONTEND_COLOR
 skinparam sequenceMessageAlign center
 skinparam defaultFontName serif
 skinparam defaultFontSize 12

@@ -1,7 +1,6 @@
 @startuml circuit_execution_sequence_diagram
 
 !define BACKEND_COLOR #E1F5FF
-!define FRONTEND_COLOR #FFF3E0
 
 skinparam style strictuml
 skinparam actorBackgroundColor #FFFFFF

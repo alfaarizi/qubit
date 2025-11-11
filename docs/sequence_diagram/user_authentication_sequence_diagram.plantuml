@@ -10,7 +10,6 @@ skinparam sequenceMessageAlign center
 skinparam defaultFontName serif
 skinparam defaultFontSize 12
 
-
 ' === participants ===
 actor "User" as User
 participant "AuthPage\n<<page>>" as AuthPage
