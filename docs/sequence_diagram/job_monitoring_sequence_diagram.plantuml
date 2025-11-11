@@ -1,4 +1,4 @@
-@startuml realtime_job_updates_sequence_diagram
+@startuml job_monitoring_sequence_diagram
 
 !define BACKEND_COLOR #E1F5FF
 
@@ -238,7 +238,7 @@ deactivate WSManager
 deactivate JobManager
 
 note over JobManager, MsgQueue
-    real-time updates completed: frontend received all job progress updates via WebSocket, stored them in the store, and displayed all state changes
+    job monitoring completed: frontend received all job progress updates via WebSocket, stored them in the store, and displayed all state changes
 end note
 
 @enduml
