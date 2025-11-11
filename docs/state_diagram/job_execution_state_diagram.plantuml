@@ -1,0 +1,129 @@
+@startuml job_execution_state_diagram
+
+skinparam style strictuml
+skinparam stateBackgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+skinparam linetype ortho
+top to bottom direction
+
+hide empty description
+
+[*] --> Pending: enqueueJob(job_id, circuitId, execution_type)\nexecution_type = 'partition' or 'import'
+
+Pending: entry / store job in active_jobs
+Pending: exit / retrieve job from active_jobs
+
+Pending --> Running: PartitionService or ImportQASM\n/ asyncio.create_task(run_*)\nruntime elapsed = 0
+
+Running: entry / initialize execution timer\nstart backend execution (partition or import QASM)
+Running: exit / record final execution time
+
+state Running {
+    [*] --> Executing
+    
+    Executing: if partition: parse, partition, simulate\nelse if import: parse, convert and load QASM code
+    Executing: if (elapsed_time < timeout) continue
+    
+    Executing --> Executing: JobUpdate / emit progress update\n(phase, progress %, results)
+    
+    Executing --> ExecutionSuccess:execution_complete /\n(partition: results ready, import: circuit loaded)
+    
+    Executing --> TimeoutDetected: timeout_threshold_exceeded\nelapsed_time >= simulationTimeout
+    
+    Executing --> AbortRequested: user_abort_signal\nuser clicks abort or closes circuit
+}
+
+ExecutionSuccess: entry / collect final results
+ExecutionSuccess: exit / prepare job completion data
+
+ExecutionSuccess --> Completed: results_finalized\n/JobStore update job status\nWS broadcast to subscribers
+
+TimeoutDetected: entry / set termination_reason = "timeout"
+TimeoutDetected --> Terminating
+
+AbortRequested: entry / set termination_reason = "user_abort"
+AbortRequested: exit / send abort signal to PartitionService
+
+AbortRequested --> Terminating
+
+state Terminating {
+    [*] --> CleaningUp
+    
+    CleaningUp: stop execution, cleanup resources
+    CleaningUp: delete active_jobs[job_id]
+    
+    CleaningUp --> BroadcastStatus: resources_released
+    
+    BroadcastStatus: broadcastJobStatus(job_id, "terminated")\n{reason, partial_results}
+}
+
+Terminating --> CompletedWithError: cleanup_complete / JobStore update job status\nWS broadcast to subscribers
+
+CompletedWithError: entry / finalize job record
+CompletedWithError: job.status = "error"
+CompletedWithError: emit termination notification (timeout or user_abort)
+
+CompletedWithError --> [*]
+
+Completed: entry / finalize job record
+Completed: job.status = "complete"
+Completed: emit success notification with results
+
+Completed --> [*]
+
+note left of Pending
+    job created by user request,
+    stored in system with initial metadata,
+    execution_type indicates partition or import QASM workflow
+end note
+
+note left of Running
+    backend actively executes circuit workflow,
+    can be partition-based (split, simulate parts) or import QASM,
+    generates periodic progress updates,
+    monitors execution time against timeout,
+    can transition to success or error paths
+end note
+
+note bottom of ExecutionSuccess
+    execution completed successfully,
+    partition workflow: all partitions simulated, results combined,
+    import QASM workflow: QASM code parsed, converted and loaded into circuit,
+    no timeout or abort occurred
+end note
+
+note right of TimeoutDetected
+    execution time exceeded configured limit,
+    automatic termination triggered
+end note
+
+note right of AbortRequested
+    user explicitly cancels execution via UI,
+    abort request sent to backend
+end note
+
+note right of Terminating
+    both timeout and abort paths converge,
+    unified cleanup process,
+    cleanup happens identically for both scenarios
+end note
+
+note right of Completed
+    job finalized with success status,
+    results available for visualization,
+    frontend notified via WebSocket,
+    progress bar hidden, results displayed to user
+end note
+
+note right of CompletedWithError
+    job finalized with error status,
+    termination reason (timeout/abort) recorded,
+    partial results may be available,
+    frontend notified via WebSocket,
+    progress bar hidden, error status displayed to user
+end note
+
+@enduml
+
