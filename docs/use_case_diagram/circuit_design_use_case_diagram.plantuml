@@ -1,0 +1,116 @@
+@startuml circuit_design_use_case_diagram
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+skinparam linetype ortho
+left to right direction
+
+actor "User" as User
+
+package "Quantum Circuit Composer" {
+    (Design Circuit)/ as DesignCircuit
+
+    (Add Gate) as AddGate
+    (Edit Gate) as EditGate
+    (Move Gate) as MoveGate
+    (Delete Gate) as DeleteGate
+    (Group Gates) as GroupGates
+    (Ungroup Gates) as UngroupGates
+
+    (Import QASM) as ImportQASM
+    (Parse QASM) as ParseQASM << System >>
+    (Validate Circuit) as ValidateCircuit << System >>
+
+    (Update Canvas) as UpdateCanvas << System >>
+    (Update DAG) as UpdateDAG << System >>
+    (Auto-save Circuit) as AutoSaveCircuit << System >>
+}
+
+User --> DesignCircuit
+User --> AddGate
+User --> EditGate
+User --> MoveGate
+User --> DeleteGate
+User --> GroupGates
+User --> UngroupGates
+User --> ImportQASM
+
+DesignCircuit --> AddGate : << include >>
+DesignCircuit --> EditGate : << include >>
+DesignCircuit --> MoveGate : << include >>
+DesignCircuit --> DeleteGate : << include >>
+DesignCircuit --> GroupGates : << include >>
+DesignCircuit --> UngroupGates : << include >>
+DesignCircuit --> AutoSaveCircuit : << include >>
+
+AddGate --> UpdateDAG : << include >>
+AddGate --> UpdateCanvas : << include >>
+AddGate --> ValidateCircuit : << include >>
+
+EditGate --> UpdateCanvas : << include >>
+EditGate --> ValidateCircuit : << include >>
+
+MoveGate --> UpdateDAG : << include >>
+MoveGate --> UpdateCanvas : << include >>
+
+DeleteGate --> UpdateDAG : << include >>
+DeleteGate --> UpdateCanvas : << include >>
+
+GroupGates --> UpdateDAG : << include >>
+GroupGates --> UpdateCanvas : << include >>
+
+UngroupGates --> UpdateDAG : << include >>
+UngroupGates --> UpdateCanvas : << include >>
+
+ImportQASM --> ParseQASM : << include >>
+ImportQASM --> UpdateCanvas : << include >>
+ImportQASM --> ValidateCircuit : << include >>
+
+AutoSaveCircuit --> ValidateCircuit : << include >>
+
+note right of DesignCircuit
+    primary workflow for creating and modifying
+    quantum circuits within the composer environment
+end note
+
+note right of AddGate
+    place quantum gate on circuit canvas at specified position,
+    insert into DAG structure and push overlapping gates forward
+end note
+
+note right of EditGate
+    modify gate configuration including type, parameters,
+    target qubits, and control qubit assignments
+end note
+
+note right of MoveGate
+    reposition gate on canvas to new qubit placement,
+    update internal circuit structure accordingly
+end note
+
+note right of GroupGates
+    combine multiple gates into composite circuit element,
+    register new composite gate in gates panel for reuse
+end note
+
+note right of UngroupGates
+    decompose composite circuit back into constituent gates,
+    restore individual gates to circuit canvas layout
+end note
+
+note right of ImportQASM
+    load OpenQASM code file, parse syntax,
+    convert to circuit representation and render on canvas
+end note
+
+note right of AutoSaveCircuit
+    automatically synchronize circuit state to backend storage,
+    debounced at 1-second intervals during editing
+end note
+
+@enduml
+

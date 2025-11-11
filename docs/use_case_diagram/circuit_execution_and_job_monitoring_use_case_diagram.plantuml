@@ -1,0 +1,129 @@
+@startuml circuit_execution_and_job_monitoring_use_case_diagram
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+skinparam linetype ortho
+left to right direction
+
+actor "User" as User
+
+package "Quantum Circuit Composer" {
+    (Execute Circuit)/ as ExecuteCircuit
+    (Set NumQubits) as SetNumQubits << Configuration >>
+    (Set Timeout) as SetTimeout << Configuration >>
+    (Select Strategy) as SelectStrategy << Configuration >>
+
+    (Partition & Simulate) as PartitionSimulate << System >>
+    (Detect Timeout) as DetectTimeout << System >>
+
+    (Monitor Job)/ as MonitorJob
+    (Receive Updates) as ReceiveUpdates << System >>
+    (Track Progress) as TrackProgress
+
+    (View Results)/ as ViewResults
+    (Display Results) as DisplayResults
+    (Export Circuit) as ExportCircuit
+
+    (Abort Execution)/ as AbortExecution
+    (Cleanup Resources) as CleanupResources << System >>
+}
+
+User --> ExecuteCircuit
+User --> MonitorJob
+User --> ViewResults
+User --> AbortExecution
+
+ExecuteCircuit --> SetNumQubits : << include >>
+ExecuteCircuit --> SetTimeout : << include >>
+ExecuteCircuit --> SelectStrategy : << include >>
+ExecuteCircuit --> PartitionSimulate : << include >>
+
+MonitorJob --> ReceiveUpdates : << include >>
+MonitorJob --> TrackProgress : << include >>
+
+MonitorJob <|-- AbortExecution : << extend >>
+
+ViewResults --> DisplayResults : << include >>
+ViewResults --> ExportCircuit : << include >>
+
+PartitionSimulate --> DetectTimeout : << include >>
+
+AbortExecution --> CleanupResources : << include >>
+DetectTimeout --> CleanupResources : << include >>
+
+note right of ExecuteCircuit
+    submit quantum circuit for backend execution
+    with configured parameters and strategy selection
+end note
+
+note right of SetNumQubits
+    define number of qubits required for circuit,
+    determines system resource allocation and constraints
+end note
+
+note right of SetTimeout
+    configure maximum execution time limit in seconds,
+    0 indicates unlimited execution time
+end note
+
+note right of SelectStrategy
+    select circuit partitioning algorithm (Kahn, ILP, TDAG, etc.)
+    and target quantum backend (SQUANDER)
+end note
+
+note right of PartitionSimulate
+    backend divides circuit into partitions using selected strategy,
+    simulates each partition on quantum backend and aggregates results
+end note
+
+note right of MonitorJob
+    user observes real-time job status and execution progress
+    through live WebSocket connection to backend
+end note
+
+note right of ReceiveUpdates
+    receive backend notifications including execution phases,
+    debug logs, and progress percentage
+end note
+
+note right of TrackProgress
+    display execution progress bar with real-time status,
+    show phase transitions (parsing, partitioning, simulating)
+end note
+
+note right of ViewResults
+    access job completion results including measurement
+    statistics and quantum state information
+end note
+
+note right of DisplayResults
+    render result data as histograms, Bloch spheres, state vectors,
+    and partition analysis for comprehensive visualization
+end note
+
+note right of ExportCircuit
+    export circuit design as vector graphics (SVG or PNG)
+    for documentation, publication, or external analysis
+end note
+
+note right of AbortExecution
+    user terminates executing job via abort button
+    or circuit close action during active execution
+end note
+
+note right of CleanupResources
+    terminate running backend processes and release resources,
+    applies uniformly to user-initiated abort and timeout scenarios
+end note
+
+note right of DetectTimeout
+    monitor execution duration in background,
+    automatically trigger termination upon timeout threshold
+end note
+
+@enduml
+

@@ -1,0 +1,89 @@
+@startuml user_authentication_and_project_management_use_case_diagram
+
+skinparam style strictuml
+skinparam actorBackgroundColor #FFFFFF
+skinparam actorBorderColor #000000
+skinparam sequenceMessageAlign center
+skinparam defaultFontName serif
+skinparam defaultFontSize 12
+skinparam linetype ortho
+left to right direction
+
+actor "User" as User
+
+package "Quantum Circuit Composer" {
+    (Register) as Register << Authentication >>
+    (Login) as Login << Authentication >>
+    (Logout) as Logout << Authentication >>
+    (Authenticate via OAuth) as AuthOAuth << System >>
+    (Verify Credentials) as VerifyCredentials << System >>
+
+    (View Projects)/ as ViewProjects
+    (Create Project)/ as CreateProject
+    (Edit Project)/ as EditProject
+    (Delete Project)/ as DeleteProject
+    (Duplicate Project)/ as DuplicateProject
+    (Store Project Data) as StoreProjectData << System >>
+    (Delete Project Data) as DeleteProjectData << System >>
+}
+
+User --> Register
+User --> Login
+User --> Logout
+User --> ViewProjects
+User --> CreateProject
+User --> EditProject
+User --> DeleteProject
+User --> DuplicateProject
+
+Register <|-- AuthOAuth : << extend >>
+Register --> VerifyCredentials : << include >>
+
+Login <|-- AuthOAuth : << extend >>
+Login --> VerifyCredentials : << include >>
+
+CreateProject --> StoreProjectData : << include >>
+
+EditProject --> StoreProjectData : << include >>
+
+DeleteProject --> DeleteProjectData : << include >>
+
+DuplicateProject --> StoreProjectData : << include >>
+
+note right of Register
+    create new account with email/password credentials
+    or OAuth-based authentication (Google, Microsoft)
+end note
+
+note right of Login
+    authenticate using email/password or
+    OAuth provider credentials for session access
+end note
+
+note right of ViewProjects
+    retrieve and display all user-owned projects,
+    sorted by most recent modification date
+end note
+
+note right of CreateProject
+    initialize new project with user metadata
+    and empty circuit collection for design
+end note
+
+note right of EditProject
+    update project metadata including name,
+    description, and other configuration details
+end note
+
+note right of DeleteProject
+    permanently remove project from system
+    along with all associated circuits and jobs
+end note
+
+note right of DuplicateProject
+    create new project by copying all circuits
+    and metadata from an existing project
+end note
+
+@enduml
+
