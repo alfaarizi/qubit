@@ -1,0 +1,40 @@
+\renewcommand{\maketitle}{
+	\begin{titlepage}
+
+		% Compensate for asymmetric margins
+		\hspace*{-15mm}\begin{minipage}{\dimexpr\textwidth+10mm\relax}
+
+		\begin{center}
+			\begin{tabular}{ c c }
+				\multirow{4}{*}{\hspace{-1.0cm}\includegraphics[width=0.25\textwidth]{\logofilename}}
+				& {\sc \Large \makecell{\univname}} \vspace{0.3cm}\\
+				& {\sc \Large \makecell{\facname}} \vspace{0.5cm}\\
+				& {\sc \large \makecell{\deptname}}
+			\end{tabular}
+		\end{center}
+
+		\vspace{4.0cm}
+		{\centering \bf \LARGE \color{elteblue} \thesistitle \par}
+		\vspace{2.0cm}
+
+		\begin{center}
+			{\footnotesize A THESIS PRESENTED}\\
+			{\footnotesize BY}\\
+			{\large \authorname}\\
+			{\footnotesize TO}\\
+			{\large \deptname}\\[0.5cm]
+			{\footnotesize IN PARTIAL FULFILLMENT OF THE REQUIREMENTS}\\
+			{\footnotesize FOR THE DEGREE OF}\\
+			{\large \degreename}\\
+			{\footnotesize IN THE SUBJECT OF}\\
+			{\large Computer Science}\\[0.5cm]
+
+			{\large \univname}\\
+			{\large Budapest, Hungary}\\
+			{\large Nov \thesisyear}
+		\end{center}
+
+		\end{minipage}
+
+	\end{titlepage}
+}

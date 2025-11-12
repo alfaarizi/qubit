@@ -12,15 +12,15 @@
 %\usepackage[newfloat]{minted}
 
 % Document's metadata
-\title{Quantum Unitary Benchmarking and Interactive Toolkit} % title
-\date{2024} % year of defense
+\title{Visual Quantum Circuit Partitioner} % title
+\date{2025} % year of defense
 
 % Author's metadata
-\author{John Smith}
-\degree{Computer Science BSc}
+\author{Muhammad Al Farizi}
+\degree{Bachelor of Science}
 
 % Superivsor(s)' metadata
-\supervisor{John Doe} % internal supervisor's name
+\supervisor{Morse Gregory Reynolds} % internal supervisor's name
 \affiliation{Assistant Lecturer} % internal supervisor's affiliation
 %\extsupervisor{Jane Doe} % external supervisor's name
 %\extaffiliation{Senior Developer} % external supervisor's affiliation
@@ -34,6 +34,12 @@
 
 % Add bibliography file
 \addbibresource{elteikthesis.bib}
+
+% Apply custom chapter styles
+\input{styles/chapter.tex}
+
+% Apply custom title page
+\input{styles/title_page.tex}
 
 % The document
 \begin{document}
@@ -54,6 +60,11 @@
 \tableofcontents
 \cleardoublepage
 
+% Acknowledgements (optional) - in case your thesis received funding or would like to express special thanks to someone
+\chapter*{\acklabel}
+\addcontentsline{toc}{chapter}{\acklabel}
+In case your thesis received financial support from a project or the university, it is usually required to indicate the proper attribution in the thesis itself. Special thanks can also be expressed towards teachers, fellow students and colleagues who helped you in the process of creating your thesis.
+
 % Main content
 \input{samples_en/intro.tex}
 \cleardoublepage
@@ -69,11 +80,6 @@
 
 \input{samples_en/sum.tex}
 \cleardoublepage
-
-% Acknowledgements (optional) - in case your thesis received funding or would like to express special thanks to someone
-\chapter*{\acklabel}
-\addcontentsline{toc}{chapter}{\acklabel}
-In case your thesis received financial support from a project or the university, it is usually required to indicate the proper attribution in the thesis itself. Special thanks can also be expressed towards teachers, fellow students and colleagues who helped you in the process of creating your thesis.
 
 % Appendices (optional) - useful for detailed information in long tables, many and/or large figures, etc.
 \appendix

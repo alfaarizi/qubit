@@ -1,6 +1,84 @@
 \chapter{Introduction}
 \label{ch:intro}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. In eu egestas mauris. Quisque nisl elit, varius in erat eu, dictum commodo lorem. Sed commodo libero et sem laoreet consectetur. Fusce ligula arcu, vestibulum et sodales vel, venenatis at velit \cite{dahl1972structured}. Aliquam erat volutpat. Proin condimentum accumsan velit id hendrerit. Cras egestas arcu quis felis placerat, ut sodales velit malesuada. Maecenas et turpis eu turpis placerat euismod.\footnote{Maecenas a urna viverra, scelerisque nibh ut, malesuada ex.}
+Quantum computing represents a paradigm shift in computation, exploiting quantum mechanical phenomena such as superposition and entanglement to solve problems beyond the reach of classical computers. Algorithms like Shor's~\cite{shor1997polynomial} and Grover's~\cite{grover1996fast} demonstrate exponential and quadratic speedups over classical counterparts, with applications spanning cryptography, optimization, and molecular simulation. As quantum hardware continues to mature and major technology companies invest heavily in quantum technologies, the demand for accessible quantum circuit design tools has grown substantially.
 
-Aliquam suscipit dignissim tempor. Praesent tortor libero, feugiat et tellus porttitor, malesuada eleifend felis. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus \cite{cormen2009algorithms,krasner1988mvc}. Nullam eleifend imperdiet lorem, sit amet imperdiet metus pellentesque vitae. Donec nec ligula urna. Aliquam bibendum tempor diam, sed lacinia eros dapibus id. Donec sed vehicula turpis. Aliquam hendrerit sed nulla vitae convallis. Etiam libero quam, pharetra ac est nec, sodales placerat augue. \citeauthor{dijkstra1979goto} praesent eu consequat purus \cite{dijkstra1979goto}. 
+However, the current landscape of quantum circuit design tools presents users with a difficult choice. On one side are programming frameworks like Qiskit~\cite{qiskit2024} and Cirq~\cite{cirq2024}, which offer comprehensive functionality but require significant coding expertise and provide limited visual feedback during circuit construction. On the other side are visual tools like IBM Quantum Composer~\cite{ibmcomposer2024} and Quirk~\cite{quirk2024}, which lower the entry barrier through graphical interfaces but either lock users into proprietary ecosystems or restrict circuit complexity. Advanced optimization tools like SQUANDER~\cite{squander2024}, which performs quantum gate synthesis and decomposition using parallelized C/C++ implementations, present deployment challenges with numerous dependencies including TBB, BLAS libraries, and specific compiler requirements that create barriers for non-expert users.
+
+This thesis introduces Qubit, a web-based platform designed to reconcile these competing demands. Rather than treating visual accessibility and computational capability as mutually exclusive, Qubit integrates an interactive drag-and-drop circuit composer with backend connectivity to advanced simulation servers. The platform streams real-time execution progress to users via WebSocket connections and visualizes quantum states through multiple interactive representations. By building on modern web technologies and distributed computing patterns, Qubit demonstrates that quantum circuit experimentation can be simultaneously approachable and powerful.
+
+
+\section{Overview}
+\label{sec:intro:overview}
+
+Quantum circuits serve as the fundamental programming model for quantum computers. Just as classical programs compose logic gates to manipulate bits, quantum programs compose quantum gates to manipulate qubits. However, the quantum setting introduces unique challenges: qubits exist in superposition states described by complex probability amplitudes, circuits evolve according to unitary transformations, and measurement probabilistically collapses superpositions to classical outcomes. These properties make quantum circuit behavior difficult to predict without simulation.
+
+The computational cost of quantum simulation grows exponentially with qubit count. Representing the state of an $n$-qubit system requires $2^n$ complex numbers, rendering direct simulation infeasible beyond approximately 30 qubits on conventional hardware. While tensor network methods and circuit partitioning algorithms can extend this limit, implementing these techniques typically requires specialized expertise and infrastructure.
+
+Qubit addresses the gap between accessible visual tools and advanced simulation capabilities through a distributed web-based architecture. The platform consists of three main components:
+
+\begin{enumerate}
+    \item \textbf{Interactive frontend}: A React-based single-page application providing drag-and-drop circuit composition, real-time gate placement feedback, QASM code editing with Monaco Editor, and responsive visualizations using D3.js and Plotly. The frontend employs Zustand for state management and Zundo middleware to maintain per-circuit undo/redo histories of up to 50 states.
+
+    \item \textbf{FastAPI backend}: A Python service managing user authentication via JWT tokens with support for Google OAuth, Microsoft Azure AD, and email verification. The backend coordinates job submissions, maintains WebSocket connections for progress streaming, and interfaces with MongoDB for persistent storage of user projects and circuit definitions.
+
+    \item \textbf{Remote simulation infrastructure}: SSH-based connectivity to SQUANDER simulation servers, with connection pooling to manage concurrent sessions, automatic file transfer for circuit definitions and results, and streaming of execution output through 11 distinct progress phases.
+\end{enumerate}
+
+This architecture enables users to design circuits visually, execute them on remote high-performance servers, monitor progress in real-time, and explore results through seven different visualization types including state vector plots, Bloch spheres, density matrices, and measurement statistics. The platform supports collaborative workflows through project-based organization while maintaining independent state histories for each circuit.
+
+
+\section{Motivation}
+\label{sec:intro:motivation}
+
+The development of Qubit was motivated by practical challenges encountered when teaching and learning quantum computing. Three specific problems emerged from examining existing tools:
+
+\textbf{The fragmentation problem.} Current quantum circuit tools fragment the workflow into disconnected stages. Researchers typically design circuits in one environment (such as Jupyter notebooks with Qiskit), execute them in another (command-line submission to HPC clusters), monitor progress through a third interface (SSH terminals or batch queue systems), and visualize results using separate plotting libraries. This fragmentation interrupts the experimental cycle and increases cognitive load, particularly for students and newcomers.
+
+\textbf{The accessibility-capability tradeoff.} Visual circuit designers prioritize ease of use but sacrifice computational power. Quirk~\cite{quirk2024} provides an elegant browser-based interface with immediate simulation feedback, but its client-side execution limits circuit size and complexity. Conversely, frameworks like Qiskit~\cite{qiskit2024} access powerful simulators and quantum hardware but require users to write Python code, debug API calls, and manage authentication credentials. This creates an entry barrier for educators who want to demonstrate quantum algorithms without teaching software development first.
+
+\textbf{The feedback delay problem.} Advanced quantum circuit simulation on remote servers often takes minutes to hours. Traditional batch submission systems provide no progress information during execution, leaving users uncertain whether their jobs are running correctly or have encountered errors. This delayed feedback slows iteration cycles and frustrates interactive exploration, especially during algorithm development where multiple parameter variations may need testing.
+
+These problems are not merely inconveniences---they represent barriers to quantum computing education and research productivity. Students learning quantum algorithms benefit from immediate visual feedback showing how gates transform quantum states. Researchers developing novel circuits need rapid iteration cycles to test hypotheses. Educators demonstrating quantum concepts require tools that focus attention on quantum mechanics rather than software infrastructure.
+
+Qubit addresses these problems through architectural choices that unify the circuit design workflow. A single web interface integrates composition, execution, monitoring, and visualization. SSH connectivity provides access to advanced simulation algorithms without requiring users to manage remote sessions manually. WebSocket streaming delivers real-time progress updates, transforming batch execution into an interactive experience. The result is a tool designed for the iterative, exploratory nature of quantum algorithm development.
+
+
+\section{Contribution}
+\label{sec:intro:contribution}
+
+This thesis presents the design and implementation of Qubit, a web-based quantum circuit design and simulation platform. The primary contributions are:
+
+\begin{enumerate}
+    \item \textbf{Unified workflow architecture}: Integration of circuit composition, remote execution, progress monitoring, and result visualization within a single web interface. This contrasts with existing workflows that require switching between multiple tools and environments.
+
+    \item \textbf{Distributed execution infrastructure}: An SSH-based connection management system that pools connections to remote SQUANDER servers, automatically transfers circuit definitions and retrieves results, and streams execution output in real-time. The connection pool implements automatic cleanup of stale sessions and limits concurrent connections to prevent resource exhaustion.
+
+    \item \textbf{Real-time progress streaming}: A WebSocket-based architecture that broadcasts execution updates from backend to connected clients. The system tracks jobs through 11 execution phases (preparation, upload, execution, download, post-processing), estimates time remaining, and notifies users of errors immediately rather than after job completion.
+
+    \item \textbf{Multi-perspective visualization suite}: Seven distinct visualization types for quantum state analysis: state vector amplitude/phase plots, single-qubit Bloch sphere projections, density matrix heatmaps, measurement probability distributions, quantum state tables, circuit depth profiles, and gate composition breakdowns. Each visualization addresses different aspects of quantum state understanding.
+
+    \item \textbf{Temporal state management}: A per-circuit undo/redo system maintaining up to 50 historical states using Zundo middleware with Zustand stores. The system persists histories to browser local storage and handles edge cases such as undo/redo during active circuit execution and state restoration after page refresh.
+
+    \item \textbf{Federated authentication}: Support for three authentication providers (Google OAuth 2.0, Microsoft Azure AD via MSAL, email-based verification codes) with unified JWT token management. The implementation includes automatic token refresh with request retry, preventing authentication failures during long-running simulations.
+
+    \item \textbf{Application of software engineering principles}: The implementation demonstrates object-oriented modeling through UML diagrams documenting system structure and behavior, object-oriented programming through class hierarchies in Python and TypeScript, and data structure selection for efficient circuit representation, job queue management, and connection pooling.
+\end{enumerate}
+
+The platform has been deployed and tested with multiple concurrent users executing circuits remotely. The implementation shows that web technologies can effectively mediate between browser-based interfaces and high-performance computing infrastructure, making advanced quantum simulation capabilities accessible without sacrificing usability.
+
+
+\section{Outline}
+\label{sec:intro:outline}
+
+The remainder of this thesis is organized as follows:
+
+\textbf{Chapter 2} documents the user-facing aspects of Qubit. This chapter covers installation and deployment, authentication and account management, circuit composition through the visual interface and QASM editor, job submission and monitoring, and interpretation of visualization results. The documentation includes screenshots and workflow diagrams to guide users through common tasks.
+
+\textbf{Chapter 3} presents the system design. This chapter begins with requirements analysis and architecture overview, then documents the object-oriented models used during design: UML class diagram for backend components, component diagram for frontend architecture, sequence diagrams for key workflows (authentication, circuit execution, job monitoring, project management), state diagrams for job lifecycle management, use case diagrams defining system boundaries, and package diagram showing module organization. The chapter concludes with database schema design and technology selection justification.
+
+\textbf{Chapter 4} details the implementation. This chapter explains how design decisions were realized in code, covering the SSH connection pooling algorithm, WebSocket room-based broadcasting mechanism, Zustand/Zundo temporal state management, OAuth integration with automatic token refresh, D3.js circuit rendering pipeline, and Plotly-based quantum state visualizations. The discussion references specific source files and explains key implementation challenges and their solutions.
+
+\textbf{Chapter 5} describes testing methodology and results. This chapter documents unit tests for backend API endpoints and frontend components, integration tests for distributed workflows, manual testing procedures, and bug tracking. Test coverage metrics are presented along with discussion of testing challenges specific to distributed systems with asynchronous communication.
+
+\textbf{Chapter 6} concludes the thesis. This chapter summarizes the contributions, reflects on lessons learned during development, acknowledges current limitations including scalability constraints and missing features, and outlines future work directions such as support for additional quantum gates, integration with real quantum hardware providers, and collaborative editing capabilities.
