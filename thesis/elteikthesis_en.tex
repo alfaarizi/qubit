@@ -41,6 +41,9 @@
 % Apply custom title page
 \input{styles/title_page.tex}
 
+% Apply custom dedication page
+\input{styles/dedication_page.tex}
+
 % The document
 \begin{document}
 
@@ -59,6 +62,9 @@
 % Table of contents (mandatory)
 \tableofcontents
 \cleardoublepage
+
+% Dedication page (optional)
+\dedicationpage
 
 % Acknowledgements (optional) - in case your thesis received funding or would like to express special thanks to someone
 \chapter*{\acklabel}
