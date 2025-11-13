@@ -178,7 +178,7 @@ export const GATE_DEFINITIONS: GateInfo[] = [
         id: 'u3',
         name: 'U3 Gate',
         symbol: 'U3',
-        color: '#8b5cf6',
+        color: '#06d6ff',
         description: 'General single-qubit rotation',
         longDescription: 'The U3 gate is a general unitary single-qubit gate that performs arbitrary rotations on the Bloch sphere using three parameters: θ (theta), φ (phi), and λ (lambda). It is the most general single-qubit gate and can represent any unitary transformation on a single qubit.',
         numControlQubits: 0,
