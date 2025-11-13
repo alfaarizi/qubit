@@ -174,6 +174,21 @@ export const GATE_DEFINITIONS: GateInfo[] = [
         category: GATE_CATEGORIES.SINGLE_QUBIT,
         matrix: '\\frac{1}{2}\\begin{pmatrix}1+i & 1-i\\\\1-i & 1+i\\end{pmatrix}',
     },
+    {
+        id: 'u3',
+        name: 'U3 Gate',
+        symbol: 'U3',
+        color: '#8b5cf6',
+        description: 'General single-qubit rotation',
+        longDescription: 'The U3 gate is a general unitary single-qubit gate that performs arbitrary rotations on the Bloch sphere using three parameters: θ (theta), φ (phi), and λ (lambda). It is the most general single-qubit gate and can represent any unitary transformation on a single qubit.',
+        numControlQubits: 0,
+        numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
+        matrix: '\\begin{pmatrix}\\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2)\\\\e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)\\end{pmatrix}',
+        formulas: [
+            'U3(\\theta, \\phi, \\lambda) = \\begin{pmatrix}\\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2)\\\\e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)\\end{pmatrix}'
+        ],
+    },
     // Two-Qubit Gates
     {
         id: 'cnot',
