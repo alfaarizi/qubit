@@ -186,7 +186,8 @@ export const GATE_DEFINITIONS: GateInfo[] = [
         category: GATE_CATEGORIES.SINGLE_QUBIT,
         matrix: '\\begin{pmatrix}\\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2)\\\\e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)\\end{pmatrix}',
         formulas: [
-            'U3(\\theta, \\phi, \\lambda) = \\begin{pmatrix}\\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2)\\\\e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)\\end{pmatrix}'
+            '|0\\rangle \\rightarrow \\cos(\\theta/2)|0\\rangle + e^{i\\phi}\\sin(\\theta/2)|1\\rangle',
+            '|1\\rangle \\rightarrow -e^{i\\lambda}\\sin(\\theta/2)|0\\rangle + e^{i(\\phi+\\lambda)}\\cos(\\theta/2)|1\\rangle'
         ],
     },
     // Two-Qubit Gates
