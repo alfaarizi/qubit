@@ -1,204 +1,593 @@
-\chapter{User documentation}
+\chapter{User Documentation}
 \label{ch:user}
 
-Lorem ipsum dolor sit amet $\mathbb{N}$\nomenclature{$\mathbb{N}$}{Set of natural numbers}, consectetur adipiscing elit. Duis nibh leo, dapibus in elementum nec, aliquet id sem. Suspendisse potenti. Nullam sit amet consectetur nibh. Donec scelerisque varius turpis at tincidunt. Cras a diam in mauris viverra vehicula. Vivamus mi odio, fermentum vel arcu efficitur, lacinia viverra nibh. Aliquam aliquam ante mi, vel pretium arcu dapibus eu. Nulla finibus ante vel arcu tincidunt, ut consectetur ligula finibus. Mauris mollis lectus sed ipsum bibendum, ac ultrices erat dictum. Suspendisse faucibus euismod lacinia $\mathbb{Z}$\nomenclature{$\mathbb{Z}$}{Set of integer numbers}.
+This chapter provides comprehensive guidance for users interacting with the Qubit platform. It covers installation and deployment, authentication workflows, circuit composition techniques, job submission procedures, and visualization interpretation. The documentation is designed for users with basic quantum computing knowledge seeking to design, execute, and analyze quantum circuits through the platform's web interface.
 
+\section{Overview}
+\label{sec:user:overview}
 
-\section{Enumerations and lists}
-
-Etiam vel odio ante. Etiam pulvinar nibh quis massa auctor congue. Pellentesque quis odio vitae sapien molestie vestibulum sit amet et quam. Pellentesque vel dui eget enim hendrerit finibus at sit amet libero. Quisque sollicitudin ultrices enim, nec porta magna imperdiet vitae. Cras condimentum nunc dui, eget molestie nunc accumsan vel.
-
-\begin{itemize}
-	\item Fusce in aliquet neque, in pretium sem.
-	\item Donec tincidunt tellus id lectus pretium fringilla.
-	\item Nunc faucibus, erat pretium tempus tempor, tortor mi fringilla neque, ac congue ex dui vitae mauris.
-\end{itemize}
-
-Donec dapibus sodales ante, at scelerisque nunc laoreet sit amet. Mauris porttitor tincidunt neque, vel ullamcorper neque pulvinar et. Integer eu lorem euismod, faucibus lectus sed, accumsan felis. Nunc ornare mi at augue vulputate, eu venenatis magna mollis. Nunc sed posuere dui, et varius nulla. Sed mollis nibh augue, eget scelerisque eros ornare nec.
+Qubit is a web-based quantum circuit design and simulation platform that unifies circuit composition, remote execution, and result visualization within a single interface. The platform consists of three main user-facing components:
 
 \begin{enumerate}
-	\item\label{step:first} Donec pretium et quam a cursus. Ut sollicitudin tempus urna et mollis.
-	\item Aliquam et aliquam turpis, sed fermentum mauris. Nulla eget ex diam.
-	\item Donec eget tellus pharetra, semper neque eget, rutrum diam Step~\ref{step:first}.
+    \item \textbf{Authentication System}: Multi-provider OAuth support (Google, Microsoft Azure AD) and email-based verification with JWT token management
+    \item \textbf{Circuit Composer}: Interactive drag-and-drop interface for quantum circuit design with QASM code editing and temporal undo/redo capabilities
+    \item \textbf{Visualization Suite}: Seven distinct visualization types for analyzing quantum state evolution, measurement outcomes, and circuit properties
 \end{enumerate}
 
-Praesent porta, metus eget eleifend consequat, eros ligula eleifend ex, a pellentesque mi est vitae urna. Vivamus turpis nunc, iaculis non leo eget, mattis vulputate tellus. Maecenas rutrum eros sem, pharetra interdum nulla porttitor sit amet. In vitae viverra ante. Maecenas sit amet placerat orci, sed tincidunt velit. Vivamus mattis, enim vel suscipit elementum, quam odio venenatis elit\footnote{Phasellus faucibus varius purus, nec tristique enim porta vitae.}, et mollis nulla nunc a risus. Praesent purus magna, tristique sed lacus sit amet, convallis malesuada magna. 
+The platform targets both novice users learning quantum circuit fundamentals and experienced researchers requiring advanced simulation capabilities. All features are accessible through modern web browsers without local installation requirements beyond accessing the deployed application URL.
 
-\begin{description}
-	\item[Vestibulum venenatis] malesuada enim, ac auctor erat vestibulum et. Phasellus id purus a leo suscipit accumsan.
-	\item[Orci varius natoque] penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nullam interdum rhoncus nisl, vel pharetra arcu euismod sagittis. Vestibulum ac turpis auctor, viverra turpis at, tempus tellus.
-	\item[Morbi dignissim] erat ut rutrum aliquet. Nulla eu rutrum urna. Integer non urna at mauris scelerisque rutrum sed non turpis.
-\end{description}
+\section{Installation and Deployment}
+\label{sec:user:installation}
 
-\subsection{Lists with narrow spacing inbetween items}
+\subsection{Accessing the Platform}
+\label{subsec:user:access}
 
-Phasellus ultricies, sapien sit amet ultricies placerat, velit purus viverra ligula, id consequat ipsum odio imperdiet enim:
-\begin{compactenum}
-	\item Maecenas eget lobortis leo.
-	\item Donec eget libero enim.
-	\item In eu eros a eros lacinia maximus ullamcorper eget augue.
-\end{compactenum}
+The Qubit platform operates as a web application accessible through standard web browsers. Users access the system by navigating to the deployed application URL. The frontend application is built with React 19 and served via a Vite development server in development mode or as static files in production deployment.
 
-\bigskip
+System requirements for client devices include:
 
-In quis turpis metus. Proin maximus nibh et massa eleifend, a feugiat augue porta. Sed eget est purus. Duis in placerat leo. Donec pharetra eros nec enim convallis:
+\begin{itemize}
+    \item Modern web browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
+    \item Stable internet connection (minimum 1 Mbps for WebSocket streaming)
+    \item JavaScript enabled
+    \item Cookies enabled for authentication token storage
+\end{itemize}
+
+No local software installation is required. The platform automatically adapts to different screen sizes, though optimal viewing occurs on displays 1280×720 pixels or larger.
+
+\subsection{Browser Configuration}
+\label{subsec:user:browser}
+
+For optimal performance, users should configure their browsers to allow:
+
 \begin{compactitem}
-	\item Pellentesque odio lacus.
-	\item Maximus ut nisl auctor.
-	\item Sagittis vulputate lorem.
+    \item Third-party cookies for OAuth providers (Google, Microsoft)
+    \item WebSocket connections for real-time job monitoring
+    \item LocalStorage access for session persistence and undo history
 \end{compactitem}
 
-\bigskip
+Pop-up blockers may interfere with OAuth authentication flows, particularly Microsoft MSAL. Users experiencing authentication difficulties should temporarily disable pop-up blockers for the application domain.
 
-Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Sed lorem libero, dignissim vitae gravida a, ornare vitae est.
-\begin{compactdesc}
-	\item[Cras maximus] massa commodo pellentesque viverra.
-	\item[Morbi sit] amet ante risus. Aliquam nec sollicitudin mauris
-	\item[Ut aliquam rhoncus sapien] luctus viverra arcu iaculis posuere
-\end{compactdesc}
+The platform supports three language options selectable through the interface: English, German, and Hungarian. Language preferences persist across sessions via browser localStorage.
 
+\section{Authentication and Account Management}
+\label{sec:user:authentication}
 
-\section{Images and figures}
+\subsection{Registration Options}
+\label{subsec:user:registration}
 
-Aliquam vehicula luctus mi a pretium. Nulla quam neque, maximus nec velit in, aliquam mollis tortor. Aliquam erat volutpat. Curabitur vitae laoreet turpis. Integer id diam ligula. Nulla sodales purus id mi consequat, eu venenatis odio pharetra. Cras a arcu quam. Suspendisse augue risus, pulvinar a turpis et, commodo aliquet turpis. Nulla aliquam scelerisque mi eget pharetra. Mauris sed posuere elit, ac lobortis metus. Proin lacinia sit amet diam sed auctor. Nam viverra orci id sapien sollicitudin, a aliquam lacus suscipit, Figure~\ref{fig:example-1}:
+New users access the platform through three authentication methods shown in Figure~\ref{fig:login-interface}. Each method creates a user account in the MongoDB database with encrypted credential storage.
 
 \begin{figure}[H]
-	\centering
-	\includegraphics[width=0.6\textwidth,height=100px]{elte_cimer_szines}
-	\caption{Quisque ac tincidunt leo}
-	\label{fig:example-1}
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/login_page}}
+    \caption{Login interface showing Google OAuth, Microsoft Azure AD, and email verification authentication options}
+    \label{fig:login-interface}
 \end{figure}
 
-\subsection{Framing figures}
+\textbf{Google OAuth 2.0:} Clicking the "Sign in with Google" button redirects to Google's authentication server. Users authorize the application to access their email address and profile information. Upon successful authorization, the backend verifies the Google-issued JWT token using the \texttt{google-auth} library and creates or retrieves the user account. The backend generates internal JWT access (30-minute expiry) and refresh tokens (7-day expiry) returned to the frontend.
 
-Ut aliquet nec neque eget fermentum. Cras volutpat tellus sed placerat elementum. Quisque neque dui, consectetur nec finibus eget, blandit id purus. Nam eget ipsum non nunc placerat interdum.
+\textbf{Microsoft Azure AD:} The "Sign in with Microsoft" button initiates the MSAL authentication flow. For Microsoft accounts, the backend receives both an ID token and access token (pipe-separated format). The ID token authenticates the user while the access token fetches the profile picture from Microsoft Graph API (\texttt{https://graph.microsoft.com/v1.0/me/photo/\$value}). The platform verifies the Microsoft token by fetching public keys from \texttt{https://login.microsoftonline.com/common/discovery/v2.0/keys} and performing RSA256 signature validation.
+
+\textbf{Email Verification:} Users entering an email address receive a 6-digit verification code via the Resend API. Codes expire after 5 minutes and are stored in MongoDB with a TTL index for automatic cleanup. Upon code verification, the backend creates a user account with the verified email and issues JWT tokens. This method does not require third-party OAuth providers.
+
+\subsection{Session Management}
+\label{subsec:user:session}
+
+Authentication tokens are stored in Zustand state management with localStorage persistence. The frontend axios HTTP client includes an interceptor that automatically refreshes expired access tokens when receiving 401 responses. The refresh mechanism operates as follows:
+
+\begin{enumerate}
+    \item Frontend detects 401 Unauthorized response
+    \item Interceptor checks \texttt{\_isRefreshing} flag to prevent concurrent refresh attempts
+    \item If not refreshing, sends refresh token to \texttt{/api/auth/refresh} endpoint
+    \item Backend validates refresh token, issues new access token
+    \item Interceptor retries original failed request with new access token
+    \item Concurrent requests wait for refresh completion via promise queue
+\end{enumerate}
+
+Users remain authenticated until the refresh token expires (7 days) or they explicitly log out. Logout clears all JWT tokens from localStorage and Zustand stores.
+
+\subsection{Account Linking}
+\label{subsec:user:linking}
+
+When users authenticate via OAuth with an email address matching an existing account, the backend links the OAuth provider to that account rather than creating a duplicate. The User model stores \texttt{oauth\_provider} ("google" or "microsoft") and \texttt{oauth\_subject\_id} (provider's user identifier) fields. Subsequent logins with the same OAuth provider automatically authenticate to the linked account.
+
+\section{Project and Circuit Management}
+\label{sec:user:projects}
+
+\subsection{Project Organization}
+\label{subsec:user:project-organization}
+
+The home landing page (Figure~\ref{fig:home-interface}) serves as the entry point to the platform, accessible without authentication. It features a hero banner with introductory content, feature highlights showcasing the platform's capabilities (visual composition, partitioning, simulation, visualizations, project management), SQUANDER integration information, and a prominent "Get Started" button that navigates authenticated users to their projects.
 
 \begin{figure}[H]
-	\centering
-	\includegraphics[width=0.6\textwidth,height=100px,frame]{elte_cimer_szines}
-	\caption{Quisque ac tincidunt leo}
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/home_page}}
+    \caption{Home landing page with hero banner, feature cards, SQUANDER integration section, and platform capabilities}
+    \label{fig:home-interface}
 \end{figure}
 
-\subsection{Subfigures}
-
-In non ipsum fermentum urna feugiat rutrum a at odio. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla tincidunt mattis nisl id suscipit. Sed bibendum ac felis sed volutpat. Nam pharetra nisi nec facilisis faucibus. Aenean tristique nec libero non commodo. Nulla egestas laoreet tempus. Nunc eu aliquet nulla, quis vehicula dui. Proin ac risus sodales, gravida nisi vitae, efficitur neque, Figure~\ref{fig:example-2}:
+The project list page (Figure~\ref{fig:project-interface}) displays all user projects in either grid or list view. Project cards show the project name, description, creation date, and a thumbnail preview of the project's circuits. The interface includes a sidebar with filter options (All Projects, Your Projects, Shared with you, Archived, Trashed) and a search bar for finding specific projects.
 
 \begin{figure}[H]
-	\centering
-	\subcaptionbox{Vestibulum quis mattis urna}{
-		\includegraphics[width=0.45\linewidth]{elte_cimer_szines}}
-	\hspace{5pt}
-	\subcaptionbox{Donec hendrerit quis dui sit amet venenatis}{
-		\includegraphics[width=0.45\linewidth]{elte_cimer_szines}}
-	\caption{Aenean porttitor mi volutpat massa gravida}
-	\label{fig:example-2}
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/project_page}}
+    \caption{Project list interface displaying user projects in grid view with filters, search, and management options}
+    \label{fig:project-interface}
 \end{figure}
 
-Nam et nunc eget elit tincidunt sollicitudin. Quisque ligula ipsum, tempor vitae tortor ut, commodo rhoncus diam. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus vehicula quam dui, eu convallis metus porta ac.
+Creating a new project requires a project name and optional description. The system generates a unique project ID and initializes an empty circuits array in the MongoDB Projects collection. Users can rename, duplicate, or delete projects through the dropdown menu accessed via the ellipsis icon on each project card.
 
+\subsection{Circuit Composer and Tab Management}
+\label{subsec:user:circuit-management}
 
-\section{Tables}
+Selecting a project opens the composer workspace (Figure~\ref{fig:composer-interface}), where users design and manage quantum circuits. The composer interface supports multiple circuits within a single project through a tabbed layout in the toolbar. Each tab represents an independent circuit with its own gate configuration, quantum state, and undo history. Tabs are draggable, allowing users to reorder circuits horizontally.
 
-Nam magna ex, euismod nec interdum sed, sagittis nec leo. Nam blandit massa bibendum mattis tristique. Phasellus tortor ligula, sodales a consectetur vitae, placerat vitae dolor. Aenean consequat in quam ac mollis. 
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/composer_page}}
+    \caption{Circuit composer interface showing multiple circuit tabs, gate palette (left), canvas (center), and inspector panel (right)}
+    \label{fig:composer-interface}
+\end{figure}
+
+Users create new circuits by clicking the "+" button in the tab bar. Each circuit initializes with a default name following the pattern "Circuit 1", "Circuit 2", etc., a unique circuit ID, and an empty gate configuration. Circuit metadata includes:
+
+\begin{compactitem}
+    \item Number of qubits (default: 2, adjustable 1-10)
+    \item Placed gates array (initially empty)
+    \item Measurement configuration (default: all qubits measured)
+    \item Simulation results (populated after execution)
+    \item Undo/redo history (maintained per circuit)
+\end{compactitem}
+
+Deleting a circuit tab removes it from the project's circuits array and clears associated undo history from localStorage. If a circuit has running jobs (pending or executing), the system prompts the user to confirm closure, warning that execution will be aborted. Deletion is permanent and not reversible through undo operations.
+
+\section{Circuit Composition}
+\label{sec:user:composition}
+
+\subsection{Circuit Composer Interface}
+\label{subsec:user:composer-interface}
+
+The circuit composer (Figure~\ref{fig:composer-interface}) presents an interactive SVG canvas rendered with D3.js. The interface consists of four primary regions:
+
+\begin{description}
+    \item[Gate Palette] Left panel containing draggable gate elements: single-qubit gates (H, X, Y, Z, S, T, Rx, Ry, Rz) and multi-qubit gates (CNOT, CZ, SWAP, Toffoli)
+    \item[Circuit Canvas] Center region displaying horizontal qubit wires with placed gates at discrete depth positions
+    \item[Visualization Panel] Right panel showing real-time quantum state visualizations updated as gates are placed
+    \item[Control Bar] Top toolbar with qubit count controls, undo/redo buttons, QASM editor toggle, and execution controls
+\end{description}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/composer_page}}
+    \caption{Circuit composer interface with gate palette, canvas, visualization panel, and circuit tabs in toolbar}
+    \label{fig:composer-interface}
+\end{figure}
+
+Qubit wires are rendered as horizontal lines spaced 60 pixels apart vertically. Gate depth positions appear as vertical columns spaced 80 pixels apart horizontally. The canvas supports zoom and pan operations via mouse wheel and drag gestures.
+
+\subsection{Gate Placement}
+\label{subsec:user:gate-placement}
+
+Gate placement occurs through drag-and-drop interaction powered by the \texttt{@dnd-kit} library. The workflow proceeds as follows:
+
+\begin{enumerate}
+    \item User drags gate from palette onto canvas
+    \item Drag sensor detects mouse position and snaps to nearest grid intersection (qubit wire and depth column)
+    \item Collision detection algorithm verifies no existing gate occupies target position
+    \item If position is valid, gate placement adds to \texttt{placedGates} array with properties:
+    \begin{compactitem}
+        \item \texttt{id}: Unique UUID
+        \item \texttt{type}: Gate name (e.g., "H", "CNOT")
+        \item \texttt{qubit}: Target qubit index (0-based)
+        \item \texttt{depth}: Horizontal position (0-based column)
+        \item \texttt{params}: Rotation angles for parameterized gates
+        \item \texttt{parents}: Array of gate UUIDs that must execute before this gate
+        \item \texttt{children}: Array of gate UUIDs that execute after this gate
+    \end{compactitem}
+    \item Zustand store update triggers React re-render and D3 SVG update
+    \item Zundo middleware captures state change in undo history (up to 50 states per circuit)
+\end{enumerate}
+
+For multi-qubit gates like CNOT, the placement interface displays a dialog requesting control and target qubit selection. The gate renders with a vertical line connecting control qubit (filled circle) to target qubit (open circle plus sign).
+
+\subsection{Gate Editing and Deletion}
+\label{subsec:user:gate-editing}
+
+Right-clicking a placed gate opens a context menu with options:
+
+\begin{compactitem}
+    \item \textbf{Edit Parameters}: For rotation gates (Rx, Ry, Rz), opens dialog to specify angle in radians or degrees
+    \item \textbf{Delete Gate}: Removes gate from circuit and updates parent/child connections
+    \item \textbf{View Matrix}: Displays gate's unitary matrix representation
+    \item \textbf{Add to Group}: Creates nested circuit structure (see Section~\ref{subsec:user:grouping})
+\end{compactitem}
+
+Delete operations use drag-to-delete behavior: dragging a gate back to the palette removes it from the circuit. This action is captured in undo history and reversible via Ctrl+Z (Cmd+Z on macOS).
+
+\subsection{Circuit Grouping}
+\label{subsec:user:grouping}
+
+Users can group multiple gates into a nested circuit structure, creating reusable subcircuits. The grouping algorithm:
+
+\begin{enumerate}
+    \item User selects multiple gates (Shift+Click or drag selection box)
+    \item Clicking "Group Selection" creates a \texttt{Circuit} object containing selected gates
+    \item Nested circuit appears as a colored rectangle on canvas with customizable symbol
+    \item Internal gate depths are recalculated relative to circuit start depth
+    \item Parent/child connections update to reflect circuit boundaries
+\end{enumerate}
+
+Ungrouping reverses this process, flattening the nested circuit back to individual gates while preserving depth offsets and connections.
+
+\subsection{QASM Code Editor}
+\label{subsec:user:qasm}
+
+The Monaco Editor integration (Figure~\ref{fig:qasm-editor}) provides syntax-highlighted QASM (Quantum Assembly Language) editing. Toggling to code view displays the circuit as OpenQASM 2.0 with full syntax highlighting and editing capabilities.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.4\textwidth]{docs/screenshots/qasm_editor}}
+    \caption{Monaco Editor showing QASM code with syntax highlighting, line numbers, and auto-completion}
+    \label{fig:qasm-editor}
+\end{figure}
+
+Edits to QASM code are parsed and reflected in the visual circuit upon saving. Invalid QASM syntax displays error messages with line numbers. The editor supports:
+
+\begin{compactitem}
+    \item Syntax highlighting for QASM keywords
+    \item Auto-completion for gate names
+    \item Error squiggles for invalid syntax
+    \item Line numbers and folding
+\end{compactitem}
+
+Changes made in code view synchronize with the visual composer after validation. This bidirectional editing enables users to leverage whichever interface suits their workflow.
+
+\subsection{Undo and Redo Operations}
+\label{subsec:user:undo-redo}
+
+The Zundo middleware maintains separate undo/redo stacks for each circuit, persisted to localStorage. State changes are captured when:
+
+\begin{compactitem}
+    \item Gates are added, deleted, or modified
+    \item Qubit count changes
+    \item Measurement configuration updates
+    \item QASM code edits are saved
+\end{compactitem}
+
+Certain operations bypass history capture by setting the \texttt{skipHistory} flag:
+
+\begin{compactitem}
+    \item Initial circuit load from database
+    \item Bulk updates during QASM import
+    \item Programmatic state synchronization
+\end{compactitem}
+
+The history limit of 50 states per circuit prevents excessive localStorage usage. When the limit is exceeded, the oldest state is discarded from the \texttt{pastStates} array. Undo/redo operates independently for each circuit even when multiple circuit tabs are open simultaneously.
+
+Keyboard shortcuts for undo/redo are:
+\begin{compactitem}
+    \item Undo: Ctrl+Z (Windows/Linux), Cmd+Z (macOS)
+    \item Redo: Ctrl+Y or Ctrl+Shift+Z (Windows/Linux), Cmd+Shift+Z (macOS)
+\end{compactitem}
+
+\section{Circuit Execution}
+\label{sec:user:execution}
+
+\subsection{Local Simulation}
+\label{subsec:user:local-sim}
+
+Clicking "Simulate Locally" executes the circuit in the browser using a client-side quantum state vector simulator. This mode is suitable for circuits with fewer than 12 qubits, as computational complexity grows exponentially ($2^n$ complex amplitudes for $n$ qubits).
+
+The local simulator:
+
+\begin{enumerate}
+    \item Converts circuit representation to gate sequence
+    \item Initializes state vector $|\psi\rangle = |0\rangle^{\otimes n}$
+    \item Applies each gate's unitary matrix via tensor product and matrix multiplication
+    \item Computes measurement probabilities $P(i) = |\langle i|\psi\rangle|^2$
+    \item Generates visualization data (state vector, probabilities, density matrix)
+\end{enumerate}
+
+Results appear in the visualization panel within milliseconds for small circuits. Local simulation does not require authentication or network connectivity.
+
+\subsection{Remote Execution via SQUANDER}
+\label{subsec:user:remote-exec}
+
+For larger circuits or advanced decomposition algorithms, users submit jobs to the remote SQUANDER server. This workflow involves SSH-based connectivity with WebSocket progress streaming.
+
+\textbf{Job Submission:} Clicking "Execute on SQUANDER" creates a job entry with metadata:
+
+\begin{compactitem}
+    \item Job ID (UUID)
+    \item User ID (from JWT token)
+    \item Circuit ID
+    \item Job type ("simulation", "decomposition", "optimization")
+    \item Creation timestamp
+    \item Status ("pending")
+\end{compactitem}
+
+The frontend immediately establishes a WebSocket connection to \texttt{/api/ws/jobs/\{jobId\}} and joins the room \texttt{job-\{jobId\}}. The backend adds this job to the execution queue managed by a thread pool with 5 concurrent SSH connection slots.
+
+\textbf{SSH Execution:} When a connection becomes available from the pool:
+
+\begin{enumerate}
+    \item Backend acquires SSH connection with 300-second timeout
+    \item Uploads circuit QASM file to server via SFTP
+    \item Executes SQUANDER binary with circuit file as argument
+    \item Streams STDOUT output line-by-line to WebSocket clients in job room
+    \item Downloads result files upon completion
+    \item Parses results and stores in MongoDB circuit results field
+    \item Releases SSH connection back to pool
+\end{enumerate}
+
+\textbf{Progress Phases:} The backend tracks 11 execution phases broadcasted via WebSocket:
+
+\begin{compactenum}
+    \item Preparing: Generating QASM file and validating circuit
+    \item Connecting: Acquiring SSH connection from pool
+    \item Uploading: Transferring circuit file to server
+    \item Starting: Launching SQUANDER process
+    \item Decomposing: Gate decomposition into native gate set
+    \item Optimizing: Circuit optimization algorithms
+    \item Simulating: Quantum state vector simulation
+    \item Downloading: Retrieving result files
+    \item Processing: Parsing output and computing visualizations
+    \item Storing: Saving results to MongoDB
+    \item Complete: Final status with execution time
+\end{compactenum}
+
+Each phase update includes:
+\begin{compactitem}
+    \item Phase name and description
+    \item Estimated time remaining (based on historical averages)
+    \item Current progress percentage
+    \item Any error messages
+\end{compactitem}
+
+\subsection{Job Monitoring}
+\label{subsec:user:job-monitoring}
+
+The job monitoring interface (Figure~\ref{fig:job-monitoring}) displays real-time progress for all active jobs associated with the current user. Job cards show:
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/job_monitoring}}
+    \caption{Job monitoring panel showing active jobs with real-time progress updates}
+    \label{fig:job-monitoring}
+\end{figure}
+
+\begin{compactitem}
+    \item Circuit name and project
+    \item Current phase and progress percentage
+    \item Elapsed time and estimated time remaining
+    \item Streaming output log (last 100 lines)
+    \item Cancel button (sends cancellation signal via WebSocket)
+\end{compactitem}
+
+WebSocket messages use JSON format:
+
+\begin{verbatim}
+{
+  "type": "job_update",
+  "jobId": "uuid-here",
+  "phase": "simulating",
+  "progress": 45,
+  "message": "Computing state vector amplitudes...",
+  "estimatedTimeRemaining": 23.5
+}
+\end{verbatim}
+
+The frontend \texttt{useJobManager} custom hook subscribes to these messages and updates the Zustand job store, triggering React component re-renders. Job state persists across page refreshes via localStorage snapshots.
+
+\subsection{Error Handling}
+\label{subsec:user:errors}
+
+Execution errors fall into three categories:
+
+\textbf{Validation Errors:} Detected before submission (e.g., empty circuit, unsupported gates). The frontend displays validation messages and prevents job submission.
+
+\textbf{SSH Connection Errors:} Network failures, authentication failures, or connection pool exhaustion. These trigger automatic retry with exponential backoff (3 attempts, delays of 1s, 2s, 4s). Persistent failures return error status to user.
+
+\textbf{Execution Errors:} SQUANDER process failures (e.g., insufficient memory, invalid circuit decomposition). The backend parses STDERR output for error messages and streams them to connected clients. Jobs transition to "error" status with diagnostic information.
+
+Error notifications appear as toast messages using the Sonner library, positioned in the top-right corner of the interface. Users can click notifications to view full error details or dismiss them.
+
+\section{Result Visualization}
+\label{sec:user:visualization}
+
+\subsection{Visualization Types}
+\label{subsec:user:viz-types}
+
+Upon successful circuit execution via SQUANDER, the visualization panel populates with eight distinct visualization types comparing original and partitioned circuit results. The platform provides a comprehensive analysis of circuit partitioning quality through side-by-side comparisons and statistical metrics.
+
+\subsubsection{Circuit Fidelity Check}
+
+The circuit fidelity metric appears prominently in the results header, displaying the quantum state fidelity between original and partitioned circuit outputs as a percentage. Fidelity $F = |\langle\psi_{\text{original}}|\psi_{\text{partitioned}}\rangle|^2$ quantifies how closely the partitioned circuit reproduces the original quantum state. The display uses color coding: green for fidelity $\geq 99\%$, blue for $95\%-99\%$, and orange for $< 95\%$.
+
+\subsubsection{Partition Viewer and Distribution}
+
+Figure~\ref{fig:viz-partition} shows the partition viewer and distribution visualizations. The partition viewer provides an interactive SVG-based circuit diagram allowing users to inspect individual partitions through a dropdown selector. Each partition display shows gate placement, qubit usage, and includes statistics on average gate count, maximum gates per partition, and partitioning efficiency.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_partition}}
+    \caption{Partition viewer (top) showing individual partition circuits with gate placement, and partition distribution histogram (bottom) displaying gate count per partition with color-coded utilization levels}
+    \label{fig:viz-partition}
+\end{figure}
+
+The partition distribution histogram displays gate count per partition as a bar chart with overlay line chart showing qubit usage. Bars are color-coded by utilization: red for $> 90\%$, orange for $> 70\%$, blue for $> 50\%$, and green for efficient partitions.
+
+\subsubsection{Measurement and Probability Distributions}
+
+Figure~\ref{fig:viz-measurement-prob} presents side-by-side comparisons of measurement outcomes and probability distributions between original and partitioned circuits.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_measurement_prob}}
+    \caption{Measurement distribution histograms (top) showing top measurement outcomes for original and partitioned circuits, and probability distribution comparison (bottom) with grouped bar chart comparing probabilities for top quantum states}
+    \label{fig:viz-measurement-prob}
+\end{figure}
+
+The measurement distribution visualization displays the top $N$ measurement outcomes (default: 20) for both circuits using color-coded bar charts with HSL gradient. Each bar represents a measurement count for a specific computational basis state displayed in quantum notation $|state\rangle$.
+
+The probability distribution comparison uses a Plotly grouped bar chart showing probabilities for the top $N$ states (default: 16) with blue bars for original circuit and purple bars for partitioned circuit, enabling direct visual comparison of probability distributions.
+
+\subsubsection{State Vector and Density Matrix Comparisons}
+
+Figure~\ref{fig:viz-statevector-density} illustrates the quantum state representation through state vector amplitudes and density matrix heatmaps.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_statevector_density}}
+    \caption{State vector amplitude visualizations (top) showing magnitude and phase of top amplitudes for original and partitioned circuits, and density matrix heatmaps (bottom) displaying matrix element magnitudes with color-coded intensity}
+    \label{fig:viz-statevector-density}
+\end{figure}
+
+State vector visualizations display the top $N$ amplitudes by magnitude (default: 32) as bar charts where bar colors encode phase information using a blue-purple-pink color scale corresponding to phase angles in the range $[-\pi, \pi]$. Hover tooltips reveal magnitude, real/imaginary components, and phase in radians.
+
+Density matrix heatmaps visualize $\rho = |\psi\rangle\langle\psi|$ using color intensity to represent matrix element magnitudes $|\rho_{ij}| = \sqrt{\text{Re}(\rho_{ij})^2 + \text{Im}(\rho_{ij})^2}$. The visualization uses a deep indigo to light blue gradient that adapts to dark/light theme, with a colorbar indicating magnitude scale.
+
+\subsubsection{Entanglement Entropy Scaling}
+
+Figure~\ref{fig:viz-entropy} presents the entanglement entropy scaling analysis, plotting Second Rényi entropy against subsystem size for both original and partitioned circuits.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_entropy}}
+    \caption{Entanglement entropy scaling chart showing Second Rényi entropy versus subsystem size, with original circuit (solid blue line) and partitioned circuit (dotted purple line) using spline interpolation}
+    \label{fig:viz-entropy}
+\end{figure}
+
+The chart displays Second Rényi entropy $S_2 = -\log_2(\text{Tr}(\rho^2))$ for different subsystem sizes, where $\rho$ is the reduced density matrix of the qubit subset. The original circuit is shown as a solid blue line with circle markers and the partitioned circuit as a dotted purple line with diamond markers. Spline interpolation creates smooth curves between data points. Second Rényi entropy provides a measure of quantum entanglement that is computationally efficient to calculate compared to Von Neumann entropy, while still capturing essential entanglement structure. This visualization reveals how quantum entanglement scales across subsystem boundaries and helps assess whether partitioning preserves entanglement structure.
+
+\subsection{Interactive Features}
+\label{subsec:user:viz-interaction}
+
+All visualizations built with Plotly support interactive features:
+
+\begin{compactitem}
+    \item \textbf{Hover Tooltips}: Display precise numerical values when hovering over data points
+    \item \textbf{Zoom and Pan}: Click-drag to zoom into regions of interest, double-click to reset
+    \item \textbf{Legend Toggle}: Click legend items to show/hide data series
+    \item \textbf{Export}: Toolbar button exports visualization as PNG or SVG image
+\end{compactitem}
+
+The state vector and density matrix visualizations are linked: hovering over a basis state in one view highlights the corresponding element in other views. This cross-highlighting aids in correlating different state representations.
+
+\subsection{Comparing Results}
+\label{subsec:user:comparison}
+
+Users can compare results from different circuit variants or execution runs by opening multiple visualization panels. The interface supports:
+
+\begin{compactitem}
+    \item Side-by-side visualization panels for two circuits
+    \item Difference view showing amplitude deviations between states
+    \item Fidelity metric computed as $F = |\langle\psi_1|\psi_2\rangle|^2$
+\end{compactitem}
+
+Comparison mode is activated by selecting two circuits and clicking "Compare Results" in the toolbar. The difference view highlights basis states where amplitude magnitudes differ by more than a user-specified threshold (default: 0.01).
+
+\section{Advanced Features}
+\label{sec:user:advanced}
+
+\subsection{Keyboard Shortcuts}
+\label{subsec:user:keyboard}
+
+The platform provides keyboard shortcuts for efficient workflow:
 
 \begin{table}[H]
-	\centering
-	\begin{tabular}{ | m{0.25\textwidth} | m{0.65\textwidth} | }
-		\hline
-		\textbf{Phasellus tortor} & \textbf{Aenean consequat} \\
-		\hline \hline
-		\emph{Sed malesuada} & Aliquam aliquam velit in convallis ultrices. \\
-		\hline
-		\emph{Purus sagittis} &  Quisque lobortis eros vitae urna lacinia euismod. \\
-		\hline
-		\emph{Pellentesque} & Curabitur ac lacus pellentesque, eleifend sem ut, placerat enim. Ut auctor tempor odio ut dapibus. \\
-		\hline
-	\end{tabular}
-	\caption{Maecenas tincidunt non justo quis accumsan}
-	\label{tab:example-1}
+    \centering
+    \begin{tabular}{ | m{0.35\textwidth} | m{0.55\textwidth} | }
+        \hline
+        \textbf{Shortcut} & \textbf{Action} \\
+        \hline \hline
+        Ctrl/Cmd + Z & Undo last circuit modification \\
+        \hline
+        Ctrl/Cmd + Shift + Z & Redo previously undone action \\
+        \hline
+        Ctrl/Cmd + S & Save current circuit to database \\
+        \hline
+        Ctrl/Cmd + E & Toggle QASM code editor \\
+        \hline
+        Ctrl/Cmd + Enter & Execute current circuit \\
+        \hline
+        Delete/Backspace & Delete selected gates \\
+        \hline
+        Escape & Deselect all gates \\
+        \hline
+        Ctrl/Cmd + A & Select all gates in circuit \\
+        \hline
+        Ctrl/Cmd + G & Group selected gates \\
+        \hline
+        Shift + Click & Multi-select gates \\
+        \hline
+    \end{tabular}
+    \caption{Keyboard shortcuts for circuit composer operations}
+    \label{tab:shortcuts}
 \end{table}
 
-\subsection{Multi rows and multi columns}
+Shortcuts work consistently across Windows, Linux, and macOS by detecting the operating system and substituting Cmd for Ctrl on macOS.
 
-Mauris a dapibus lectus. Vestibulum commodo nibh ante, ut maximus magna eleifend vel. Integer vehicula elit non lacus lacinia, vitae porttitor dolor ultrices. Vivamus gravida faucibus efficitur. Ut non erat quis arcu vehicula lacinia. Nulla felis mauris, laoreet sed malesuada in, euismod et lacus. Aenean at finibus ipsum. Pellentesque dignissim elit sit amet lacus congue vulputate.
+\subsection{Dark Mode}
+\label{subsec:user:darkmode}
 
-\begin{table}[htb]
-	\centering
-	\begin{tabular}{ | c | r | r | r | r | r | r | }
-		\hline
-		\multirow{2}{*}{\textbf{Quisque}} & \multicolumn{2}{ c | }{\textbf{Suspendisse}} & \multicolumn{2}{ c | }{\textbf{Aliquam}} & \multicolumn{2}{ c | }{\textbf{Vivamus}} \\
-		\cline{2-7}
-		& Proin & Nunc & Proin & Nunc & Proin & Nunc \\
-		\hline \hline		
-		Leo & 2,80 MB & 100\% & 232 KB & 8,09\% & 248 KB & 8,64\% \\
-		\hline
-		Vel & 9,60 MB & 100\% & 564 KB & 5,74\% & 292 KB & 2,97\% \\
-		\hline
-		Auge & 78,2 MB & 100\% & 52,3 MB & 66,88\% & 3,22 MB & 4,12\% \\
-		\hline 
-	\end{tabular}
-	\caption[Rövid cím a táblázatjegyzékbe]{Vivamus ac arcu fringilla, fermentum neque sed, interdum erat. Mauris bibendum mauris vitae enim mollis, et eleifend turpis aliquet.}
-	\label{tab:example-2}
-\end{table}
+The interface supports automatic dark mode switching based on system preferences, implemented via the \texttt{next-themes} library. Users can also manually toggle theme via the settings menu. Dark mode applies to all interface elements including:
 
-\subsection{Long tables over multiple pages}
+\begin{compactitem}
+    \item Circuit canvas background (dark gray)
+    \item Gate colors (adjusted for dark background contrast)
+    \item Visualization color schemes (inverted to maintain readability)
+    \item Text and UI components (light text on dark backgrounds)
+\end{compactitem}
 
-Nunc porta placerat leo, sit amet porttitor dui porta molestie. Aliquam at fermentum mi. Maecenas vitae lorem at leo tincidunt volutpat at nec tortor. Vivamus semper lacus eu diam laoreet congue. Vivamus in ipsum risus. Nulla ullamcorper finibus mauris non aliquet. Vivamus elementum rhoncus ex ut porttitor.
+Theme preference persists in localStorage and applies immediately without page refresh using CSS custom properties.
 
-\begin{center}
-	\begin{longtable}{ | p{0.3\textwidth} | p{0.7\textwidth} | }
-		
-		\hline
-		\multicolumn{2}{|c|}{\textbf{Praesent aliquam mauris enim}}
-		\\ \hline
-		
-		\emph{Suspendisse potenti} & \emph{Lorem ipsum dolor sit amet}
-		\\ \hline \hline
-		\endfirsthead % table header on first page
-		
-		\hline
-		\emph{Suspendisse potenti} & \emph{Lorem ipsum dolor sit amet}
-		\\ \hline \hline
-		\endhead % table header on further pages
-		
-		\hline
-		\endfoot % table footer on previous pages
-		
-		\endlastfoot % table footer on last page
-		
-		\emph{Praesent}
-		& Nulla ultrices et libero sit amet fringilla. Nunc scelerisque ante tempus sapien placerat convallis.
-		\\ \hline
-		
-		\emph{Luctus}
-		& Integer hendrerit erat massa, non hendrerit risus convallis at. Curabitur ultrices, justo in imperdiet condimentum, neque tortor luctus enim, luctus posuere massa erat vitae nibh.
-		\\ \hline
-		
-		\emph{Egestas}
-		& Duis fermentum feugiat augue in blandit. Mauris a tempor felis. Pellentesque ultricies tristique dignissim. Pellentesque aliquam semper tristique. Nam nec egestas dolor. Vestibulum id elit quis enim fringilla tempor eu a mauris. Aliquam vitae lacus tellus. Phasellus mauris lectus, aliquam id leo eget, auctor dapibus magna. Fusce lacinia felis ac elit luctus luctus.
-		\\ \hline
-		
-		\emph{Dignissim}
-		& Praesent aliquam mauris enim, vestibulum posuere massa facilisis in. Suspendisse potenti. Nam quam purus, rutrum eu augue ut, varius vehicula tellus. Fusce dui diam, aliquet sit amet eros at, sollicitudin facilisis quam. Phasellus tempor metus vel augue gravida pretium. Proin aliquam aliquam blandit. Nulla id tempus mi. Fusce in aliquam tortor.
-		\\ \hline
-		
-		\emph{Pellentesque}
-		& Donec felis nibh, imperdiet a arcu non, vehicula gravida nibh. Quisque interdum sapien eu massa commodo, ac elementum felis faucibus.
-		\\ \hline
-		
-		\emph{Molestie}
-		& Cras ullamcorper tellus et auctor ultricies. Maecenas tincidunt euismod lectus nec venenatis. Suspendisse potenti. Pellentesque pretium nunc ut euismod cursus. Nam venenatis condimentum quam. Curabitur suscipit efficitur aliquet. Interdum et malesuada fames ac ante ipsum primis in faucibus.
-		\\ \hline
-		
-		\emph{Vivamus semper}
-		& In purus purus, faucibus eu libero vulputate, tristique sodales nunc. Nulla ut gravida dolor. Fusce vel pellentesque mi, vel efficitur eros. Nunc vitae elit tellus. Sed vestibulum auctor consequat. 
-		\\ \hline
-		
-		\emph{Condimentum}
-		& Nulla scelerisque, leo et facilisis pretium, risus enim cursus turpis, eu suscipit ipsum ipsum in mauris. Praesent eget pulvinar ipsum, suscipit interdum nunc. Nam varius massa ut justo ullamcorper sollicitudin. Vivamus facilisis suscipit neque, eu fermentum risus. Ut at mi mauris.
-		\\ \hline
-		
-		\caption{Praesent ullamcorper consequat tellus ut eleifend}
-		\label{tab:example-3}		
-	\end{longtable}
-\end{center}
+\subsection{Export and Import}
+\label{subsec:user:export}
+
+Users can export circuits in multiple formats:
+
+\begin{description}
+    \item[QASM 2.0] Standard OpenQASM format compatible with Qiskit and other tools
+    \item[JSON] Platform-native format preserving all gate metadata, parent/child connections, and visualization results
+    \item[PNG/SVG] Visual representation of circuit diagram exported from SVG canvas
+\end{description}
+
+Import functionality accepts QASM 2.0 and JSON formats. QASM import parses the file, validates gate definitions, and constructs the internal circuit representation. JSON import directly deserializes the circuit object, preserving all metadata.
+
+Export/import buttons appear in the circuit composer toolbar. Files download via browser download API, and imports use file selection dialog.
+
+\subsection{Collaboration Features}
+\label{subsec:user:collaboration}
+
+Projects can be shared with other users via invitation links. Sharing permissions include:
+
+\begin{compactitem}
+    \item \textbf{View Only}: Can view circuits and results but not modify
+    \item \textbf{Edit}: Can modify circuits and execute jobs
+    \item \textbf{Admin}: Can invite additional users and delete project
+\end{compactitem}
+
+Concurrent editing is not supported; if multiple users edit the same circuit simultaneously, the last save overwrites previous changes. A warning banner appears when another user has the circuit open.
+
+Real-time collaboration features such as operational transformation for concurrent editing are planned for future releases.
+
+\section{Troubleshooting}
+\label{sec:user:troubleshooting}
+
+Common issues and resolutions:
+
+\textbf{Authentication Failure:} If OAuth login fails, verify that browser allows third-party cookies and pop-ups. Clear browser cache and retry. For persistent issues, use email verification method instead.
+
+\textbf{WebSocket Connection Errors:} WebSocket connections may fail behind corporate firewalls or restrictive networks. Check that port 443 (wss://) is open. The platform automatically retries connections with exponential backoff up to 10 attempts.
+
+\textbf{Undo History Lost:} Undo history stores in localStorage (5MB quota per domain). If quota is exceeded, browser may clear localStorage. Save important circuits to database regularly via Ctrl+S.
+
+\textbf{Visualization Not Rendering:} Ensure browser supports WebGL (required for Plotly 3D visualizations). Check browser console for JavaScript errors. Try disabling browser extensions that modify page content.
+
+\textbf{Slow Circuit Execution:} Local simulation slows exponentially for circuits exceeding 12 qubits. Use remote SQUANDER execution for large circuits. Check network connection quality for WebSocket streaming.
+
+\textbf{QASM Import Errors:} Verify QASM syntax using external validators. The platform supports OpenQASM 2.0 specification; QASM 3.0 features are not yet supported. Check that all gate definitions exist in \texttt{qelib1.inc}.
+
+For issues not resolved through troubleshooting, users can report bugs via the feedback form accessible from the help menu. Include browser version, error messages from console, and steps to reproduce the issue.

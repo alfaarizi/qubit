@@ -123,7 +123,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                 </CardHeader>
             </Card>
 
-            <div>
+            <div className="p-4">
                 {/* Partition Circuit Viewer */}
                 {partitions && partitions.length > 0 && (
                     <PartitionCircuitViewer
@@ -142,6 +142,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                 )}
             </div>
 
+            <div className="p-4">
             {/* Measurement Distribution Analysis */}
             {(originalCounts || partitionedCounts) && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -167,7 +168,9 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                     probabilitiesPartitioned={partitionedProbs}
                 />
             )}
+            </div>
 
+            <div className="p-4">
             {/* State Vector Analysis */}
             {(originalStateVector || partitionedStateVector) && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -187,14 +190,14 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
             )}
 
             {/* Bloch Sphere Representation (for single qubit) */}
-            {canShowBlochSphere && originalStateVector && (
+            {/* {canShowBlochSphere && originalStateVector && (
                 <div className="max-w-3xl mx-auto">
                     <BlochSphere
                         stateVector={originalStateVector}
                         title="Single-Qubit Bloch Sphere Representation"
                     />
                 </div>
-            )}
+            )} */}
 
             {/* Density Matrix Heatmaps */}
             {(originalDensity || partitionedDensity) && (
@@ -213,7 +216,9 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                     )}
                 </div>
             )}
+            </div>
 
+            <div className="p-4">
             {/* Entanglement Entropy */}
             {(originalEntropy || partitionedEntropy) && (
                 <EntanglementEntropyChart
@@ -221,6 +226,8 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                     entropyPartitioned={partitionedEntropy || []}
                 />
             )}
+            </div>
         </div>
+
     );
 }
