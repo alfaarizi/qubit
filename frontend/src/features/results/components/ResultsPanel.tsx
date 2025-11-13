@@ -123,22 +123,24 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                 </CardHeader>
             </Card>
 
-            {/* Partition Circuit Viewer */}
-            {partitions && partitions.length > 0 && (
-                <PartitionCircuitViewer
-                    partitions={partitions}
-                    maxPartitionSize={maxPartitionSize}
-                />
-            )}
+            <div>
+                {/* Partition Circuit Viewer */}
+                {partitions && partitions.length > 0 && (
+                    <PartitionCircuitViewer
+                        partitions={partitions}
+                        maxPartitionSize={maxPartitionSize}
+                    />
+                )}
 
-            {/* Partition Distribution Analysis */}
-            {partitions && partitionStrategy && maxPartitionSize && (
-                <PartitionDistributionHistogram
-                    partitions={partitions}
-                    strategy={partitionStrategy}
-                    maxPartitionSize={maxPartitionSize}
-                />
-            )}
+                {/* Partition Distribution Analysis */}
+                {partitions && partitionStrategy && maxPartitionSize && (
+                    <PartitionDistributionHistogram
+                        partitions={partitions}
+                        strategy={partitionStrategy}
+                        maxPartitionSize={maxPartitionSize}
+                    />
+                )}
+            </div>
 
             {/* Measurement Distribution Analysis */}
             {(originalCounts || partitionedCounts) && (
