@@ -1,3 +1,490 @@
 \section{Implementation}
+\label{sec:impl}
 
-This section presents the technical implementation of the quantum circuit visualization and manipulation system, detailing the technology choices, framework configurations, and implementation strategies employed to realize the architecture described in Section 3.1. The implementation leverages modern web technologies for the presentation layer, high-performance server frameworks for the application layer, and specialized quantum computing libraries for the computational layer.
+This section presents the technical realization of the quantum circuit visualization and manipulation system, detailing how architectural designs from Section~\ref{sec:design} translate into working code. The implementation emphasizes type safety through TypeScript and Pydantic, enhanced developer experience via hot reload and comprehensive logging, and reliance on actively maintained libraries with strong community support. The following subsections cover six core areas: technology stack selection and rationale (Section~\ref{subsec:impl:technology}), circuit representation as directed acyclic graphs (Section~\ref{subsec:impl:dag-representation}), DAG manipulation algorithms enabling interactive editing (Section~\ref{subsec:impl:dag-manipulation}), SVG-based circuit rendering with D3.js (Section~\ref{subsec:impl:rendering}), partitioning strategies for large circuits (Section~\ref{subsec:impl:partitioning}), and systematic approaches to selecting appropriate partitioning algorithms (Section~\ref{subsec:impl:partitioner-selection}).
+
+
+\subsection{Technology Stack and Rationale}
+\label{subsec:impl:technology}
+
+The platform integrates over thirty libraries across presentation, application, and development layers, each selected to address specific technical challenges in the development of Qubit. This subsection documents major dependencies alongside the rationale guiding their selection.
+
+\subsubsection{Presentation Layer}
+\label{subsubsec:impl:frontend-stack}
+
+The frontend uses React 19~\cite{react2024} for component-based UI construction with virtual DOM reconciliation, enabling efficient updates when circuit state changes. TypeScript~\cite{typescript2024} provides compile-time type checking, catching errors during development rather than runtime and improving code maintainability through explicit type contracts. Vite 7~\cite{vite2024} serves as the build tool, delivering sub-second hot module replacement through native ES module support, which significantly accelerates the development feedback loop.
+
+State management presented a critical architectural decision given the complexity of circuit editing operations requiring undo/redo capabilities. The implementation combines Zustand~\cite{zustand2024}—a lightweight state management library at just 2KB gzipped—with Zundo~\cite{zundo2024} middleware for temporal state management. This combination avoided Redux's extensive boilerplate while maintaining predictable state updates and providing built-in time-travel debugging. Zustand's API simplicity enabled rapid feature development, while Zundo's middleware pattern seamlessly added undo/redo functionality with configurable history limits and selective state tracking.
+
+User interface components leverage Radix UI~\cite{radixui2024} for accessible primitives including dialogs, dropdowns, and tooltips, all implementing WAI-ARIA specifications for screen reader compatibility. Styling uses Tailwind CSS~\cite{tailwindcss2024} utility classes, which enabled rapid UI iteration without context switching between component logic and separate stylesheet files. The utility-first approach also facilitated consistent spacing, colors, and responsive breakpoints across the entire application.
+
+Visualization requirements drove selection of two complementary libraries. D3.js~\cite{d3js2024} powers SVG-based circuit rendering through its data-join pattern, enabling declarative specification of how circuit gates map to visual elements and how they should update when the underlying data changes. Plotly.js~\cite{plotlyjs2024} handles interactive quantum state visualizations including probability distribution heatmaps and amplitude bar charts. Monaco Editor~\cite{monacoeditor2024}—the same engine powering Visual Studio Code—integrates for QASM editing with syntax highlighting, providing users with a familiar and powerful code editing experience.
+
+Authentication integrates multiple identity providers through specialized libraries: Google OAuth via \texttt{@react-oauth/google}~\cite{reactoauthgoogle2024}, Microsoft Azure AD via \texttt{@azure/msal-browser}~\cite{msalbrowser2024}, and custom email verification flows. React Router 7~\cite{reactrouter2024} manages client-side routing, allowing deep linking to specific projects and circuits while maintaining single-page application performance. HTTP communication flows through Axios~\cite{axios2024}, which provides interceptor patterns essential for automatic JWT injection and transparent token refresh on authentication failures. WebSocket connections uses \texttt{react-use-websocket}~\cite{reactusewebsocket2024} with automatic reconnection logic, maintaining real-time progress updates even during temporary network interruptions.
+
+Tab reordering uses \texttt{@dnd-kit}~\cite{dndkit2024}, while circuit gate interactions use native HTML5 drag-and-drop APIs. Additional UI enhancements include Sonner~\cite{sonner2024} for toast notifications, fast and lightweight KaTeX~\cite{katex2024} for mathematical notation rendering in gate definitions and quantum state expressions, and Lucide React~\cite{lucidereact2024} for a consistent icon system.
+
+\subsubsection{Application Layer}
+\label{subsubsec:impl:backend-stack}
+
+The backend operates on Python 3.8 or higher~\cite{python311}, chosen primarily for compatibility with the quantum computing library ecosystem, particularly the SQUANDER framework and associated dependencies. FastAPI~\cite{fastapi2024} serves as the web framework, selected for its native async/await support enabling concurrent request handling and seamless integration with Pydantic~\cite{pydantic2024} for request and response validation. Uvicorn~\cite{uvicorn2024}—an ASGI server built on uvloop—handles both HTTP and WebSocket connections with high performance through optimized event loop implementation.
+
+Database operations use PyMongo~\cite{pymongo2024} for MongoDB connectivity, interfacing with MongoDB Atlas~\cite{mongodbatlas2024} for cloud-hosted database services. The implementation uses synchronous database operations through PyMongo's standard client interface, executing queries within FastAPI's thread pool executors to maintain async compatibility while simplifying transaction logic and connection management.
+
+Authentication infrastructure combines several specialized libraries. JWT token encoding and decoding rely on \texttt{python-jose}~\cite{pythonjose2024} with cryptographic extensions, while Passlib~\cite{passlib2024} provides bcrypt password hashing with configurable cost factors balancing security and performance. OAuth token verification integrates \texttt{google-auth}~\cite{googleauth2024} for validating Google-issued tokens against public keys, preventing token forgery and replay attacks. Email delivery for verification codes employs Resend~\cite{resend2024}, which provides reliable transactional email with delivery tracking and bounce handling.
+
+SSH connectivity to remote SQUANDER simulation servers relies on Paramiko~\cite{paramiko2024}, a pure Python implementation of SSH2 protocol with SFTP support for secure file transfer. Since Paramiko operates synchronously with blocking network calls, integration with FastAPI's async architecture required wrapping SSH operations with \texttt{asyncio.run\_in\_executor()}, executing blocking I/O in dedicated worker threads while maintaining async semantics in request handlers.
+
+Development quality assurance uses pytest~\cite{pytest2024} for unit and integration testing, with httpx~\cite{httpx2024} providing async HTTP client capabilities for testing FastAPI endpoints. Structured logging uses \texttt{python-json-logger}~\cite{pythonjsonlogger2024}, producing machine-readable log entries facilitating centralized log aggregation and analysis in production environments.
+
+\subsubsection{Development Toolchain}
+\label{subsubsec:impl:dev-tools}
+
+Version control uses Git~\cite{git2024} with a feature branch workflow and conventional commit messages, enabling clear commit history and automated changelog generation. Code quality enforcement uses ESLint~\cite{eslint2024} for JavaScript and TypeScript, catching common errors and enforcing consistent code style. UML diagrams presented in the design chapter were generated from text definitions using PlantUML~\cite{plantuml2024}, enabling version control of diagrams and reducing manual maintenance overhead. MongoDB Compass~\cite{mongodbcompass2024} provides graphical database inspection and query optimization during development, while PhpStorm~\cite{phpstorm2024} and PyCharm~\cite{pycharm2024} serve as the primary development environments for frontend and backend respectively.
+
+
+\subsection{Representing Circuits as DAGs}
+\label{subsec:impl:dag-representation}
+
+Quantum circuits naturally form a directed acyclic graph (DAG) where gates are nodes and dependencies between qubits create edges. This subsection explains how this structure translates into code to enable efficient circuit editing.
+
+\subsubsection{Graph Representation}
+\label{subsubsec:impl:dag-graph}
+
+The implementation (\texttt{useCircuitDAG.ts}) represents circuits as adjacency lists maintaining both forward and backward traversal capabilities. Each gate stores two arrays capturing its position in the dependency graph: a \texttt{parents} array containing identifiers of all preceding gates operating on overlapping qubits, and a \texttt{children} array containing identifiers of all succeeding gates. This bidirectional representation enables efficient traversal in both temporal directions, essential for operations like gate insertion requiring knowledge of both predecessors and successors.
+
+Beyond connectivity information, each gate maintains a \texttt{depth} property determining its horizontal position in the visual circuit layout. Depth calculation follows from the critical path in the dependency graph: a gate can only execute after all its parents complete, so its depth must exceed the ending position of all parents. Formally, a gate's depth equals the maximum ending depth of its parents:
+
+\[
+depth(g) = \max_{p \in parents(g)} \left( depth(p) + width(p) \right)
+\]
+
+where $width(g)$ represents the gate's horizontal span in the circuit diagram. Single gates and most quantum operations occupy one time step, yielding $width(g) = 1$. Nested subcircuits—circuits embedded within larger circuits—require recursive width calculation by summing the depths of all gates they contain. This depth-based layout ensures gates never overlap temporally while minimizing total circuit width, producing compact visual representations.
+
+The depth calculation encodes the longest path from any initial gate (gates with no parents, assigned $depth = 0$) to the current gate. This property proves essential for maintaining topological ordering: if gate $g_1$ must execute before gate $g_2$ due to shared qubit dependencies, then necessarily $depth(g_1) + width(g_1) \leq depth(g_2)$. Depth recalculation propagates through the graph when gate insertion or deletion operations modify the dependency structure, ensuring layout consistency with quantum mechanical causality constraints.
+
+\subsubsection{Topological Properties}
+\label{subsubsec:impl:dag-properties}
+
+The DAG representation maintains three critical invariants throughout all manipulation operations. First, edges connect only gates operating on overlapping qubits—gates on disjoint qubit sets have no dependency relationship regardless of their temporal position. This reflects the parallel nature of quantum operations: gates on separate qubits can execute simultaneously. Second, parent gates possess strictly lower depth than their children, encoding the temporal ordering constraint that operations must complete before dependent operations begin. Third, the graph remains acyclic—no directed path exists from any gate back to itself—preventing circular temporal loops where a gate would need to execute before its own completion.
+
+These invariants enable several important optimizations in circuit execution and analysis. The acyclic property guarantees that topological sorting always produces a valid execution order, essential for sequential simulation and hardware execution. The depth property allows immediate determination of circuit depth without graph traversal, a critical metric for estimating execution time on quantum hardware subject to decoherence. The qubit-based edge restriction bounds the maximum in-degree and out-degree of any gate by the number of qubits it operates on, typically small constants (1-3 qubits for most gates), ensuring that graph operations maintain tractable complexity even for circuits containing thousands of gates.
+
+
+\subsection{DAG Manipulation Algorithms}
+\label{subsec:impl:dag-manipulation}
+
+Interactive circuit editing requires algorithms for inserting, removing, and moving gates while preserving DAG invariants. This subsection presents four core algorithms implementing these operations, along with optimizations for bulk operations on large circuits.
+
+\subsubsection{Gate Injection Algorithm}
+\label{subsubsec:impl:dag-inject}
+
+Gate injection inserts a new gate at a specified depth while maintaining temporal consistency. The algorithm identifies which existing gates become parents (predecessors) and children (successors) of the newly injected gate based on qubit overlap and depth.
+
+\begin{algorithm}[p]
+\small
+\caption{DAG Gate Injection}
+\label{alg:dag-inject}
+\begin{algorithmic}[1]
+\Require $new\_gate$: gate to inject, $gates$: existing gate list, $target\_depth$: insertion position
+\Ensure Returns updated gate list with injected gate maintaining DAG properties
+\State
+\State $new\_qubits \gets$ \Call{GetSpanQubits}{$new\_gate$}
+\State $qubit\_to\_parent \gets \emptyset$, $qubit\_to\_child \gets \emptyset$
+\State
+\State \textbf{Find immediate parents and children:}
+\ForAll{$g \in gates$}
+    \State $g\_qubits \gets$ \Call{GetSpanQubits}{$g$}
+    \State $overlap \gets g\_qubits \cap new\_qubits$
+    \If{$overlap = \emptyset$}
+        \State \textbf{continue} // No qubit overlap
+    \EndIf
+    \State
+    \If{$g.depth < target\_depth$}
+        \ForAll{$q \in overlap$}
+            \If{$qubit\_to\_parent[q] = \emptyset$ \textbf{or} $g.depth > qubit\_to\_parent[q].depth$}
+                \State $qubit\_to\_parent[q] \gets g$ // Closest parent on qubit q
+            \EndIf
+        \EndFor
+    \Else
+        \ForAll{$q \in overlap$}
+            \If{$qubit\_to\_child[q] = \emptyset$ \textbf{or} $g.depth < qubit\_to\_child[q].depth$}
+                \State $qubit\_to\_child[q] \gets g$ // Closest child on qubit q
+            \EndIf
+        \EndFor
+    \EndIf
+\EndFor
+\State
+\State \textbf{Sever old parent-child edges:}
+\ForAll{$(q, parent) \in qubit\_to\_parent$}
+    \State $child \gets qubit\_to\_child[q]$
+    \If{$child \neq \emptyset$}
+        \State $parent.children \gets parent.children \setminus \{child.id\}$
+        \State $child.parents \gets child.parents \setminus \{parent.id\}$
+    \EndIf
+\EndFor
+\State
+\State \textbf{Connect new gate:}
+\State $new\_gate.parents \gets \{p.id \mid p \in unique(qubit\_to\_parent.values())\}$
+\State $new\_gate.children \gets \{c.id \mid c \in unique(qubit\_to\_child.values())\}$
+\ForAll{$p \in new\_gate.parents$}
+    \State $p.children \gets p.children \cup \{new\_gate.id\}$
+\EndFor
+\ForAll{$c \in new\_gate.children$}
+    \State $c.parents \gets c.parents \cup \{new\_gate.id\}$
+\EndFor
+\State
+\State \Call{RecalculateDepth}{$new\_gate.id$, $gates$}
+\State \Return $gates \cup \{new\_gate\}$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:dag-inject} proceeds in three phases to maintain DAG invariants while inserting the new gate. The first phase (lines 5--22) identifies immediate predecessors and successors by examining all existing gates for qubit overlap. For each overlapping qubit, the algorithm tracks the closest parent gate (highest depth below target) and closest child gate (lowest depth above target). Gates before the target depth with overlapping qubits become parent candidates, while gates after the target depth become child candidates. The algorithm selects the temporally closest gate on each qubit to establish direct parent-child relationships, avoiding redundant edges that would connect non-adjacent gates.
+
+The second phase (lines 24--30) updates the existing graph structure by severing old edges. When the new gate inserts between a parent and child on a given qubit, the direct edge connecting them becomes invalid—the new gate now mediates their temporal relationship. Removing these edges prevents the graph from accumulating unnecessary edges that complicate traversal and violate the property that edges should connect only temporally adjacent gates on each qubit.
+
+The third phase (lines 32--40) establishes the new gate's connections. After collecting all parent and child gates across all overlapping qubits, the algorithm updates bidirectional references: parents add the new gate to their children arrays, children add it to their parents arrays, and the new gate records both sets. Recursive depth recalculation (line 42) then propagates through all descendants, ensuring that gates following the injection point reflect updated depths accounting for the newly inserted gate.
+
+\subsubsection{Gate Ejection Algorithm}
+\label{subsubsec:impl:dag-eject}
+
+Gate ejection removes a gate from the circuit while maintaining connectivity between its parents and children. Removing a gate severs dependency paths that must be reconnected to preserve execution semantics.
+
+\begin{algorithm}[H]
+\caption{DAG Gate Ejection}
+\label{alg:dag-eject}
+\begin{algorithmic}[1]
+\Require $gate$: gate to eject, $gates$: current gate list
+\Ensure Returns updated gate list with gate removed and parents reconnected to children
+\State
+\State $gate\_qubits \gets$ \Call{GetSpanQubits}{$gate$}
+\State $qubit\_to\_parent \gets \emptyset$
+\State
+\State \textbf{Identify parents by qubit:}
+\ForAll{$p\_id \in gate.parents$ \textbf{sorted by} $depth$}
+    \State $p \gets$ \Call{FindGate}{$p\_id$, $gates$}
+    \State $p.children \gets p.children \setminus \{gate.id\}$
+    \State $p\_qubits \gets$ \Call{GetSpanQubits}{$p$}
+    \ForAll{$q \in p\_qubits \cap gate\_qubits$}
+        \State $qubit\_to\_parent[q] \gets p$ // Track last parent on each qubit
+    \EndFor
+\EndFor
+\State
+\State \textbf{Reconnect children to parents:}
+\ForAll{$c\_id \in gate.children$}
+    \State $c \gets$ \Call{FindGate}{$c\_id$, $gates$}
+    \State $c.parents \gets c.parents \setminus \{gate.id\}$
+    \State $c\_qubits \gets$ \Call{GetSpanQubits}{$c$}
+    \ForAll{$q \in c\_qubits \cap gate\_qubits$}
+        \State $parent \gets qubit\_to\_parent[q]$
+        \If{$parent \neq \emptyset$ \textbf{and} $parent.id \notin c.parents$}
+            \State $c.parents \gets c.parents \cup \{parent.id\}$
+            \State $parent.children \gets parent.children \cup \{c.id\}$
+        \EndIf
+    \EndFor
+    \State \Call{RecalculateDepth}{$c.id$, $gates$}
+\EndFor
+\State
+\State \Return $gates \setminus \{gate\}$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:dag-eject} maintains circuit continuity through careful reconnection logic. The first phase (lines 5--12) processes the ejected gate's parents in depth-sorted order, identifying the last parent gate on each qubit that the ejected gate occupied. Sorting by depth ensures that when multiple parents operate on the same qubit, the algorithm selects the temporally closest one—the parent with maximum depth—as the appropriate predecessor for reconnection. This phase simultaneously removes references to the ejected gate from parent gates' children arrays, cleaning up the first half of the graph structure.
+
+The second phase (lines 14--27) performs the critical reconnection operation. For each child of the ejected gate, the algorithm examines which qubits it shares with the ejected gate, then connects it to the appropriate parent identified in the first phase for each shared qubit. This per-qubit reconnection correctly handles multi-qubit gates where different qubits may have different parents—for example, a CNOT gate with control and target qubits may need different predecessors for each qubit line. After establishing new connections, depth recalculation propagates through all affected descendants, accounting for the removed gate's absence in computing new depths.
+
+\subsubsection{Gate Movement Algorithm}
+\label{subsubsec:impl:dag-move}
+
+Gate movement combines ejection and injection to relocate gates within the circuit while preserving quantum semantics. The operation removes the gate from its current position using ejection, then reinserts it at the target location using injection with updated coordinates.
+
+Movement operations must handle both horizontal repositioning (changing depth) and vertical repositioning (changing qubits). Horizontal movement simply specifies a new target depth for injection. Vertical movement requires adjusting all qubit indices by a constant offset to maintain the gate's qubit span. For a gate originally positioned with minimum qubit index $q_{min}$ moved to target qubit $q_{target}$, the algorithm computes offset $\Delta q = q_{target} - q_{min}$ and applies this offset to all qubit indices the gate operates on. This maintains relative qubit spacing for multi-qubit gates—for example, a CNOT gate spanning qubits 2-3 moved to qubit 5 correctly becomes a CNOT spanning qubits 5-6, preserving the control-target relationship.
+
+\subsubsection{Batch Injection Optimization}
+\label{subsubsec:impl:dag-batch}
+
+Operations like importing QASM circuits or pasting multiple gates require inserting many gates efficiently. Naively applying injection sequentially yields O(n²) complexity: each of n gates examines all previously inserted gates to determine parents and children. For large QASM files with hundreds of gates, this creates perceptible UI lag.
+
+The optimized batch injection algorithm (\texttt{useCircuitDAG.ts:238-297}) achieves O(n) complexity through state tracking that eliminates redundant searches:
+
+\begin{algorithm}[H]
+\caption{Batch Gate Injection Optimization}
+\label{alg:dag-batch}
+\begin{algorithmic}[1]
+\Require $new\_gates$: list of gates to inject, $existing\_gates$: current circuit
+\Ensure Returns combined gate list with correct dependencies
+\State
+\State $qubit\_last \gets$ map from qubit number to last gate operating on it
+\State
+\State \textbf{Initialize with existing gates:}
+\ForAll{$g \in existing\_gates$}
+    \ForAll{$q \in$ \Call{GetSpanQubits}{$g$}}
+        \If{$qubit\_last[q] = \emptyset$ \textbf{or} $g.depth > qubit\_last[q].depth$}
+            \State $qubit\_last[q] \gets g$
+        \EndIf
+    \EndFor
+\EndFor
+\State
+\State \textbf{Inject new gates sequentially:}
+\ForAll{$new\_gate \in new\_gates$ \textbf{in order}}
+    \State $qubits \gets$ \Call{GetSpanQubits}{$new\_gate$}
+    \State $parents \gets \{qubit\_last[q] \mid q \in qubits, qubit\_last[q] \neq \emptyset\}$
+    \State $max\_depth \gets \max_{p \in parents}(p.depth + width(p))$
+    \State $new\_gate.depth \gets max\_depth$
+    \State $new\_gate.parents \gets \{p.id \mid p \in parents\}$
+    \State
+    \ForAll{$p \in parents$}
+        \State $p.children \gets p.children \cup \{new\_gate.id\}$
+    \EndFor
+    \State
+    \State $gates \gets gates \cup \{new\_gate\}$
+    \ForAll{$q \in qubits$}
+        \State $qubit\_last[q] \gets new\_gate$ // Update last gate on qubit
+    \EndFor
+\EndFor
+\State \Return $gates$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:dag-batch} maintains a \texttt{qubit\_last} map tracking the most recently added gate on each qubit line. The initialization phase (lines 5--11) processes existing gates to establish the current end of each qubit line—the gate with maximum depth on each qubit becomes the starting point for appending new gates. The injection phase (lines 13--28) then processes new gates in the order they should appear in the circuit. For each new gate, parents are simply the current last gates on the qubits it operates on, immediately available from the map without searching. Depth calculation follows from parent depths, and after adding the gate, the map updates to reflect it as the new last gate on its qubits.
+
+This optimization eliminates the need to search through all previously inserted gates when adding each new gate. Instead of O(n²) total comparisons, the algorithm performs O(n) map lookups and updates—one constant-time operation per gate per qubit it operates on. For typical quantum circuits where most gates operate on 1-2 qubits, this reduces insertion time from quadratic to effectively linear in the number of gates.
+
+
+\subsection{D3.js-Based Circuit Rendering}
+\label{subsec:impl:rendering}
+
+Translating the DAG representation into visual quantum circuits requires rendering techniques that maintain performance for circuits with hundreds of gates while supporting drag-and-drop editing. This subsection presents the SVG-based rendering pipeline built on D3.js.
+
+\subsubsection{SVG Rendering Pipeline}
+\label{subsubsec:impl:svg-pipeline}
+
+Circuit visualization (\texttt{CircuitCanvas.tsx}) renders quantum circuits as SVG using D3.js's data-join pattern. Layout constants establish the geometric foundation: \texttt{QUBIT\_SPACING = 60px} for vertical distance between qubit lines, \texttt{GATE\_SPACING = 80px} for horizontal distance between time steps, and \texttt{GATE\_SIZE = 40px} for gate symbol dimensions. These constants convert depth and qubit coordinates from the DAG into pixel coordinates.
+
+D3's general update pattern forms the core of the rendering strategy. This pattern divides visual elements into three sets based on comparison with underlying data: the \textit{enter selection} contains data elements lacking corresponding visual elements, requiring creation of new SVG elements; the \textit{update selection} contains existing visual elements whose data has changed, requiring modification of attributes like position or color; and the \textit{exit selection} contains visual elements whose corresponding data was removed, requiring deletion from the DOM. A key function \texttt{(d) => d.id} provides D3 with gate identity information, enabling it to track which gates moved versus which were added or removed even when their array indices change due to reordering.
+
+Multi-qubit gates introduce additional rendering complexity beyond single-qubit gates. Operations like CNOT require vertical lines connecting control qubits to target qubits, visually indicating which qubits participate in the operation. The implementation calculates line endpoints by determining the minimum and maximum qubit indices the gate operates on, then spans all qubits in that range. This produces intuitive visualizations where a CNOT from qubit 2 to qubit 5 displays as a vertical line connecting those positions, with appropriate symbols at control and target locations.
+
+\subsubsection{Interactive Gate Placement}
+\label{subsubsec:impl:drag-drop}
+
+Gate placement uses native HTML5 drag-and-drop APIs (\texttt{useDraggableGate.ts}). When users drag gates, the implementation converts screen coordinates into circuit coordinates—determining which qubit line and depth position the gate should occupy.
+
+Coordinate conversion proceeds through division by spacing constants followed by floor quantization. A mouse position at pixel coordinates $(x, y)$ maps to circuit coordinates $(\lfloor x / GATE\_SPACING \rfloor, \lfloor y / QUBIT\_SPACING \rfloor)$, producing the depth and qubit indices respectively. Floor quantization ensures gates snap to discrete positions rather than floating at arbitrary coordinates, maintaining the grid structure essential for quantum circuit semantics where gates must align to specific qubits and time steps.
+
+\subsubsection{Performance Optimizations}
+\label{subsubsec:impl:render-perf}
+
+Rendering performance requires avoiding unnecessary work for circuits with hundreds of gates. The implementation uses three key optimizations to maintain responsive interactions.
+
+First, incremental rendering uses React's useEffect dependency arrays to limit re-renders to only cases where the underlying circuit data actually changed. By specifying \texttt{gates} and \texttt{numQubits} as dependencies, the rendering function executes only when gates are added, removed, or modified, or when the circuit size changes. UI operations like opening sidebars or switching themes do not trigger circuit re-renders, preventing wasted computation.
+
+Second, SVG was chosen over Canvas specifically to enable granular updates. Canvas requires redrawing the entire image when any element changes, while SVG maintains individual DOM elements for each gate. D3's data-join pattern then updates only the specific gates that changed, leaving unchanged gates untouched. For a circuit with 200 gates where a single gate moves, Canvas would redraw all 200 gates while SVG updates only the one that moved plus any affected by layout changes.
+
+Third, drag operations use debouncing to throttle update frequency during continuous mouse or touch movement. Rather than recalculating gate positions on every pixel of mouse movement, updates occur at maximum 60 fps (every 16ms), matching typical display refresh rates. This prevents the update calculation and rendering pipeline from overwhelming the browser's event loop during rapid interaction, maintaining smooth animations and responsive controls.
+
+
+\subsection{Circuit Partitioning Strategies}
+\label{subsec:impl:partitioning}
+
+Large quantum circuits often exceed the qubit capacity of available devices and simulators, requiring partitioning into smaller subcircuits. The platform integrates multiple partitioning algorithms from SQUANDER (\texttt{squander/partitioning/partition.py:15-28}) alongside external libraries, providing eleven strategies with different optimality-performance tradeoffs.
+
+\subsubsection{Greedy Kahn-Based Partitioning}
+\label{subsubsec:impl:kahn}
+
+Kahn's topological sorting algorithm~\cite{kahn1962topological} provides a foundation for greedy circuit partitioning by processing DAG nodes in dependency order. The partitioning adaptation (\texttt{squander/partitioning/kahn.py:7-72}) assigns each gate to the current partition if qubit constraints allow, otherwise creating a new partition.
+
+\begin{algorithm}[H]
+\caption{Kahn-Based Greedy Partitioning}
+\label{alg:kahn-partition}
+\begin{algorithmic}[1]
+\Require $circuit$: quantum circuit, $max\_qubits$: maximum qubits per partition
+\Ensure Returns partitioned circuit as nested structure
+\State
+\State $(gate\_deps, forward\_graph, reverse\_graph, gate\_qubits, S) \gets$ \Call{BuildDependency}{$circuit$}
+\State $partitions \gets [[]]$, $current\_qubits \gets \emptyset$
+\State
+\While{$S \neq \emptyset$}
+    \State $candidate \gets$ next gate in $S$ where $gate\_qubits[candidate] \cup current\_qubits \leq max\_qubits$
+    \State
+    \If{$candidate = \emptyset$} // Current partition full
+        \State $partitions.\text{append}([])$
+        \State $current\_qubits \gets \emptyset$
+        \State $candidate \gets$ \Call{First}{$S$}
+    \EndIf
+    \State
+    \State $partitions[-1].\text{append}(candidate)$
+    \State $current\_qubits \gets current\_qubits \cup gate\_qubits[candidate]$
+    \State $S \gets S \setminus \{candidate\}$
+    \State
+    \ForAll{$child \in forward\_graph[candidate]$}
+        \State $reverse\_graph[child] \gets reverse\_graph[child] \setminus \{candidate\}$
+        \If{$reverse\_graph[child] = \emptyset$} // All dependencies satisfied
+            \State $S \gets S \cup \{child\}$
+        \EndIf
+    \EndFor
+\EndWhile
+\State \Return $partitions$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:kahn-partition} maintains a set $S$ containing gates with all dependencies satisfied, initially populated with gates having no parents. The main loop (lines 5--24) processes gates from $S$ in order, selecting candidates that fit within the current partition's qubit budget. When a gate's qubits would exceed the partition limit, the algorithm closes the current partition and begins a new one, ensuring no partition violates the qubit constraint. After assigning a gate to a partition, its children have one fewer unsatisfied dependency; when all of a child's dependencies are satisfied, it enters $S$ as a candidate for future assignment.
+
+The algorithm produces valid partitions satisfying two essential properties: no partition exceeds the qubit limit, and gate execution respects temporal dependencies since gates only join partitions after all their dependencies complete. However, the greedy selection strategy optimizes locally rather than globally—it assigns gates to the current partition when possible without considering whether delaying assignment might produce better overall results. This limitation can produce suboptimal partition counts compared to algorithms that evaluate multiple configurations before committing to assignments.
+
+\subsubsection{TDAG-Based Optimal Partitioning}
+\label{subsubsec:impl:tdag}
+
+Tree-based DAG (TDAG) partitioning~\cite{tan2023optimal} improves upon greedy approaches by enumerating multiple partition configurations before selecting optimal ones. The implementation (\texttt{squander/partitioning/tdag.py:43-67}) combines exhaustive enumeration with iterative selection of maximum groups to minimize partition count.
+
+\begin{algorithm}[H]
+\caption{TDAG Optimal Partitioning}
+\label{alg:tdag-partition}
+\begin{algorithmic}[1]
+\Require $circuit$: quantum circuit, $max\_qubits$: maximum qubits per partition
+\Ensure Returns partitioned circuit optimized for minimum partition count
+\State
+\State $(gate\_deps, forward\_graph, reverse\_graph, gate\_qubits, S) \gets$ \Call{BuildDependency}{$circuit$}
+\State $start\_qubits \gets$ \Call{GetStartingGates}{$forward\_graph$, $reverse\_graph$, $gate\_qubits$, $S$}
+\State $partitions \gets []$
+\State
+\While{$forward\_graph \neq \emptyset$}
+    \State $groups \gets$ \Call{EnumerateGroups}{$forward\_graph$, $reverse\_graph$, $gate\_qubits$, $start\_qubits$, $max\_qubits$}
+    \State $best \gets$ \Call{SelectBestPartition}{$groups$, $forward\_graph$, $gate\_deps$}
+    \State $partitions.\text{append}(best)$
+    \State
+    \State \textbf{Remove selected gates from graph:}
+    \ForAll{$gate \in best$}
+        \ForAll{$child \in forward\_graph[gate]$}
+            \State $reverse\_graph[child] \gets reverse\_graph[child] \setminus \{gate\}$
+        \EndFor
+        \ForAll{$parent \in reverse\_graph[gate]$}
+            \State $forward\_graph[parent] \gets forward\_graph[parent] \setminus \{gate\}$
+        \EndFor
+        \State $forward\_graph \gets forward\_graph \setminus \{gate\}$
+        \State $reverse\_graph \gets reverse\_graph \setminus \{gate\}$
+        \State
+        \ForAll{$q \in gate\_qubits[gate]$}
+            \State $start\_qubits[q] \gets start\_qubits[q] \setminus \{gate\}$
+        \EndFor
+    \EndFor
+\EndWhile
+\State \Return $partitions$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:tdag-partition} iteratively builds partitions by first enumerating all valid gate groupings that satisfy qubit constraints while respecting dependency ordering, then selecting the group containing the maximum number of gates. The enumeration phase (line 7) performs recursive tree traversal starting from initial gates on each qubit, exploring combinations of gates that can execute within the qubit budget. Each valid group represents a potential partition containing gates that can all execute using at most \texttt{max\_qubits} qubits. The selection phase (line 8) scores groups by gate count, choosing the maximum to minimize the total number of partitions needed to cover the entire circuit. After selecting a group, the algorithm removes its gates from the dependency graph (lines 11--25) and repeats until all gates are assigned.
+
+The \texttt{EnumerateGroups} subroutine implements the critical recursive exploration through four steps for each starting gate on each qubit: first, collecting all qubits used by the gate and its transitive dependencies; second, checking if total qubits remain within the limit and recording valid groups; third, recursively exploring gates on additional qubits not yet included in the current group; fourth, backtracking when the qubit limit would be exceeded by further expansion. This exhaustive search guarantees finding optimal partitions in the sense of minimum partition count, but incurs exponential worst-case time complexity O($2^n$) for circuits with n gates. Practical circuits typically perform much better due to limited gate connectivity (most gates connect to only 1-3 other gates) and early pruning when qubit limits are exceeded, preventing exploration of invalid subtrees.
+
+\subsubsection{Integer Linear Programming Variants}
+\label{subsubsec:impl:ilp}
+
+Integer Linear Programming formulates partitioning as a constraint optimization problem. The basic ILP approach (\texttt{squander/partitioning/ilp.py:47-64}) introduces binary decision variables $x_i$ indicating whether gate $i$ belongs to the current partition. Constraints enforce three requirements:
+\begin{itemize}
+    \item Qubit sums must not exceed partition limits
+    \item Gates can only be included if dependencies were assigned to previous partitions
+    \item Each gate must be assigned to exactly one partition
+\end{itemize}
+The solver (Gurobi) iteratively selects maximum gate-count partitions while respecting these constraints, producing optimal solutions. Time limits (180 seconds) prevent excessive computation on large circuits.
+
+The ILP with Fusion Cost variant (\texttt{squander/partitioning/ilp.py:864-900}) minimizes total simulation cost rather than partition count. Since a partition using $k$ qubits operates on state vectors of dimension $2^k$, computation cost grows exponentially. The objective function includes partition costs weighted by $2^k$ plus fusion overhead. This can reduce execution time by batching expensive operations, sometimes preferring more smaller partitions when simulation cost dominates.
+
+The ILP with Control-Aware Fusion extends fusion cost modeling by treating control and target qubits asymmetrically in cost calculations. Control qubits, such as in CNOTs, require computationally less resources than target qubits due to the structure of quantum operations, making partitions with many control-only operations cheaper. The formulation identifies single-qubit chains (sequences of gates on isolated qubits with no multi-qubit dependencies) and introduces binary variables deciding whether to fuse them before or after multi-qubit gates. While this increases the problem size, it can reduce simulation cost for circuits dominated by single-qubit rotations.
+
+\subsubsection{Partition Connectivity Analysis}
+\label{subsubsec:impl:partition-split}
+
+Partitions may contain disconnected gate subsets—groups with no dependency paths between them. While such partitions remain valid (all gates fit within qubit constraints and respect temporal ordering), they represent missed optimization opportunities: disconnected components could execute in any order or in parallel.
+
+The \texttt{split\_partition} function (\texttt{squander/partitioning/kahn.py:158-188}) detects disconnected components through depth-first search:
+
+\begin{algorithm}[H]
+\caption{Partition Connectivity Splitting}
+\label{alg:partition-split}
+\begin{algorithmic}[1]
+\Require $partition$: list of gate IDs, $forward\_graph$: dependency edges, $reverse\_graph$: inverse edges
+\Ensure Returns list of connected components
+\State
+\State $components \gets []$, $unvisited \gets set(partition)$
+\While{$unvisited \neq \emptyset$}
+    \State $start \gets$ \Call{First}{$unvisited$}
+    \State $stack \gets [start]$, $component \gets \emptyset$
+    \While{$stack \neq \emptyset$}
+        \State $node \gets stack.\text{pop}()$
+        \If{$node \notin unvisited$}
+            \State \textbf{continue}
+        \EndIf
+        \State $unvisited \gets unvisited \setminus \{node\}$
+        \State $component \gets component \cup \{node\}$
+        \State $stack.\text{extend}(reverse\_graph[node])$
+        \State $stack.\text{extend}(forward\_graph[node])$
+    \EndWhile
+    \State $components.\text{append}(component)$
+\EndWhile
+\State \Return $components$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:partition-split} performs depth-first search from each unvisited gate, following both forward edges (to children) and reverse edges (to parents) to discover all gates reachable through dependency relationships. Each search produces one connected component containing gates that share dependency paths. The algorithm repeats until all gates in the partition have been visited, yielding a list of connected components. Disconnected components represent independent subcircuits that can be reordered or parallelized during execution without affecting quantum mechanical semantics.
+
+\subsubsection{External Library Integrations}
+\label{subsubsec:impl:external-partition}
+
+Beyond these implementations, the platform also integrates algorithms from established quantum computing frameworks, leveraging their specialized optimizations.
+
+\paragraph{Qiskit Transpiler} The Qiskit integration (\texttt{squander/partitioning/tools.py}, function \texttt{get\_qiskit\_partitions}) uses Qiskit's transpiler for hardware-aware partitioning. The implementation converts SQUANDER circuits to Qiskit's format, applies \texttt{SabreLayout} for qubit mapping and \texttt{BasicSwap} for SWAP gate insertion. This handles circuits targeting devices with restricted qubit connectivity (e.g., nearest-neighbor architectures in superconducting processors), though it may produce more partitions due to SWAP overhead.
+
+The Qiskit with Fusion variant (\texttt{get\_qiskit\_fusion\_partitions}) extends this with post-processing fusion. \texttt{Collect2qBlocks} identifies adjacent two-qubit gate sequences, and \texttt{ConsolidateBlocks} merges them into single unitary matrices. Fusion reduces partition count and improves simulation performance by replacing multiple matrix multiplications with pre-computed unitaries.
+
+\paragraph{BQSKit Partitioners} Berkeley Quantum Synthesis Toolkit (BQSKit)~\cite{bqskit2024} provides four partitioning strategies offering different speed-quality tradeoffs:
+
+The \textbf{Quick} partitioner uses greedy gate-by-gate assignment, examining each gate in sequence and adding it to the current partition if qubits allow, otherwise starting a new partition. This simplest approach achieves O(n) time complexity, processing even circuits with thousands of gates in milliseconds. However, partition quality may suffer compared to more sophisticated approaches. Quick partitioning suits scenarios prioritizing response time over optimality: rapid prototyping sessions where users iterate frequently, and very large circuits where enumeration-based algorithms become impractical.
+
+The \textbf{Scan} partitioner implements a sliding window approach that examines gates in windows of fixed size, selecting the maximum set of gates within each window that fit within qubit constraints. Windows slide forward through the circuit, building partitions incrementally while considering limited lookahead. This balances speed (O(n²) complexity due to window operations) with improved quality over purely greedy approaches. Scan serves as a reasonable choice for medium-sized circuits where enumeration becomes expensive but quality still matters.
+
+The \textbf{Greedy} partitioner iteratively selects maximum valid partitions from remaining gates without ILP's global optimization. Each iteration examines all unassigned gates and combinations thereof, selecting the largest valid partition, then removes those gates and repeats. Time complexity of O(n³) produces improved quality while running faster than ILP by avoiding the overhead of constraint solver invocation and binary variable management.
+
+The \textbf{Cluster} partitioner applies hierarchical clustering based on qubit overlap and temporal proximity before partitioning. Gates using similar qubits and appearing near each other in circuit depth get grouped into clusters, then each cluster undergoes independent partitioning. This approach can excel for circuits exhibiting natural locality—for example, quantum Fourier transforms where gates cluster around specific qubit subsets, or lattice surgery operations where gates naturally group into spatial regions. For such circuits, clustering can match or exceed ILP quality while running faster by exploiting structure to decompose the problem into smaller subproblems.
+
+
+\subsection{Choosing the Right Partitioner}
+\label{subsec:impl:partitioner-selection}
+
+With eleven partitioning strategies available, selecting the appropriate algorithm for a given circuit and performance requirements requires understanding the tradeoffs each strategy embodies. This subsection presents complexity analysis and systematic selection guidelines.
+
+\subsubsection{Complexity Analysis}
+\label{subsubsec:impl:complexity}
+
+Partitioning algorithms span a wide spectrum of theoretical time complexity, from linear to exponential in the number of gates:
+
+\begin{itemize}
+    \item \textbf{O(n)}: Kahn, BQSKit-Quick, GTQCP—these greedy algorithms process each gate once with constant-time decisions, producing linear growth in execution time. Suitable for real-time interactive applications requiring sub-second response.
+
+    \item \textbf{O(n²)}: BQSKit-Scan—the sliding window requires examining pairs of gates within each window, producing quadratic growth. Remains practical for circuits up to several hundred gates.
+
+    \item \textbf{O(n³)}: BQSKit-Greedy—iterative selection of maximum partitions requires examining combinations of remaining gates at each step, producing cubic growth. Becomes prohibitive beyond approximately 500 gates.
+
+    \item \textbf{O($2^n$)}: TDAG, ILP variants—exhaustive enumeration or constraint solving in worst case explores exponentially many configurations. Practical performance depends heavily on circuit structure: circuits with limited connectivity or strong locality often complete in reasonable time due to pruning, while highly connected circuits may hit time limits.
+\end{itemize}
+
+These theoretical complexities provide useful guidance but should be interpreted cautiously—actual performance depends on circuit structure, qubit limits, and implementation optimizations.
+
+\subsubsection{Selection Guidelines}
+\label{subsubsec:impl:selection}
+
+Based on complexity analysis and the structure of quantum circuits, the following guidelines provide starting points for algorithm selection based on circuit characteristics and optimization objectives:
+
+For \textbf{small circuits under 50 gates}, TDAG or ILP can produce optimal solutions with acceptable execution times. The optimality guarantee justifies potential overhead for circuits where partitioning is not a frequent operation.
+
+For \textbf{medium circuits between 50-150 gates}, Kahn or BQSKit-Greedy provide reasonable balances between partition quality and execution time. Kahn offers more predictable performance, while BQSKit-Greedy may provide improved quality at the cost of increased execution time.
+
+For \textbf{large circuits exceeding 150 gates}, linear-time algorithms become necessary to maintain acceptable response times. GTQCP or BQSKit-Quick both achieve sub-second performance on circuits with thousands of gates. For offline optimization where execution time matters less, BQSKit-Greedy remains viable up to approximately 500 gates.
+
+For \textbf{cost-sensitive applications} where simulation time dominates overall workflow, ILP with Fusion Cost or Control-Aware Fusion minimize total computational expense at the cost of longer partitioning time. This tradeoff favors simulation-heavy workloads where partitioning occurs once but simulation runs many times with varying parameters.
+
+For \textbf{hardware-constrained devices} with restricted qubit connectivity, Qiskit transpiler integration provides hardware-aware partitioning accounting for device topology. The Qiskit with Fusion variant balances hardware constraints with partition quality through post-processing optimization.
+
+For \textbf{circuits with natural locality} (quantum Fourier transforms, lattice surgery, certain variational algorithms), BQSKit-Cluster exploits structure through hierarchical grouping, potentially matching optimal quality while significantly reducing execution time compared to exhaustive approaches.
+
+The default strategy throughout the platform employs Kahn's algorithm, which provides consistent O(n) performance across circuit sizes with predictable overhead. This conservative choice prioritizes response time and predictability for interactive circuit editing, where users expect immediate feedback.
