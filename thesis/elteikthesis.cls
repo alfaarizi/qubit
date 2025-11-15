@@ -209,6 +209,7 @@
 % ------------------------------
 % Graphics
 \RequirePackage{graphicx}
+\RequirePackage{svg}
 \RequirePackage{float}
 % Set maximum and minimum size for figures
 \RequirePackage[export]{adjustbox}
@@ -220,7 +221,7 @@
 % Support of EPS graphics with pdflatex
 \RequirePackage{epstopdf}
 % Priority order of image extensions
-\DeclareGraphicsExtensions{.pdf,.eps,.png,.jpg}
+\DeclareGraphicsExtensions{.pdf,.eps,.png,.jpg,.svg}
 % Default image path
 \graphicspath{{./images/}}
 % Set name for List of Figures
