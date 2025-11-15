@@ -1,0 +1,68 @@
+\section{Shortcomings}
+\label{sec:shortcomings}
+
+While Qubit successfully demonstrates the integration of visual circuit design with remote high-performance simulation, several architectural decisions and implementation constraints limit its current capabilities. This section documents significant shortcomings that affect scalability, feature completeness, and deployment flexibility. Understanding these limitations provides context for the system's current scope and identifies directions for future development.
+
+
+\subsection{Scalability and Concurrency Limitations}
+\label{subsec:shortcomings:scalability}
+
+The SSH connection pooling implementation in \texttt{backend/ssh\_manager.py} limits concurrent remote simulations to five active sessions. This hard-coded constraint prevents resource exhaustion on SQUANDER servers but creates a bottleneck when multiple users submit jobs simultaneously. The connection pool employs a simple FIFO queue without priority mechanisms, meaning short validation runs may wait behind lengthy optimization tasks. While the WebSocket notification system alerts users to queue position, this does not address the fundamental throughput limitation.
+
+The WebSocket room management system maintains all active connections and job states in memory within a single FastAPI process. This architecture prevents horizontal scaling across multiple backend servers without implementing distributed state management through Redis or similar systems. Each WebSocket connection consumes memory for buffering execution output across 11 progress phases, and the current implementation provides no mechanism to limit the total number of concurrent WebSocket clients. Under high load, this could exhaust available memory and degrade performance for all connected users.
+
+The temporal state management system using Zundo middleware maintains per-circuit undo histories of up to 50 states in browser localStorage. Each state snapshot includes the complete DAG representation of the circuit with gate properties and wire configurations. For circuits with hundreds of gates, these snapshots can exceed several kilobytes each, approaching the typical 5-10 MB localStorage quota allocated by browsers. The implementation does not detect quota exceeded errors gracefully, potentially resulting in lost undo history without user notification. Additionally, the undo system operates independently for each circuit tab, so users working with multiple large circuits simultaneously may encounter storage limits more rapidly.
+
+
+\subsection{Limited Quantum Gate Support}
+\label{subsec:shortcomings:gates}
+
+The gate library defined in \texttt{frontend/src/types/gates.ts} supports 14 quantum gate types, covering common single-qubit rotations (Rx, Ry, Rz), Pauli operators (X, Y, Z), phase gates (S, T), and multi-qubit gates (CNOT, Toffoli, SWAP). However, this set excludes several gates frequently used in quantum algorithms. Controlled versions of arbitrary gates (controlled-U) cannot be constructed visually, limiting implementations of algorithms like Quantum Phase Estimation that require controlled unitaries with varying rotation angles. The platform provides no support for custom gate definitions, preventing users from composing new gates from existing primitives or importing gate sets from quantum frameworks like Qiskit or Cirq.
+
+The QASM parser in \texttt{backend/qasm\_parser.py} implements OpenQASM 2.0 syntax but does not support the OpenQASM 3.0 standard introduced in 2021. This excludes features such as classical control flow (if statements, for loops), gate modifiers, and pulse-level gate specifications. While OpenQASM 2.0 remains widely used, the lack of 3.0 support limits interoperability with newer quantum development tools and prevents expressing certain algorithmic patterns without circuit unrolling.
+
+Measurement operations in the current implementation are limited to computational basis measurements. The platform provides no mechanism to specify measurement in alternative bases (such as X or Y basis) or to implement mid-circuit measurements with classical feedback. This restricts the types of quantum circuits users can explore, particularly algorithms like quantum teleportation and adaptive measurement protocols used in quantum error correction.
+
+
+\subsection{Visualization and Interaction Constraints}
+\label{subsec:shortcomings:visualization}
+
+The D3.js circuit rendering implementation in \texttt{frontend/src/components/CircuitCanvas.tsx} represents circuits as horizontal wire diagrams with gates positioned according to their DAG dependencies. This layout works well for circuits with moderate depth and width but becomes difficult to interpret for circuits exceeding approximately 20 qubits or 50 gate layers. The renderer provides zoom and pan controls but does not implement alternative layout algorithms such as hierarchical grouping of gate sequences or automatic subcircuit collapse. Users designing large-scale quantum algorithms must manually track gate positions across an increasingly wide canvas.
+
+The Bloch sphere visualization in \texttt{frontend/src/components/visualizations/BlochSphere.tsx} displays single-qubit projections of multi-qubit quantum states by tracing out all other qubits. For entangled states, this projection loses information about correlations between qubits, potentially misleading users about the actual quantum state structure. The platform provides no visualization of entanglement structure, such as Schmidt decompositions or entanglement entropy calculations, making it difficult to understand how quantum information is distributed across the system.
+
+The state vector visualizations using Plotly.js display amplitude and phase information separately, requiring users to mentally combine two charts to understand the complete quantum state. While this separation follows conventions in quantum computing education, it increases cognitive load compared to visualizations that integrate amplitude and phase into a single representation. The measurement statistics bar chart shows probability distributions but provides no mechanism to compare results across multiple circuit executions or to overlay theoretical predictions for verification.
+
+
+\subsection{Testing and Validation Gaps}
+\label{subsec:shortcomings:testing}
+
+The test suite documented in \texttt{thesis/en/test.tex} covers unit tests for backend API endpoints and frontend component rendering, but integration tests for distributed workflows remain limited. Testing the complete execution pipeline---from circuit submission through SSH connection establishment, file transfer to SQUANDER servers, simulation execution, result retrieval, and WebSocket notification delivery---requires access to actual SQUANDER infrastructure. The test configuration uses mock SSH connections that simulate successful execution paths but do not replicate failure modes such as network timeouts, authentication errors, or malformed SQUANDER output.
+
+The frontend tests for the drag-and-drop circuit composer use React Testing Library to simulate mouse events, but these tests do not verify visual correctness of gate placement or wire routing. The D3.js SVG rendering logic is not covered by automated tests, relying instead on manual visual inspection during development. This creates risk that refactoring changes to the rendering pipeline could introduce visual regressions undetected by the test suite.
+
+Performance testing for concurrent user scenarios has not been systematically conducted. While the platform has been deployed with multiple simultaneous users, no stress tests have been performed to determine the maximum number of concurrent WebSocket connections, the behavior of the SSH connection pool under sustained high load, or the MongoDB query latency as the database grows to thousands of stored circuits. Without this performance characterization, capacity planning for larger-scale deployment remains uncertain.
+
+
+\subsection{Deployment and Infrastructure Dependencies}
+\label{subsec:shortcomings:deployment}
+
+The current architecture requires direct SSH access to SQUANDER simulation servers, creating a deployment barrier for institutions that cannot provide such infrastructure. The platform cannot function without this remote execution capability, as the browser-based frontend lacks the computational resources for quantum circuit simulation beyond trivial cases. This dependency prevents deployment scenarios where users want to run the platform locally for educational purposes without access to high-performance computing resources.
+
+The authentication system supports Google OAuth, Microsoft Azure AD, and email verification, but all three methods require internet connectivity to external identity providers. The implementation in \texttt{backend/auth\_routes.py} provides no offline authentication mode or local credential storage option. This limits deployment in air-gapped environments or regions with restricted internet access. Additionally, the email verification system depends on the Resend service, introducing a third-party dependency for a core authentication feature.
+
+The MongoDB Atlas database stores user projects, circuit definitions, and authentication tokens. While Atlas provides managed hosting with automated backups, this SaaS dependency incurs ongoing costs and requires internet connectivity. The platform does not support alternative database backends such as PostgreSQL or local MongoDB installations, limiting deployment flexibility for users who prefer self-hosted infrastructure. The database schema uses PyMongo's synchronous client, preventing the backend from fully utilizing FastAPI's asynchronous capabilities for database operations.
+
+The frontend build process requires Node.js 18+ and generates approximately 2.5 MB of JavaScript assets after minification. While Vite's code-splitting reduces initial load time, users on slow network connections may experience delays before the interface becomes interactive. The platform provides no progressive web app (PWA) capabilities, preventing offline access to previously designed circuits or cached results. Browser compatibility testing has focused on Chrome and Firefox, with limited verification on Safari or mobile browsers.
+
+
+\subsection{Security and Access Control}
+\label{subsec:shortcomings:security}
+
+The project-based organization system allows users to create multiple projects containing multiple circuits, but the current implementation provides no sharing or collaboration features. Each project is private to its creator, with no mechanism to grant read or write access to other users. This prevents collaborative circuit development and limits the platform's utility for team-based research or classroom settings where instructors might want to review student submissions.
+
+The SSH connection manager in \texttt{backend/ssh\_manager.py} stores SQUANDER server credentials in environment variables loaded from \texttt{.env} files. While this prevents credential exposure in version control, it requires all backend instances to share the same SSH keys. A more robust approach would implement per-user SSH key management or integration with institutional authentication systems like Kerberos or LDAP, allowing users to submit jobs under their own credentials.
+
+The WebSocket implementation does not enforce rate limiting on message frequency or payload size. A malicious or malfunctioning client could potentially flood the WebSocket connection with messages, consuming server resources. While JWT authentication prevents unauthorized WebSocket connections, additional protection against abuse from authenticated users is absent.
+
+The QASM parser in \texttt{backend/qasm\_parser.py} uses Python's \texttt{eval()} function to evaluate parameterized gate angles specified in the OpenQASM syntax. While the implementation restricts the evaluation context to mathematical functions, this approach carries inherent security risks. A safer implementation would use a dedicated expression parser without dynamic code execution, though this would require more complex parsing logic.
