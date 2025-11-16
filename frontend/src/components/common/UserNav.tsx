@@ -37,6 +37,7 @@ export function UserNav() {
         <Button
           variant="ghost"
           className="relative h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 overflow-hidden p-0 flex items-center justify-center"
+          data-testid="user-menu"
         >
           {user?.profile_url ? (
             <img

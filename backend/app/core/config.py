@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Configurable settings
     DEBUG: bool = True
+    ENVIRONMENT: str = "development"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     FRONTEND_URL: str

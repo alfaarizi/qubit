@@ -354,7 +354,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     }, [reset, numQubits, measurements, showNestedCircuit]);
 
     return (
-        <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-testid="circuit-toolbar">
             <div className="flex items-center gap-1 shrink-0">
                 <input
                     ref={fileInputRef}
@@ -362,17 +362,18 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     accept=".qasm"
                     onChange={handleImportQASM}
                     className="hidden"
+                    data-testid="qasm-file-input"
                 />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="gap-1 shrink-0" disabled={isExecuting} title="File">
+                        <Button data-testid="file-menu-button" variant="ghost" size="sm" className="gap-1 shrink-0" disabled={isExecuting} title="File">
                             <FolderOpen className="h-4 w-4" />
                             <ChevronDown className="h-3 w-3" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                         <DropdownMenuItem>New Circuit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                        <DropdownMenuItem data-testid="import-qasm-button" onClick={() => fileInputRef.current?.click()}>
                             Import from QASM
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -383,13 +384,13 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             </div>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-0.5 shrink-0">
-                <Button variant="ghost" size="icon" onClick={() => undo()} disabled={!canUndo || isExecuting} className="shrink-0" title="Undo (Ctrl+Z)">
+                <Button data-testid="undo-button" variant="ghost" size="icon" onClick={() => undo()} disabled={!canUndo || isExecuting} className="shrink-0" title="Undo (Ctrl+Z)">
                     <Undo2 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => redo()} disabled={!canRedo || isExecuting} className="shrink-0" title="Redo (Ctrl+Y)">
+                <Button data-testid="redo-button" variant="ghost" size="icon" onClick={() => redo()} disabled={!canRedo || isExecuting} className="shrink-0" title="Redo (Ctrl+Y)">
                     <Redo2 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={handleClear} disabled={isExecuting} className="shrink-0" title="Clear circuit">
+                <Button data-testid="clear-circuit-button" variant="ghost" size="icon" onClick={handleClear} disabled={isExecuting} className="shrink-0" title="Clear circuit">
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
@@ -404,7 +405,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Backend</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 font-medium shadow-sm px-2 sm:px-3">
+                            <Button data-testid="partition-backend-select" variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 font-medium shadow-sm px-2 sm:px-3">
                                 <span className="text-xs hidden sm:inline">{partitionBackend.toUpperCase()}</span>
                                 <span className="text-xs sm:hidden">BE</span>
                                 <ChevronDown className="h-3 w-3 opacity-50" />
@@ -429,7 +430,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Strategy</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[50px] sm:min-w-[80px] font-medium shadow-sm px-2 sm:px-3">
+                            <Button data-testid="partition-strategy-select" variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[50px] sm:min-w-[80px] font-medium shadow-sm px-2 sm:px-3">
                                 <span className="text-xs capitalize truncate">{partitionStrategy}</span>
                                 <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                             </Button>
@@ -456,7 +457,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Qubits</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[45px] sm:min-w-[60px] font-medium shadow-sm px-2 sm:px-3">
+                            <Button data-testid="max-partition-size-select" variant="outline" size="sm" disabled={isExecuting} className="h-8 gap-1 sm:gap-1.5 shrink-0 min-w-[45px] sm:min-w-[60px] font-medium shadow-sm px-2 sm:px-3">
                                 <span className="text-xs">{maxPartitionSize}</span>
                                 <ChevronDown className="h-3 w-3 opacity-50" />
                             </Button>
@@ -480,6 +481,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     <span className="text-xs text-muted-foreground hidden xl:inline font-medium">Timeout</span>
                     <div className="relative flex items-center">
                         <Input
+                            data-testid="simulation-timeout-input"
                             type="number"
                             min="0"
                             value={simulationTimeout || ''}
@@ -496,10 +498,10 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             </div>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-1 shrink-0">
-                <Button size="icon" disabled={isExecuting} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
+                <Button data-testid="run-circuit-button" size="icon" disabled={isExecuting} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
                     {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
                 </Button>
-                <Button size="icon" variant="destructive" disabled={!isExecuting} className="disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={handleAbortClick} title="Abort execution">
+                <Button data-testid="abort-execution-button" size="icon" variant="destructive" disabled={!isExecuting} className="disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={handleAbortClick} title="Abort execution">
                     <Square className="h-4 w-4"/>
                 </Button>
             </div>

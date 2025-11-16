@@ -302,6 +302,7 @@ function ComposerContent() {
                                                 });
                                             }}
                                             className='absolute right-0.5 bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted !p-0 !m-0'
+                                            data-testid="add-circuit-tab-button"
                                         >
                                             <Plus className="h-3.5 w-3.5" />
                                         </Button>

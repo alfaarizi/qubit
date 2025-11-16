@@ -43,5 +43,8 @@ const localStorageMock: MockStorage = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 }
-global.localStorage = localStorageMock as unknown as Storage
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock as unknown as Storage,
+  writable: true,
+})
 

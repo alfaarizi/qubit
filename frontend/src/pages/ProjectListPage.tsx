@@ -218,7 +218,7 @@ export default function ProjectListPage() {
             <div className="container mx-auto px-4 py-8 max-w-7xl">
                 <div className="flex gap-8">
                     {/* sidebar */}
-                    <aside className="w-64 flex-shrink-0">
+                    <aside className="w-64 flex-shrink-0" data-testid="projects-sidebar">
                         <nav className="space-y-1">
                             {sidebarItems.map((item) => {
                                 const Icon = item.icon;
@@ -226,6 +226,7 @@ export default function ProjectListPage() {
                                 return (
                                     <button
                                         key={item.id}
+                                        data-testid={`projects-filter-${item.id}`}
                                         onClick={() => setFilterType(item.id)}
                                         className={cn(
                                             "w-full flex items-center justify-between px-4 py-2 text-sm rounded-lg transition-colors",
@@ -260,10 +261,11 @@ export default function ProjectListPage() {
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <div className="flex items-center gap-2 w-full sm:w-auto" data-testid="projects-toolbar">
                                 <div className="relative flex-1 sm:w-64">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
+                                        data-testid="projects-search-input"
                                         placeholder="Search projects..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -272,6 +274,7 @@ export default function ProjectListPage() {
                                 </div>
                                 <div className="flex items-center gap-1 border rounded-md p-1">
                                     <Button
+                                        data-testid="projects-view-toggle-grid"
                                         variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                                         size="icon"
                                         className="h-8 w-8"
@@ -280,6 +283,7 @@ export default function ProjectListPage() {
                                         <Grid3x3 className="h-4 w-4" />
                                     </Button>
                                     <Button
+                                        data-testid="projects-view-toggle-list"
                                         variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                                         size="icon"
                                         className="h-8 w-8"
@@ -288,7 +292,7 @@ export default function ProjectListPage() {
                                         <ListIcon className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+                                <Button data-testid="projects-new-button" onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
                                     <Plus className="h-4 w-4" />
                                     New Project
                                 </Button>
@@ -319,10 +323,11 @@ export default function ProjectListPage() {
                                 )}
                             </div>
                         ) : viewMode === 'grid' ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="projects-grid">
                                 {filteredProjects.map((project) => (
                                     <Card
                                         key={project.id}
+                                        data-testid={`project-card-${project.id}`}
                                         className="group hover:shadow-md transition-all cursor-pointer border-border hover:border-primary/50 overflow-hidden"
                                         onClick={() => handleOpenProject(project.id)}
                                     >
@@ -345,25 +350,26 @@ export default function ProjectListPage() {
                                                 </div>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button data-testid={`project-actions-menu-${project.id}`} variant="ghost" size="icon" className="h-8 w-8 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <MoreVertical className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenProject(project.id); }}>
+                                                        <DropdownMenuItem data-testid="project-action-open" onClick={(e) => { e.stopPropagation(); handleOpenProject(project.id); }}>
                                                             <FolderOpen className="h-4 w-4 mr-2" />
                                                             Open
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
+                                                        <DropdownMenuItem data-testid="project-action-rename" onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
                                                             <FileEdit className="h-4 w-4 mr-2" />
                                                             Rename
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
+                                                        <DropdownMenuItem data-testid="project-action-duplicate" onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
                                                             <Copy className="h-4 w-4 mr-2" />
                                                             Duplicate
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
+                                                            data-testid="project-action-delete"
                                                             onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
                                                             className="text-destructive focus:text-destructive"
                                                         >
@@ -383,10 +389,11 @@ export default function ProjectListPage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-2" data-testid="projects-list">
                                 {filteredProjects.map((project) => (
                                     <Card
                                         key={project.id}
+                                        data-testid={`project-card-${project.id}`}
                                         className="group hover:shadow-md transition-all cursor-pointer border-border hover:border-primary/50"
                                         onClick={() => handleOpenProject(project.id)}
                                     >
@@ -415,25 +422,26 @@ export default function ProjectListPage() {
                                                     </div>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Button data-testid={`project-actions-menu-${project.id}`} variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <MoreVertical className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenProject(project.id); }}>
+                                                            <DropdownMenuItem data-testid="project-action-open" onClick={(e) => { e.stopPropagation(); handleOpenProject(project.id); }}>
                                                                 <FolderOpen className="h-4 w-4 mr-2" />
                                                                 Open
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
+                                                            <DropdownMenuItem data-testid="project-action-rename" onClick={(e) => { e.stopPropagation(); openRenameDialog(project); }}>
                                                                 <FileEdit className="h-4 w-4 mr-2" />
                                                                 Rename
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
+                                                            <DropdownMenuItem data-testid="project-action-duplicate" onClick={(e) => { e.stopPropagation(); void handleDuplicateProject(project.id); }}>
                                                                 <Copy className="h-4 w-4 mr-2" />
                                                                 Duplicate
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
+                                                                data-testid="project-action-delete"
                                                                 onClick={(e) => { e.stopPropagation(); openDeleteDialog(project); }}
                                                                 className="text-destructive focus:text-destructive"
                                                             >
@@ -464,15 +472,16 @@ export default function ProjectListPage() {
                         <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleCreateProject}>Create Project</Button>
+                        <Button data-testid="project-create-submit" onClick={handleCreateProject}>Create Project</Button>
                     </>
                 }
             >
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 py-4" data-testid="project-create-dialog">
                     <div className="space-y-2">
                         <Label htmlFor="name">Project Name</Label>
                         <Input
                             id="name"
+                            data-testid="project-name-input"
                             placeholder="My Quantum Project"
                             value={newProjectName}
                             onChange={(e) => setNewProjectName(e.target.value)}
@@ -483,6 +492,7 @@ export default function ProjectListPage() {
                         <Label htmlFor="description">Description (Optional)</Label>
                         <Textarea
                             id="description"
+                            data-testid="project-description-input"
                             placeholder="Add a description for your project..."
                             value={newProjectDescription}
                             onChange={(e) => setNewProjectDescription(e.target.value)}
@@ -503,15 +513,16 @@ export default function ProjectListPage() {
                         <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleRenameProject}>Save Changes</Button>
+                        <Button data-testid="project-rename-submit" onClick={handleRenameProject}>Save Changes</Button>
                     </>
                 }
             >
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 py-4" data-testid="project-rename-dialog">
                     <div className="space-y-2">
                         <Label htmlFor="rename-name">Project Name</Label>
                         <Input
                             id="rename-name"
+                            data-testid="project-rename-name-input"
                             placeholder="My Quantum Project"
                             value={renameProjectName}
                             onChange={(e) => setRenameProjectName(e.target.value)}
@@ -522,6 +533,7 @@ export default function ProjectListPage() {
                         <Label htmlFor="rename-description">Description (Optional)</Label>
                         <Textarea
                             id="rename-description"
+                            data-testid="project-rename-description-input"
                             placeholder="Add a description for your project..."
                             value={renameProjectDescription}
                             onChange={(e) => setRenameProjectDescription(e.target.value)}
@@ -533,7 +545,7 @@ export default function ProjectListPage() {
 
             {/* delete Project Dialog */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent data-testid="project-delete-dialog">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -543,7 +555,7 @@ export default function ProjectListPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction data-testid="project-delete-confirm" onClick={handleDeleteProject} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                             Delete Project
                         </AlertDialogAction>
                     </AlertDialogFooter>

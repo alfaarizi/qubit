@@ -44,6 +44,7 @@ const QubitLabels = memo(function QubitLabels({ numQubits, onAddQubit, onRemoveQ
                         onClick={onRemoveQubit}
                         disabled={numQubits <= 1 || disabled}
                         className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                        data-testid="remove-qubit-button"
                     >
                     −
                 </button>
@@ -51,6 +52,7 @@ const QubitLabels = memo(function QubitLabels({ numQubits, onAddQubit, onRemoveQ
                     onClick={onAddQubit}
                     disabled={disabled}
                     className="w-6 h-6 rounded border border-border bg-background flex items-center justify-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                    data-testid="add-qubit-button"
                 >
                     +
                 </button>

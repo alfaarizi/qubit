@@ -17,13 +17,25 @@ def generate_verification_code() -> str:
 
 def send_verification_email(email: str) -> str:
     """send verification code to email and return the code"""
-    code = generate_verification_code()
+    # use hardcoded test code in testing environment for E2E tests
+    if settings.ENVIRONMENT == "testing":
+        code = "12345"
+        print(f"[Email] TESTING MODE: using test code {code} for {email}")
+    else:
+        code = generate_verification_code()
+
     # store code with expiration (10 minutes)
     verification_codes[email] = {
         "code": code,
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
         "attempts": 0
     }
+
+    # skip sending actual email in testing environment
+    if settings.ENVIRONMENT == "testing":
+        print(f"[Email] TESTING MODE: skipping email send for {email}")
+        return code
+
     try:
         resend.Emails.send({
             "from": settings.EMAIL_FROM,
