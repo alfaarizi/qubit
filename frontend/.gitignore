@@ -25,3 +25,10 @@ dist-ssr
 
 .env*
 !.env*.example
+
+# Test coverage
+coverage
+.nyc_output
+htmlcov
+.coverage
+*.lcov
