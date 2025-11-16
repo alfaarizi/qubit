@@ -43,5 +43,5 @@ const localStorageMock: MockStorage = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 }
-global.localStorage = localStorageMock as typeof Storage
+global.localStorage = localStorageMock as unknown as Storage
 

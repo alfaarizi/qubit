@@ -23,12 +23,21 @@ describe('CircuitStore', () => {
     it('should set gates', () => {
       const gate: Gate = {
         id: 'gate-1',
-        type: 'H',
         targetQubits: [0],
         controlQubits: [],
         depth: 0,
         children: [],
         parents: [],
+        gate: { 
+          id: 'H', 
+          name: 'Hadamard', 
+          symbol: 'H', 
+          color: '#0066cc', 
+          category: 'single', 
+          description: 'Hadamard',
+          numControlQubits: 0, 
+          numTargetQubits: 1,
+        },
       }
       store.setState({ placedGates: [gate] })
       expect(store.getState().placedGates).toContainEqual(gate)
@@ -36,22 +45,41 @@ describe('CircuitStore', () => {
     it('should support function updater', () => {
       const gate1: Gate = {
         id: 'gate-1',
-        type: 'H',
         targetQubits: [0],
         controlQubits: [],
         depth: 0,
         children: [],
         parents: [],
+        gate: { 
+          id: 'H', 
+          name: 'Hadamard', 
+          symbol: 'H', 
+          color: '#0066cc', 
+          category: 'single', 
+          description: 'Hadamard',
+          numControlQubits: 0, 
+          numTargetQubits: 1,
+        },
       }
       store.setState({ placedGates: [gate1] })
       const gate2: Gate = {
         id: 'gate-2',
-        type: 'X',
         targetQubits: [1],
         controlQubits: [],
         depth: 0,
         children: [],
         parents: [],
+        gate: { id: 'X', 
+          
+          
+          name: 'Pauli-X', 
+          symbol: 'X', 
+          color: '#ff0000', 
+          category: 'single', 
+          description: 'Pauli-X',
+          numControlQubits: 0, 
+          numTargetQubits: 1,
+        },
       }
       store.setState((state) => ({
         placedGates: [...state.placedGates, gate2],
@@ -88,9 +116,18 @@ describe('CircuitStore', () => {
   })
   describe('reset', () => {
     it('should reset to initial state', () => {
+      const testGate: Gate = {
+        id: 'test',
+        targetQubits: [0],
+        controlQubits: [],
+        depth: 0,
+        children: [],
+        parents: [],
+        gate: { id: 'H', name: 'Hadamard', numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
+      }
       store.setState({
         numQubits: 10,
-        placedGates: [{ id: 'test', type: 'H' }],
+        placedGates: [testGate],
         isExecuting: true,
       })
       store.setState({
