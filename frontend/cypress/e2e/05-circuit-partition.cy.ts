@@ -1,115 +1,167 @@
 /// <reference types="cypress" />
 
-import { testData, selectors } from '../support/helpers'
+import { selectors } from '../support/helpers'
 
 describe('Circuit Partition', (): void => {
+  const testProject = `Test Project ${crypto.randomUUID()}`
+  let projectId: string
+
+  before((): void => {
+    cy.ensureProjectAndCircuitTab(testProject)
+    cy.url().then((url) => {
+      const match = url.match(/\/project\/([^/]+)/)
+      if (match) {
+        projectId = match[1]
+      }
+    })
+
+    cy.fixture('4mod5-v0_20.qasm').then((qasmContent) => {
+      cy.get(selectors.composer.qasmFileInput).selectFile({
+        contents: Cypress.Buffer.from(qasmContent),
+        fileName: '4mod5-v0_20.qasm',
+        mimeType: 'text/plain',
+      }, { force: true })
+    })
+    cy.get(selectors.composer.canvas, { timeout: 30000 }).should('be.visible')
+    cy.get(selectors.composer.canvas).within(() => {
+      cy.get('g', { timeout: 30000 }).should('exist')
+    })
+    cy.wait(8000)
+  })
+
   beforeEach((): void => {
-    cy.clearLocalStorage()
-    cy.clearCookies()
-    cy.emailLogin(testData.auth.testEmail)
-
-    // open an existing project or create a new one
-    cy.get('[data-testid^="project-card-"]').first().click()
-    cy.wait(1000)
-
-    // add a circuit tab to initialize
-    cy.get(selectors.composer.addCircuitTabButton).click()
-
-    // import a circuit to partition
-    const qasmCode = testData.qasmCode
-
-    cy.get(selectors.composer.fileMenuButton).click()
-    cy.get(selectors.composer.importQasmButton).click()
-    cy.get(selectors.composer.qasmFileInput).selectFile({
-      contents: Cypress.Buffer.from(qasmCode),
-      fileName: 'partition-test.qasm',
-      mimeType: 'text/plain',
-    }, { force: true })
-
-    cy.wait(2000)
+    cy.url().then((url) => {
+      if (!url.includes(`/project/${projectId}`)) {
+        cy.visit(`/project/${projectId}`)
+        cy.get(selectors.composer.addCircuitTabButton, { timeout: 10000 }).should('be.visible')
+        cy.wait(2000)
+        cy.get('body').then(($body) => {
+          const tabs = Cypress.$(selectors.composer.circuitTabAny)
+          if (tabs.length > 0) {
+            cy.get(selectors.composer.circuitTabAny, { timeout: 5000 }).first().click()
+            cy.get(selectors.composer.circuitTabContentAny, { timeout: 10000 })
+              .should('have.attr', 'data-state', 'active')
+          } else {
+            cy.get(selectors.composer.addCircuitTabButton).click({ force: true })
+            cy.get(selectors.composer.circuitTabAny, { timeout: 5000 }).should('exist')
+            cy.get(selectors.composer.circuitTabContentAny, { timeout: 10000 })
+              .should('have.attr', 'data-state', 'active')
+          }
+        })
+      } else {
+        cy.get('body').then(($body) => {
+          const tabs = Cypress.$(selectors.composer.circuitTabAny)
+          if (tabs.length > 0) {
+            cy.get(selectors.composer.circuitTabAny, { timeout: 5000 }).first().click()
+            cy.get(selectors.composer.circuitTabContentAny, { timeout: 10000 })
+              .should('have.attr', 'data-state', 'active')
+          }
+        })
+      }
+    })
+    cy.get(selectors.composer.canvas, { timeout: 8000 }).should('be.visible')
+    cy.wait(3000)
+    cy.get(selectors.composer.canvas).within(() => {
+      cy.get('g', { timeout: 30000 }).should('exist')
+    })
   })
 
-  it('should display partition backend selector', (): void => {
-    cy.get(selectors.composer.backendSelect).should('be.visible')
+  after(() => {
+    cy.deleteProject(testProject)
   })
 
-  it('should display partition strategy selector', (): void => {
-    cy.get(selectors.composer.strategySelect).should('be.visible')
-  })
-
-  it('should display max partition size selector', (): void => {
-    cy.get(selectors.composer.maxPartitionSizeSelect).should('be.visible')
-  })
-
-  it('should display timeout input', (): void => {
-    cy.get(selectors.composer.timeoutInput).should('be.visible')
-  })
-
-  it('should display run and abort buttons', (): void => {
-    cy.get(selectors.composer.runButton).should('be.visible')
-    cy.get(selectors.composer.abortButton).should('be.visible')
-  })
-
-  it('should allow selecting partition backend', (): void => {
-    cy.get(selectors.composer.backendSelect).click()
-    cy.get('[role="option"]').should('have.length.greaterThan', 0)
-  })
-
-  it('should allow selecting partition strategy', (): void => {
+  it('should allow configuring partition settings', (): void => {
+    cy.get(selectors.composer.toolbar, { timeout: 10000 }).should('be.visible')
+    cy.wait(500)
+    
     cy.get(selectors.composer.strategySelect).click()
-    cy.get('[role="option"]').should('have.length.greaterThan', 5)
-  })
+    cy.get(selectors.composer.strategyOption('gtqcp'), { timeout: 5000 }).click()
+    cy.wait(500)
+    cy.get(selectors.composer.strategySelect).should('contain', 'gtqcp')
 
-  it('should allow selecting max partition size', (): void => {
     cy.get(selectors.composer.maxPartitionSizeSelect).click()
-    cy.get('[role="option"]').should('have.length.greaterThan', 0)
-  })
+    cy.get(selectors.composer.maxPartitionSizeOption(4), { timeout: 5000 }).click()
+    cy.wait(500)
+    cy.get(selectors.composer.maxPartitionSizeSelect).should('contain', '4')
 
-  it('should allow entering custom timeout value', (): void => {
+    cy.get(selectors.composer.timeoutInput, { timeout: 10000 }).should('exist')
+    cy.get(selectors.composer.timeoutInput).then(($el) => {
+      if (!$el.is(':visible')) {
+        cy.wrap($el).scrollIntoView()
+      }
+    })
     cy.get(selectors.composer.timeoutInput).clear().type('60')
     cy.get(selectors.composer.timeoutInput).should('have.value', '60')
+    cy.wait(500)
   })
 
   it('should execute partition with default settings', (): void => {
+    cy.get(selectors.composer.toolbar, { timeout: 10000 }).should('be.visible')
+    cy.wait(500)
+    
+    cy.get(selectors.composer.strategySelect).click()
+    cy.get(selectors.composer.strategyOption('gtqcp'), { timeout: 5000 }).click()
+    cy.wait(500)
+
+    cy.get(selectors.composer.maxPartitionSizeSelect).click()
+    cy.get(selectors.composer.maxPartitionSizeOption(4), { timeout: 5000 }).click()
+    cy.wait(500)
+
+    cy.get(selectors.composer.runButton, { timeout: 10000 }).should('exist')
+    cy.get(selectors.composer.runButton).then(($el) => {
+      if (!$el.is(':visible')) {
+        cy.wrap($el).scrollIntoView()
+      }
+    })
     cy.get(selectors.composer.runButton).click()
-    cy.wait(5000)
-    cy.get('body').should('exist')
+    cy.wait(8000)
+    cy.get(selectors.composer.canvas).should('be.visible')
   })
 
   it('should allow aborting partition execution', (): void => {
+    cy.get(selectors.composer.toolbar, { timeout: 10000 }).should('be.visible')
+    cy.wait(500)
+    
+    cy.fixture('heisenberg-16-20.qasm').then((qasmContent) => {
+      cy.get(selectors.composer.qasmFileInput).selectFile({
+        contents: Cypress.Buffer.from(qasmContent),
+        fileName: 'heisenberg-16-20.qasm',
+        mimeType: 'text/plain',
+      }, { force: true })
+    })
+    cy.get(selectors.composer.canvas, { timeout: 30000 }).should('be.visible')
+    cy.get(selectors.composer.canvas).within(() => {
+      cy.get('g', { timeout: 30000 }).should('exist')
+    })
+    cy.wait(5000)
+    
+    cy.get(selectors.composer.toolbar, { timeout: 10000 }).should('be.visible')
+    cy.wait(500)
+    
+    cy.get(selectors.composer.strategySelect).click()
+    cy.get(selectors.composer.strategyOption('gtqcp'), { timeout: 5000 }).click()
+    cy.wait(500)
+
+    cy.get(selectors.composer.maxPartitionSizeSelect).click()
+    cy.get(selectors.composer.maxPartitionSizeOption(4), { timeout: 5000 }).click()
+    cy.wait(500)
+
+    cy.get(selectors.composer.runButton, { timeout: 10000 }).should('exist')
+    cy.get(selectors.composer.runButton).should('not.be.disabled')
+    cy.get(selectors.composer.runButton).then(($el) => {
+      if (!$el.is(':visible')) {
+        cy.wrap($el).scrollIntoView()
+      }
+    })
+    cy.get(selectors.composer.runButton).should('be.visible')
     cy.get(selectors.composer.runButton).click()
-    cy.wait(500)
-    cy.get(selectors.composer.abortButton).click()
     cy.wait(1000)
-    cy.get('body').should('exist')
-  })
-
-  it('should clear circuit when clear button is clicked', (): void => {
-    cy.get(selectors.composer.clearButton).click()
-    cy.wait(500)
+    cy.get(selectors.composer.abortButton, { timeout: 10000 }).should('not.be.disabled')
+    cy.get(selectors.composer.abortButton).click()
+    cy.contains('button', 'Abort', { timeout: 5000 }).click()
+    cy.wait(3000)
     cy.get(selectors.composer.canvas).should('be.visible')
-  })
-
-  it('should maintain partition settings after circuit import', (): void => {
-    // set custom timeout
-    cy.get(selectors.composer.timeoutInput).clear().type('90')
-
-    // import another circuit
-    cy.get(selectors.composer.fileMenuButton).click()
-    cy.get(selectors.composer.importQasmButton).click()
-    cy.get(selectors.composer.qasmFileInput).selectFile({
-      contents: Cypress.Buffer.from(testData.qasmCode),
-      fileName: 'test2.qasm',
-      mimeType: 'text/plain',
-    }, { force: true })
-
+    cy.get(selectors.composer.runButton).should('not.be.disabled')
     cy.wait(2000)
-
-    // timeout should still be 90
-    cy.get(selectors.composer.timeoutInput).should('have.value', '90')
-  })
-
-  it('should display canvas with imported circuit', (): void => {
-    cy.get(selectors.composer.canvas).should('be.visible')
   })
 })

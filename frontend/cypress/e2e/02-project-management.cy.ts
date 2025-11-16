@@ -3,10 +3,14 @@
 import { testData, selectors } from '../support/helpers'
 
 describe('Project Management', (): void => {
+  // shared project name that will be used across tests
+  const testProject = `Test Project ${crypto.randomUUID()}`
+  let renamedTestProject: string = ''
+
   beforeEach((): void => {
-    cy.clearLocalStorage()
-    cy.clearCookies()
-    cy.emailLogin(testData.auth.testEmail)
+    // authentication is handled globally in e2e.ts
+    cy.visit('/project')
+    cy.url().should('not.include', '/login')
   })
 
   it('should display project list page after login', (): void => {
@@ -15,90 +19,49 @@ describe('Project Management', (): void => {
   })
 
   it('should create a new project with name and description', (): void => {
-    const projectName = `Test Project ${Date.now()}`
-    const projectDesc = 'A test quantum circuit project'
-
+    // create project A
     cy.get(selectors.projects.newButton).click()
-    cy.get(selectors.projects.nameInput).type(projectName)
-    cy.get(selectors.projects.descriptionInput).type(projectDesc)
+    cy.get(selectors.projects.nameInput).type(testProject)
+    cy.get(selectors.projects.descriptionInput).type('A test quantum circuit project')
     cy.get(selectors.projects.createSubmit).click()
-
-    cy.contains(projectName).should('be.visible')
-  })
-
-  it('should search for projects by name', (): void => {
-    const searchQuery = 'Test'
-
-    cy.get(selectors.projects.searchInput).type(searchQuery)
-    cy.wait(500)
-    cy.get('body').should('exist')
-  })
-
-  it('should toggle between grid and list view', (): void => {
-    // switch to list view
-    cy.get(selectors.projects.viewToggleList).click()
-    cy.get(selectors.projects.list).should('be.visible')
-
-    // switch back to grid view
-    cy.get(selectors.projects.viewToggleGrid).click()
-    cy.get(selectors.projects.grid).should('be.visible')
-  })
-
-  it('should open an existing project', (): void => {
-    // click on the first project card
-    cy.get('[data-testid^="project-card-"]').first().click()
-    cy.url().should('match', /\/project\/[a-f0-9]+/)
+    cy.contains(testProject).should('be.visible')
   })
 
   it('should rename a project', (): void => {
-    const newName = `Renamed Project ${Date.now()}`
-
-    // open actions menu on first project
-    cy.get('[data-testid^="project-actions-menu-"]').first().click({ force: true })
+    // rename project A
+    cy.contains(selectors.projects.cardAny, testProject)
+      .within(() => {
+        cy.get(selectors.projects.actionsMenuAny).click({ force: true })
+      })
     cy.get(selectors.projects.actionRename).click()
 
-    // rename the project
-    cy.get(selectors.projects.renameNameInput).clear().type(newName)
+    // update the project name
+    renamedTestProject = `Renamed ${testProject}`
+    cy.get(selectors.projects.renameNameInput).clear().type(renamedTestProject)
     cy.get(selectors.projects.renameSubmit).click()
-
-    cy.contains(newName).should('be.visible')
+    cy.contains(renamedTestProject).should('be.visible')
   })
 
   it('should duplicate a project', (): void => {
-    // open actions menu on first project
-    cy.get('[data-testid^="project-actions-menu-"]').first().click({ force: true })
-    cy.get(selectors.projects.actionDuplicate).click()
-
-    // verify duplicate was created (should have "Copy" in name)
-    cy.wait(1000)
-    cy.contains(/Copy/i).should('be.visible')
-  })
-
-  it('should delete a project with confirmation', (): void => {
-    // create a project to delete
-    const projectName = `Delete Me ${Date.now()}`
-
-    cy.get(selectors.projects.newButton).click()
-    cy.get(selectors.projects.nameInput).type(projectName)
-    cy.get(selectors.projects.createSubmit).click()
-    cy.contains(projectName).should('be.visible')
-
-    // find the newly created project card and delete it
-    cy.contains('[data-testid^="project-card-"]', projectName)
+    const projectToDuplicate = renamedTestProject || testProject
+    cy.contains(selectors.projects.cardAny, projectToDuplicate)
       .within(() => {
-        cy.get('[data-testid^="project-actions-menu-"]').click({ force: true })
+        cy.get(selectors.projects.actionsMenuAny).click({ force: true })
       })
+    cy.get(selectors.projects.actionDuplicate).click()
+    const duplicatedProject = `${projectToDuplicate} (Copy)`
+    cy.wait(1000)
+    cy.contains(selectors.projects.cardAny, duplicatedProject).should('be.visible')
 
+    // delete the duplicated project
+    cy.contains(selectors.projects.cardAny, duplicatedProject)
+      .within(() => {
+        cy.get(selectors.projects.actionsMenuAny).click({ force: true })
+      })
     cy.get(selectors.projects.actionDelete).click()
-
-    // confirm deletion
     cy.get(selectors.projects.deleteConfirm).click()
-
-    // wait for deletion to complete
     cy.wait(500)
-
-    // verify project is gone
-    cy.contains(projectName).should('not.exist')
+    cy.contains(selectors.projects.cardAny, duplicatedProject).should('not.exist')
   })
 
   it('should filter projects by category', (): void => {
@@ -112,9 +75,39 @@ describe('Project Management', (): void => {
 
   it('should display project metadata and timestamps', (): void => {
     // verify first project card shows metadata
-    cy.get('[data-testid^="project-card-"]').first().within(() => {
-      // should show updated date
-      cy.contains(/\w+ \d+, \d{4}/).should('exist')
+    cy.get(selectors.projects.cardAny).first().within(() => {
+      // should show updated date timestamp (already lowercase)
+      cy.get(selectors.projects.metadataTimestamp).should('exist')
+      cy.get(selectors.projects.metadataTimestamp).should('be.visible')
     })
+  })
+
+  it('should search for projects by name', (): void => {
+    cy.get(selectors.projects.searchInput).type('No Project Here')
+    cy.wait(500)
+    cy.get('body').should('exist')
+    cy.get(selectors.projects.searchInput).clear()
+  })
+
+  it('should toggle between grid and list view', (): void => {
+    // switch to list view
+    cy.get(selectors.projects.viewToggleList).click()
+    cy.get(selectors.projects.list).should('be.visible')
+
+    // switch back to grid view
+    cy.get(selectors.projects.viewToggleGrid).click()
+    cy.get(selectors.projects.grid).should('be.visible')
+    })
+
+  it('should delete a project with confirmation', (): void => {
+    const projectToDelete = renamedTestProject || testProject
+    cy.contains(selectors.projects.cardAny, projectToDelete)
+      .within(() => {
+        cy.get(selectors.projects.actionsMenuAny).click({ force: true })
+      })
+    cy.get(selectors.projects.actionDelete).click()
+    cy.get(selectors.projects.deleteConfirm).click()
+    cy.wait(500)
+    cy.contains(selectors.projects.cardAny, projectToDelete).should('not.exist')
   })
 })

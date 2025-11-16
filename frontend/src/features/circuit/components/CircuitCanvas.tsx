@@ -262,7 +262,9 @@ export function CircuitCanvas() {
                             <ScrollArea 
                                 className={`h-full w-full ${isExecuting ? 'pointer-events-none' : ''}`}
                             >
-                                <svg ref={svgRef}
+                                <svg 
+                                    ref={svgRef}
+                                    data-testid="circuit-canvas"
                                     style={{ display: 'block', minWidth: scrollableDepth * GATE_CONFIG.gateSpacing + 6}}
                                     onDragEnter={isExecuting ? undefined : handleDragEnter}
                                     onDragOver={isExecuting ? undefined : handleDragOver}

@@ -131,6 +131,7 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
             style={style}
             key={circuit.id}
             value={circuit.id}
+            data-testid={`circuit-tab-${circuit.id}`}
             className={`cursor-pointer rounded-none rounded-t-lg !shadow-none !border-b-0 border-border group relative pr-8 shrink-0 !p-2.5 !m-0 ${
                 activeCircuitId === circuit.id ? '!bg-muted' : '!bg-transparent hover:!bg-accent/50'
             }`}
@@ -318,6 +319,7 @@ function ComposerContent() {
                                             <TabsContent 
                                                 key={circuit.id} 
                                                 value={circuit.id} 
+                                                data-testid={`circuit-tab-content-${circuit.id}`}
                                                 className="mt-0 pb-6 data-[state=inactive]:hidden data-[state=active]:block"
                                             >
                                                 <CircuitProvider circuitId={circuit.id}>

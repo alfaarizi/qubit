@@ -439,7 +439,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                             <DropdownMenuLabel>Partition Strategy</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {PARTITION_STRATEGIES.map((strategy) => (
-                                <DropdownMenuItem key={strategy.value} onClick={() => setPartitionStrategy(strategy.value)} className="cursor-pointer">
+                                <DropdownMenuItem key={strategy.value} onClick={() => setPartitionStrategy(strategy.value)} className="cursor-pointer" data-testid={`strategy-${strategy.value}`}>
                                     <div className="flex flex-col gap-0.5">
                                         <div className="font-medium flex items-center gap-2">
                                             {strategy.label}
@@ -466,7 +466,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                             <DropdownMenuLabel>Max Partition Size</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {[3, 4, 5].map((size) => (
-                                <DropdownMenuItem key={size} onClick={() => setMaxPartitionSize(size)}>
+                                <DropdownMenuItem key={size} onClick={() => setMaxPartitionSize(size)} data-testid={`max-partition-size-${size}`}>
                                     <div className="flex items-center justify-between w-full">
                                         <span>{size} qubits</span>
                                         {maxPartitionSize === size && <span className="text-green-600">✓</span>}

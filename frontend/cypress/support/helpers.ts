@@ -55,7 +55,9 @@ export const selectors = {
     grid: '[data-testid="projects-grid"]',
     list: '[data-testid="projects-list"]',
     card: (id: string) => `[data-testid="project-card-${id}"]`,
+    cardAny: '[data-testid^="project-card-"]',
     actionsMenu: (id: string) => `[data-testid="project-actions-menu-${id}"]`,
+    actionsMenuAny: '[data-testid^="project-actions-menu-"]',
     actionOpen: '[data-testid="project-action-open"]',
     actionRename: '[data-testid="project-action-rename"]',
     actionDuplicate: '[data-testid="project-action-duplicate"]',
@@ -76,13 +78,19 @@ export const selectors = {
     // Delete dialog
     deleteDialog: '[data-testid="project-delete-dialog"]',
     deleteConfirm: '[data-testid="project-delete-confirm"]',
+
+    // Project metadata
+    metadataTimestamp: '[data-testid="project-metadata-timestamp"]',
+    metadataCircuitCount: '[data-testid="project-metadata-circuit-count"]',
   },
   composer: {
-    canvas: 'canvas',
+    canvas: '[data-testid="circuit-canvas"]',
     toolbar: '[data-testid="circuit-toolbar"]',
 
     // Circuit tab controls
     addCircuitTabButton: '[data-testid="add-circuit-tab-button"]',
+    circuitTabAny: '[data-testid^="circuit-tab-"]',
+    circuitTabContentAny: '[data-testid^="circuit-tab-content-"]',
 
     // Qubit controls
     addQubitButton: '[data-testid="add-qubit-button"]',
@@ -101,7 +109,9 @@ export const selectors = {
     // Partition controls
     backendSelect: '[data-testid="partition-backend-select"]',
     strategySelect: '[data-testid="partition-strategy-select"]',
+    strategyOption: (value: string) => `[data-testid="strategy-${value}"]`,
     maxPartitionSizeSelect: '[data-testid="max-partition-size-select"]',
+    maxPartitionSizeOption: (size: number) => `[data-testid="max-partition-size-${size}"]`,
     timeoutInput: '[data-testid="simulation-timeout-input"]',
 
     // Execution controls

@@ -380,7 +380,7 @@ export default function ProjectListPage() {
                                                 </DropdownMenu>
                                             </div>
 
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="project-metadata-timestamp">
                                                 <Clock className="h-3 w-3" />
                                                 {format(project.updatedAt, 'MMM d, yyyy')}
                                             </div>
@@ -414,10 +414,10 @@ export default function ProjectListPage() {
                                                 </div>
 
                                                 <div className="flex items-center gap-6 ml-4">
-                                                    <div className="text-sm text-muted-foreground hidden sm:block">
+                                                    <div className="text-sm text-muted-foreground hidden sm:block" data-testid="project-metadata-circuit-count">
                                                         {project.circuits.length} {project.circuits.length === 1 ? 'circuit' : 'circuits'}
                                                     </div>
-                                                    <div className="text-sm text-muted-foreground hidden md:block min-w-[100px] text-right">
+                                                    <div className="text-sm text-muted-foreground hidden md:block min-w-[100px] text-right" data-testid="project-metadata-timestamp">
                                                         {format(project.updatedAt, 'MMM d, yyyy')}
                                                     </div>
                                                     <DropdownMenu>

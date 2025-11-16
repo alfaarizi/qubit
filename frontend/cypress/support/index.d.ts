@@ -20,10 +20,17 @@ declare namespace Cypress {
      * create a new project
      * @param name - project name
      * @param description - optional project description
-     * @returns project ID
+     * @returns project name for cleanup
      * @example cy.createProject('My Circuit', 'A test circuit')
      */
     createProject(name: string, description?: string): Chainable<string>
+
+    /**
+     * delete a project by name
+     * @param projectName - name of the project to delete
+     * @example cy.deleteProject('My Circuit')
+     */
+    deleteProject(projectName: string): Chainable<void>
 
     /**
      * navigate to login page and ensure user is logged out
@@ -36,5 +43,13 @@ declare namespace Cypress {
      * @example cy.openComposer()
      */
     openComposer(): Chainable<void>
+
+    /**
+     * ensure project exists and is open, and ensure circuit tab exists
+     * creates project if it doesn't exist, opens it, and creates circuit tab if needed
+     * @param projectName - name of the project
+     * @example cy.ensureProjectAndCircuitTab('My Project')
+     */
+    ensureProjectAndCircuitTab(projectName: string): Chainable<void>
   }
 }
