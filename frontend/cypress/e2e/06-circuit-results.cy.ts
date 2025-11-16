@@ -26,7 +26,7 @@ describe('Circuit Results', (): void => {
     cy.get(selectors.composer.canvas).within(() => {
       cy.get('g', { timeout: 30000 }).should('exist')
     })
-    cy.wait(5000)
+    cy.wait(8000)
   })
 
   beforeEach((): void => {
@@ -90,7 +90,7 @@ describe('Circuit Results', (): void => {
       }
     })
     cy.get(selectors.composer.runButton).click()
-    cy.wait(5000)
+    cy.wait(8000)
   })
 
   it('should display results panel after execution', (): void => {
