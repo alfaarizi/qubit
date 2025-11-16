@@ -6,3 +6,5 @@ build/
 dist/
 venv-backend/
 logs/*.log*
+.coverage
+htmlcov/

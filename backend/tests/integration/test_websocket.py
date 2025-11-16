@@ -152,22 +152,29 @@ class TestGlobalBroadcast:
 
 @pytest.mark.asyncio
 class TestHTTPEndpoints:
-    async def test_stats(self, http_client):
-        # get stats
-        r = await http_client.get("/api/v1/ws/stats")
-        assert r.status_code == 200
+    async def test_stats(self, http_client, authenticated_user):
+        # get stats with authentication
+        r = await http_client.get(
+            "/api/v1/ws/stats",
+            headers={"Authorization": f"Bearer {authenticated_user}"}
+        )
+        assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
         data = r.json()
         assert data["status"] == "success"
 
-    async def test_http_broadcast(self, http_client):
-        # broadcast via HTTP
+    async def test_http_broadcast(self, http_client, authenticated_superuser):
+        # broadcast via HTTP (requires superuser)
         payload = {"content": "HTTP broadcast", "metadata": {"src": "test"}}
-        r = await http_client.post("/api/v1/ws/broadcast", json=payload)
-        assert r.status_code == 200
+        r = await http_client.post(
+            "/api/v1/ws/broadcast",
+            json=payload,
+            headers={"Authorization": f"Bearer {authenticated_superuser}"}
+        )
+        assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
         data = r.json()
         assert data["status"] == "success"
 
-    async def test_http_room_broadcast(self, http_client, ws_client):
+    async def test_http_room_broadcast(self, http_client, ws_client, authenticated_superuser):
         # Connect clients
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
@@ -179,10 +186,14 @@ class TestHTTPEndpoints:
         await ws_client.receive_json(ws1)
         await ws_client.send_json(ws2, ClientMessage.JOIN_ROOM, room=room)
         await ws_client.receive_json(ws2)
-        # HTTP broadcast to room
+        # HTTP broadcast to room (requires superuser)
         payload = {"content": "Room HTTP broadcast", "metadata": {"src": "test"}}
-        r = await http_client.post(f"/api/v1/ws/broadcast/room/{room}", json=payload)
-        assert r.status_code == 200
+        r = await http_client.post(
+            f"/api/v1/ws/broadcast/room/{room}",
+            json=payload,
+            headers={"Authorization": f"Bearer {authenticated_superuser}"}
+        )
+        assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
         data = r.json()
         assert data["status"] == "success"
         # verify ws1 receives broadcast

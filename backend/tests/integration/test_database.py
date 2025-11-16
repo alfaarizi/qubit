@@ -1,24 +1,5 @@
 import pytest
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from app.core.config import settings
-
-
-@pytest.fixture
-def mongo_client():
-    """create MongoDB client and cleanup after test"""
-    client = MongoClient(
-        settings.MONGODB_URL,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000
-    )
-    yield client
-    # cleanup
-    if settings.MONGODB_DATABASE:
-        db = client[settings.MONGODB_DATABASE]
-        if 'test_collection' in db.list_collection_names():
-            db['test_collection'].drop()
-    client.close()
 
 
 class TestMongoDBConnection:

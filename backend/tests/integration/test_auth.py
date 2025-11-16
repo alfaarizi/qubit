@@ -1,37 +1,5 @@
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from app.main import app
-from app.db import get_database
 
-
-@pytest.fixture
-def test_user_data():
-    """test user data"""
-    return {
-        "email": "test@example.com",
-        "password": "testpassword123",
-        "first_name": "Test",
-        "last_name": "User"
-    }
-
-@pytest_asyncio.fixture
-async def registered_user(test_user_data):
-    """create and cleanup test user"""
-    db = get_database()
-    # cleanup before test
-    db.users.delete_many({"email": test_user_data["email"]})
-    yield test_user_data
-    # cleanup after test
-    db.users.delete_many({"email": test_user_data["email"]})
-
-
-@pytest_asyncio.fixture
-async def http_client():
-    """create HTTP client"""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
 
 class TestUserRegistration:
     @pytest.mark.asyncio
