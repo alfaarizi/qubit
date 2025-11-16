@@ -60,6 +60,7 @@ describe('Circuit Results', (): void => {
       }
     })
     cy.get(selectors.composer.canvas, { timeout: 10000 }).should('be.visible')
+    cy.wait(1000)
   })
 
   after(() => {
