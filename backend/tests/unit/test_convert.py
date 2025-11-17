@@ -1,7 +1,6 @@
 """test circuit conversion - gate registry validation without squander dependency"""
 import pytest
 import numpy as np
-import json
 import sys
 from unittest.mock import MagicMock
 
@@ -12,9 +11,9 @@ sys.modules['squander'] = MagicMock()
 from app.services.convert import GateRegistry, add_gate, CircuitConverter
 
 
+@pytest.mark.unit
 class TestGateRegistry:
   """test gate registry functionality"""
-
   def test_gate_registry_has_required_gates(self):
     """test registry includes all required quantum gates"""
     required_gates = {'H', 'X', 'Y', 'Z', 'CNOT', 'SWAP', 'TOFFOLI'}
@@ -54,9 +53,9 @@ class TestGateRegistry:
     assert isinstance(rx_spec.params[0], float)
 
 
+@pytest.mark.unit
 class TestCircuitConverter:
   """test circuit conversion logic"""
-
   def test_gate_registry_not_empty(self):
     """test gate registry contains gates"""
     assert len(GateRegistry.SQUANDER_GATES) > 20
@@ -88,9 +87,9 @@ class TestCircuitConverter:
       assert len(spec.params) == 0
 
 
+@pytest.mark.unit
 class TestGateConversion:
   """test gate addition and conversion"""
-
   def test_cx_gate_mapped_to_cnot(self):
     """test CX gate is properly mapped to CNOT"""
     assert GateRegistry.SQUANDER_GATES['CX'].method == GateRegistry.SQUANDER_GATES['CNOT'].method

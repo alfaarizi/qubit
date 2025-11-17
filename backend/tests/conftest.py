@@ -22,8 +22,10 @@ class AsyncWebSocketTestHelper:
         return ws
 
     @staticmethod
-    async def send_json(ws, message_type: str, **kwargs):
-        await ws.send(json.dumps({"type": message_type, **kwargs}))
+    async def send_json(ws, message_type, **kwargs):
+        # handle both string and enum types
+        type_value = message_type.value if hasattr(message_type, 'value') else message_type
+        await ws.send(json.dumps({"type": type_value, **kwargs}))
 
     @staticmethod
     async def receive_json(ws, expected_type: str = None, expected_event: str = None):

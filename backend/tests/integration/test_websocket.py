@@ -1,32 +1,31 @@
+"""websocket endpoint integration tests"""
 import pytest
 from app.services.websocket_manager import ClientMessage, ServerMessage, ConnectionEvent
 
-
-# ---------------- WebSocket Tests ----------------
-
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestWebSocketConnection:
+    """test websocket connection and disconnection"""
     async def test_connection(self, ws_client):
-        # connect client
+        """test websocket connection establishes successfully"""
         ws = await ws_client.connect()
         msg = await ws_client.receive_json(ws)
         assert msg["type"] == ServerMessage.CONNECTION_ESTABLISHED
         assert "connection_id" in msg
 
     async def test_disconnect(self, ws_client):
-        # connect two clients
+        """test websocket disconnection notifies other clients"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
         await ws_client.receive_json(ws2)
-        # ws1 disconnects
         await ws1.close()
         msg = await ws_client.receive_json(ws2, expected_type=ServerMessage.CONNECTION_UPDATE)
         assert msg["event"] == ConnectionEvent.USER_DISCONNECTED
         assert msg["connection_id"] is not None
 
     async def test_multiple_connections(self, ws_client):
-        # connect multiple clients
+        """test multiple simultaneous websocket connections"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         ws3 = await ws_client.connect()
@@ -34,9 +33,11 @@ class TestWebSocketConnection:
             await ws_client.receive_json(ws)
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestWebSocketMessages:
+    """test websocket message handling"""
     async def test_ping_pong(self, ws_client):
-        # ping/pong
+        """test ping-pong message exchange"""
         ws = await ws_client.connect()
         await ws_client.receive_json(ws)
         await ws_client.send_json(ws, ClientMessage.PING)
@@ -44,7 +45,7 @@ class TestWebSocketMessages:
         assert msg["type"] == ServerMessage.PONG
 
     async def test_get_stats(self, ws_client):
-        # get stat
+        """test getting websocket statistics"""
         ws = await ws_client.connect()
         await ws_client.receive_json(ws)
         await ws_client.send_json(ws, ClientMessage.GET_STATS)
@@ -53,7 +54,7 @@ class TestWebSocketMessages:
         assert "data" in msg
 
     async def test_unknown_message_type(self, ws_client):
-        # send unknown message
+        """test handling of unknown message types"""
         ws = await ws_client.connect()
         await ws_client.receive_json(ws)
         await ws_client.send_json(ws, "unknown_message_type")
@@ -62,7 +63,7 @@ class TestWebSocketMessages:
         assert "unknown message type" in msg["message"]
 
     async def test_plain_text_message(self, ws_client):
-        # broadcast plain text
+        """test broadcasting plain text messages"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
@@ -73,22 +74,21 @@ class TestWebSocketMessages:
         assert msg["content"] == "Hello world!"
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestRoomNotifications:
+    """test room-based notifications"""
     async def test_room_leave_broadcast(self, ws_client):
-        # connect clients
+        """test room leave notifications are broadcast to other clients"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
         await ws_client.receive_json(ws2)
         room = "room-notify"
-        # ws1 joins room
         await ws_client.send_json(ws1, ClientMessage.JOIN_ROOM, room=room)
         await ws_client.receive_json(ws1)
-        # ws2 joins room
         await ws_client.send_json(ws2, ClientMessage.JOIN_ROOM, room=room)
         await ws_client.receive_json(ws2)
-        await ws_client.receive_json(ws1) # ws1 notified of ws2 joining
-        # ws2 leaves room
+        await ws_client.receive_json(ws1)
         await ws_client.send_json(ws2, ClientMessage.LEAVE_ROOM, room=room)
         await ws_client.receive_json(ws2)
         msg = await ws_client.receive_json(
@@ -100,11 +100,12 @@ class TestRoomNotifications:
         assert msg["room"] == room
         assert msg["connection_id"] is not None
 
-
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestRoomFunctionality:
+    """test room join and leave functionality"""
     async def test_join_leave_room(self, ws_client):
-        # join/leave room
+        """test joining and leaving a room"""
         ws = await ws_client.connect()
         await ws_client.receive_json(ws)
         await ws_client.send_json(ws, ClientMessage.JOIN_ROOM, room="room-x")
@@ -115,45 +116,44 @@ class TestRoomFunctionality:
         assert msg2["type"] == ServerMessage.ROOM_LEFT
 
     async def test_room_broadcast(self, ws_client):
-        # connect clients
+        """test broadcasting messages within a room"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
         await ws_client.receive_json(ws2)
-        # join room
         await ws_client.send_json(ws1, ClientMessage.JOIN_ROOM, room="room-a")
         await ws_client.receive_json(ws1)
         await ws_client.send_json(ws2, ClientMessage.JOIN_ROOM, room="room-a")
         await ws_client.receive_json(ws2)
-        await ws_client.receive_json(ws1) # ws1 notified
-        # broadcast in room
+        await ws_client.receive_json(ws1)
         await ws_client.send_json(ws1, ClientMessage.ROOM_BROADCAST, room="room-a", content="Hello room-a!")
         msg = await ws_client.receive_json(ws2)
         assert msg["type"] == ServerMessage.ROOM_NOTIFICATION
         assert msg["content"] == "Hello room-a!"
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestGlobalBroadcast:
+    """test global broadcast functionality"""
     async def test_broadcast(self, ws_client):
-        # connect clients
+        """test global message broadcast to all connected clients"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         ws3 = await ws_client.connect()
         for ws in [ws1, ws2, ws3]:
             await ws_client.receive_json(ws)
-        # broadcast globally
         await ws_client.send_json(ws1, ClientMessage.BROADCAST, content="Global!")
         for ws in [ws2, ws3]:
             msg = await ws_client.receive_json(ws, expected_type=ServerMessage.NOTIFICATION)
             assert msg["type"] == ServerMessage.NOTIFICATION
             assert msg["content"] == "Global!"
 
-# ---------------- HTTP Tests ----------------
-
 @pytest.mark.asyncio
+@pytest.mark.integration
 class TestHTTPEndpoints:
+    """test websocket HTTP endpoints"""
     async def test_stats(self, http_client, authenticated_user):
-        # get stats with authentication
+        """test getting websocket statistics via HTTP"""
         r = await http_client.get(
             "/api/v1/ws/stats",
             headers={"Authorization": f"Bearer {authenticated_user}"}
@@ -163,7 +163,7 @@ class TestHTTPEndpoints:
         assert data["status"] == "success"
 
     async def test_http_broadcast(self, http_client, authenticated_superuser):
-        # broadcast via HTTP (requires superuser)
+        """test HTTP broadcast endpoint requires superuser"""
         payload = {"content": "HTTP broadcast", "metadata": {"src": "test"}}
         r = await http_client.post(
             "/api/v1/ws/broadcast",
@@ -175,18 +175,16 @@ class TestHTTPEndpoints:
         assert data["status"] == "success"
 
     async def test_http_room_broadcast(self, http_client, ws_client, authenticated_superuser):
-        # Connect clients
+        """test HTTP room broadcast endpoint"""
         ws1 = await ws_client.connect()
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
         await ws_client.receive_json(ws2)
         room = "room-http"
-        # join room
         await ws_client.send_json(ws1, ClientMessage.JOIN_ROOM, room=room)
         await ws_client.receive_json(ws1)
         await ws_client.send_json(ws2, ClientMessage.JOIN_ROOM, room=room)
         await ws_client.receive_json(ws2)
-        # HTTP broadcast to room (requires superuser)
         payload = {"content": "Room HTTP broadcast", "metadata": {"src": "test"}}
         r = await http_client.post(
             f"/api/v1/ws/broadcast/room/{room}",
@@ -196,7 +194,6 @@ class TestHTTPEndpoints:
         assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
         data = r.json()
         assert data["status"] == "success"
-        # verify ws1 receives broadcast
         msg = await ws_client.receive_json(ws1, expected_type=ServerMessage.HTTP_ROOM_BROADCAST)
         assert msg["type"] == ServerMessage.HTTP_ROOM_BROADCAST
         assert msg["content"] == "Room HTTP broadcast"
