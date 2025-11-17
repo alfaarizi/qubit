@@ -35,7 +35,7 @@ Authentication infrastructure combines several specialized libraries. JWT token 
 
 SSH connectivity to remote SQUANDER simulation servers relies on Paramiko~\cite{paramiko2024}, a pure Python implementation of SSH2 protocol with SFTP support for secure file transfer. Since Paramiko operates synchronously with blocking network calls, integration with FastAPI's async architecture required wrapping SSH operations with \texttt{asyncio.run\_in\_executor()}, executing blocking I/O in dedicated worker threads while maintaining async semantics in request handlers.
 
-Development quality assurance relies on pytest~\cite{pytest2024} with \texttt{pytest-asyncio}~\cite{pytestasyncio2024} for coroutine-aware tests, while httpx~\cite{httpx2024} and Starlette's \texttt{TestClient}~\cite{starlette2024} exercise HTTP and WebSocket routes entirely in-memory. Locust~\cite{locust2024} supplies load, stress, and fuzz scenarios yielding response-time baselines for the test phase, and \texttt{python-json-logger}~\cite{pythonjsonlogger2024} emits structured logs for centralized analysis.
+Development quality assurance relies on pytest~\cite{pytest2024} with \texttt{pytest-asyncio}~\cite{pytestasyncio2024} for coroutine-aware tests, while httpx~\cite{httpx2024} and Starlette's \texttt{TestClient}~\cite{starlette2024} exercise HTTP and WebSocket routes entirely in-memory. Locust~\cite{locust2024} supplies load, stress, and fuzz scenarios yielding response-time baselines for the test phase. \texttt{python-json-logger}~\cite{pythonjsonlogger2024} emits structured logs for centralized analysis.
 
 \subsubsection{Development Toolchain}
 \label{subsubsec:impl:dev-tools}
@@ -82,7 +82,7 @@ Interactive circuit editing requires algorithms for inserting, removing, and mov
 Gate injection inserts a new gate at a specified depth while maintaining temporal consistency. The algorithm identifies which existing gates become parents (predecessors) and children (successors) of the newly injected gate based on qubit overlap and depth.
 
 \begin{algorithm}[p]
-\small
+\footnotesize
 \caption{DAG Gate Injection}
 \label{alg:dag-inject}
 \begin{algorithmic}[1]
