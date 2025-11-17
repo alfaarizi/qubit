@@ -1,6 +1,5 @@
 """database connection and operations integration tests"""
 import pytest
-from app.core.config import settings
 
 @pytest.mark.integration
 class TestMongoDBConnection:
@@ -15,19 +14,16 @@ class TestMongoDBConnection:
         assert 'version' in server_info
         assert server_info['version'] is not None
 
-    def test_database_access(self, mongo_client):
+    def test_database_access(self, db):
         """test database access"""
-        db = mongo_client[settings.MONGODB_DATABASE]
-        assert db is not None
         collections = db.list_collection_names()
         assert isinstance(collections, list)
 
 @pytest.mark.integration
 class TestMongoDBOperations:
     """test MongoDB CRUD operations"""
-    def test_insert_and_read(self, mongo_client):
+    def test_insert_and_read(self, db):
         """test insert and read operations"""
-        db = mongo_client[settings.MONGODB_DATABASE]
         collection = db['test_collection']
         test_doc = {'test': True, 'message': 'test document'}
         result = collection.insert_one(test_doc)
@@ -36,10 +32,10 @@ class TestMongoDBOperations:
         assert doc is not None
         assert doc['test'] is True
         assert doc['message'] == 'test document'
+        collection.delete_one({'_id': result.inserted_id})
 
-    def test_update_operation(self, mongo_client):
+    def test_update_operation(self, db):
         """test update operation"""
-        db = mongo_client[settings.MONGODB_DATABASE]
         collection = db['test_collection']
         result = collection.insert_one({'counter': 0})
         collection.update_one(
@@ -48,10 +44,10 @@ class TestMongoDBOperations:
         )
         doc = collection.find_one({'_id': result.inserted_id})
         assert doc['counter'] == 1
+        collection.delete_one({'_id': result.inserted_id})
 
-    def test_delete_operation(self, mongo_client):
+    def test_delete_operation(self, db):
         """test delete operation"""
-        db = mongo_client[settings.MONGODB_DATABASE]
         collection = db['test_collection']
         result = collection.insert_one({'to_delete': True})
         delete_result = collection.delete_one({'_id': result.inserted_id})

@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class UserBase(BaseModel):
     """base user schema"""
@@ -10,6 +10,14 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """schema for user registration"""
     password: str = Field(..., min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """validate password does not contain null bytes"""
+        if "\x00" in v:
+            raise ValueError("password cannot contain null bytes")
+        return v
 
 class UserLogin(BaseModel):
     """schema for user login"""

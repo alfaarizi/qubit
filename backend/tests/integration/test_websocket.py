@@ -19,7 +19,7 @@ class TestWebSocketConnection:
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
         await ws_client.receive_json(ws2)
-        await ws1.close()
+        await ws_client.close(ws1)
         msg = await ws_client.receive_json(ws2, expected_type=ServerMessage.CONNECTION_UPDATE)
         assert msg["event"] == ConnectionEvent.USER_DISCONNECTED
         assert msg["connection_id"] is not None
@@ -68,7 +68,7 @@ class TestWebSocketMessages:
         ws2 = await ws_client.connect()
         await ws_client.receive_json(ws1)
         await ws_client.receive_json(ws2)
-        await ws1.send("Hello world!")
+        await ws_client.send_text(ws1, "Hello world!")
         msg = await ws_client.receive_json(ws2)
         assert msg["type"] == ServerMessage.NOTIFICATION
         assert msg["content"] == "Hello world!"

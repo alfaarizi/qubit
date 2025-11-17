@@ -1,6 +1,5 @@
 """authentication endpoint integration tests"""
 import pytest
-from app.db import get_database
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -17,7 +16,7 @@ class TestUserRegistration:
                 "last_name": registered_user["last_name"]
             }
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, f"expected 201, got {response.status_code}: {response.text}"
         data = response.json()
         assert data["email"] == registered_user["email"]
         assert data["first_name"] == registered_user["first_name"]
@@ -272,69 +271,41 @@ class TestAuthorization:
             # this is also a valid rejection
             pass
 
-    async def test_cross_user_resource_access_denied(self, http_client):
+    async def test_cross_user_resource_access_denied(self, http_client, db):
         """test that users cannot access other users' resources"""
-        db = get_database()
+        from tests.conftest import _create_user_data, _create_user_token
         user1_email = "crossuser1@example.com"
         user2_email = "crossuser2@example.com"
         password = "testpass123"
         db.users.delete_many({"email": {"$in": [user1_email, user2_email]}})
         db.projects.delete_many({"user_id": {"$in": [user1_email, user2_email]}})
-        try:
-            await http_client.post(
-                "/api/v1/auth/register",
-                json={
-                    "email": user1_email,
-                    "password": password,
-                    "first_name": "Cross",
-                    "last_name": "User1"
-                }
-            )
-            login1 = await http_client.post(
-                "/api/v1/auth/login",
-                json={"email": user1_email, "password": password}
-            )
-            token1 = login1.json()["access_token"]
-            await http_client.post(
-                "/api/v1/auth/register",
-                json={
-                    "email": user2_email,
-                    "password": password,
-                    "first_name": "Cross",
-                    "last_name": "User2"
-                }
-            )
-            login2 = await http_client.post(
-                "/api/v1/auth/login",
-                json={"email": user2_email, "password": password}
-            )
-            token2 = login2.json()["access_token"]
-            project_response = await http_client.post(
-                "/api/v1/projects",
-                json={
-                    "name": "User 1 Private Project",
-                    "activeCircuitId": "",
-                    "circuits": []
-                },
-                headers={"Authorization": f"Bearer {token1}"}
-            )
-            project_id = project_response.json()["id"]
-            unauthorized_get = await http_client.get(
-                f"/api/v1/projects/{project_id}",
-                headers={"Authorization": f"Bearer {token2}"}
-            )
-            assert unauthorized_get.status_code == 404
-            unauthorized_update = await http_client.put(
-                f"/api/v1/projects/{project_id}",
-                json={"name": "Hacked Project"},
-                headers={"Authorization": f"Bearer {token2}"}
-            )
-            assert unauthorized_update.status_code == 404
-            unauthorized_delete = await http_client.delete(
-                f"/api/v1/projects/{project_id}",
-                headers={"Authorization": f"Bearer {token2}"}
-            )
-            assert unauthorized_delete.status_code == 404
-        finally:
-            db.users.delete_many({"email": {"$in": [user1_email, user2_email]}})
-            db.projects.delete_many({"user_id": {"$in": [user1_email, user2_email]}})
+        token1 = await _create_user_token(http_client, _create_user_data(user1_email, "Cross", "User1", password))
+        token2 = await _create_user_token(http_client, _create_user_data(user2_email, "Cross", "User2", password))
+        project_response = await http_client.post(
+            "/api/v1/projects",
+            json={
+                "name": "User 1 Private Project",
+                "activeCircuitId": "",
+                "circuits": []
+            },
+            headers={"Authorization": f"Bearer {token1}"}
+        )
+        project_id = project_response.json()["id"]
+        unauthorized_get = await http_client.get(
+            f"/api/v1/projects/{project_id}",
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        assert unauthorized_get.status_code == 404
+        unauthorized_update = await http_client.put(
+            f"/api/v1/projects/{project_id}",
+            json={"name": "Hacked Project"},
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        assert unauthorized_update.status_code == 404
+        unauthorized_delete = await http_client.delete(
+            f"/api/v1/projects/{project_id}",
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        assert unauthorized_delete.status_code == 404
+        db.users.delete_many({"email": {"$in": [user1_email, user2_email]}})
+        db.projects.delete_many({"user_id": {"$in": [user1_email, user2_email]}})

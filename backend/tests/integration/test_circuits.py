@@ -1,6 +1,5 @@
 """circuit endpoint integration tests"""
 import pytest
-from app.db import get_database
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -123,85 +122,57 @@ class TestQasmImport:
 @pytest.mark.integration
 class TestJobManagement:
     """test job management"""
-    async def test_job_ownership(self, http_client):
+    async def test_job_ownership(self, http_client, db):
         """test that users can only access their own jobs"""
-        db = get_database()
+        from tests.conftest import _create_user_data, _create_user_token
         user1_email = "jobuser1@example.com"
         user2_email = "jobuser2@example.com"
         password = "testpass123"
         circuit_id = "shared-circuit"
         db.users.delete_many({"email": {"$in": [user1_email, user2_email]}})
-        try:
-            await http_client.post(
-                "/api/v1/auth/register",
-                json={
-                    "email": user1_email,
-                    "password": password,
-                    "first_name": "Job",
-                    "last_name": "User1"
-                }
-            )
-            login1 = await http_client.post(
-                "/api/v1/auth/login",
-                json={"email": user1_email, "password": password}
-            )
-            token1 = login1.json()["access_token"]
-            await http_client.post(
-                "/api/v1/auth/register",
-                json={
-                    "email": user2_email,
-                    "password": password,
-                    "first_name": "Job",
-                    "last_name": "User2"
-                }
-            )
-            login2 = await http_client.post(
-                "/api/v1/auth/login",
-                json={"email": user2_email, "password": password}
-            )
-            token2 = login2.json()["access_token"]
-            job1_response = await http_client.post(
-                f"/api/v1/circuits/{circuit_id}/partition",
-                json={
-                    "num_qubits": 2,
-                    "placed_gates": [{"id": "g1", "name": "H", "qubits": [0]}],
-                    "measurements": []
-                },
-                headers={"Authorization": f"Bearer {token1}"}
-            )
-            job1_id = job1_response.json()["job_id"]
-            job2_response = await http_client.post(
-                f"/api/v1/circuits/{circuit_id}/partition",
-                json={
-                    "num_qubits": 2,
-                    "placed_gates": [{"id": "g1", "name": "H", "qubits": [0]}],
-                    "measurements": []
-                },
-                headers={"Authorization": f"Bearer {token2}"}
-            )
-            job2_id = job2_response.json()["job_id"]
-            access_own = await http_client.get(
-                f"/api/v1/circuits/{circuit_id}/jobs/{job1_id}",
-                headers={"Authorization": f"Bearer {token1}"}
-            )
-            assert access_own.status_code == 200
-            access_other = await http_client.get(
-                f"/api/v1/circuits/{circuit_id}/jobs/{job2_id}",
-                headers={"Authorization": f"Bearer {token1}"}
-            )
-            assert access_other.status_code == 403
-            access_own2 = await http_client.get(
-                f"/api/v1/circuits/{circuit_id}/jobs/{job2_id}",
-                headers={"Authorization": f"Bearer {token2}"}
-            )
-            assert access_own2.status_code == 200
-            access_other2 = await http_client.get(
-                f"/api/v1/circuits/{circuit_id}/jobs/{job1_id}",
-                headers={"Authorization": f"Bearer {token2}"}
-            )
-            assert access_other2.status_code == 403
-        finally:
-            db.users.delete_many({"email": {"$in": [user1_email, user2_email]}})
+        token1 = await _create_user_token(http_client, _create_user_data(user1_email, "Job", "User1", password))
+        token2 = await _create_user_token(http_client, _create_user_data(user2_email, "Job", "User2", password))
+        job1_response = await http_client.post(
+            f"/api/v1/circuits/{circuit_id}/partition",
+            json={
+                "num_qubits": 2,
+                "placed_gates": [{"id": "g1", "name": "H", "qubits": [0]}],
+                "measurements": []
+            },
+            headers={"Authorization": f"Bearer {token1}"}
+        )
+        job1_id = job1_response.json()["job_id"]
+        job2_response = await http_client.post(
+            f"/api/v1/circuits/{circuit_id}/partition",
+            json={
+                "num_qubits": 2,
+                "placed_gates": [{"id": "g1", "name": "H", "qubits": [0]}],
+                "measurements": []
+            },
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        job2_id = job2_response.json()["job_id"]
+        access_own = await http_client.get(
+            f"/api/v1/circuits/{circuit_id}/jobs/{job1_id}",
+            headers={"Authorization": f"Bearer {token1}"}
+        )
+        assert access_own.status_code == 200
+        access_other = await http_client.get(
+            f"/api/v1/circuits/{circuit_id}/jobs/{job2_id}",
+            headers={"Authorization": f"Bearer {token1}"}
+        )
+        assert access_other.status_code == 403
+        access_own2 = await http_client.get(
+            f"/api/v1/circuits/{circuit_id}/jobs/{job2_id}",
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        assert access_own2.status_code == 200
+        access_other2 = await http_client.get(
+            f"/api/v1/circuits/{circuit_id}/jobs/{job1_id}",
+            headers={"Authorization": f"Bearer {token2}"}
+        )
+        assert access_other2.status_code == 403
+        db.users.delete_many({"email": {"$in": [user1_email, user2_email]}})
 
     async def test_invalid_job_access(self, http_client, authenticated_user):
         """test accessing nonexistent job fails"""
