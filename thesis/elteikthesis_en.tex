@@ -35,6 +35,19 @@
 % Add bibliography file
 \addbibresource{elteikthesis.bib}
 
+% Define JavaScript language for listings
+\usepackage{listings}
+\lstdefinelanguage{JavaScript}{
+  keywords={const, let, var, function, return, if, else, for, while, break, continue, switch, case, default, try, catch, throw, new, this, typeof, instanceof, void, delete, in, of, async, await, class, extends, super, static, import, export, from, as, get, set},
+  ndkeywords={describe, it, expect, test, beforeEach, afterEach, cy, should, assert, toEqual, toBeNull, toBe},
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`
+}
+
 % Apply custom chapter styles
 \input{styles/chapter.tex}
 
@@ -96,13 +109,16 @@ Finally, to my classmates and friends, thank you for the countless hours spent t
 \input{en/short.tex}
 \cleardoublepage
 
+\input{en/testing.tex}
+\cleardoublepage
+
 \input{en/sum.tex}
 \cleardoublepage
 
 % Appendices (optional) - useful for detailed information in long tables, many and/or large figures, etc.
-\appendix
-\input{en/sim.tex}
-\cleardoublepage
+% \appendix
+% \input{en/sim.tex}
+% \cleardoublepage
 
 % Bibliography (mandatory)
 \phantomsection

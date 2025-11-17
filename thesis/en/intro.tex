@@ -11,7 +11,7 @@ This thesis introduces Qubit, a web-based platform designed to reconcile these c
 \section{Overview}
 \label{sec:intro:overview}
 
-Quantum circuits serve as the fundamental programming model for quantum computers. Just as classical programs compose logic gates to manipulate bits, quantum programs compose quantum gates to manipulate qubits. However, the quantum setting introduces unique challenges: qubits exist in superposition states described by complex probability amplitudes, circuits evolve according to unitary transformations, and measurement probabilistically collapses superpositions to classical outcomes. These properties make quantum circuit behavior difficult to predict without simulation.
+Quantum circuits serve as the fundamental programming model for quantum computers~\cite{nielsen2010quantum}. Just as classical programs compose logic gates to manipulate bits, quantum programs compose quantum gates to manipulate qubits. However, the quantum setting introduces unique challenges: qubits exist in superposition states described by complex probability amplitudes, circuits evolve according to unitary transformations, and measurement probabilistically collapses superpositions to classical outcomes. These properties make quantum circuit behavior difficult to predict without simulation.
 
 The computational cost of quantum simulation grows exponentially with the qubit count. Representing the state of an $n$-qubit system requires $2^n$ complex numbers, rendering direct simulation infeasible beyond approximately 30 qubits on conventional hardware. While tensor network methods and circuit partitioning algorithms can extend this limit, implementing these techniques typically requires specialized expertise and infrastructure.
 
@@ -20,7 +20,7 @@ Qubit addresses the gap between accessible visual tools and advanced simulation 
 \begin{enumerate}
     \item \textbf{Interactive frontend}: A React-based single-page application providing drag-and-drop circuit composition, real-time gate placement feedback, QASM code editing with the Monaco Editor, and responsive visualizations using D3.js and Plotly. The frontend employs Zustand for state management and Zundo middleware to maintain per-circuit undo/redo histories of up to 50 states.
 
-    \item \textbf{FastAPI backend}: A Python service managing user authentication via JWT tokens, with support for Google OAuth, Microsoft Azure AD, and email verification. The backend coordinates job submissions, maintains WebSocket connections for progress streaming, and interfaces with MongoDB for the persistent storage of user projects and circuit definitions.
+    \item \textbf{FastAPI backend}: A Python service managing user authentication via JWT tokens~\cite{rfc7519}, with support for Google OAuth~\cite{rfc6749}, Microsoft Azure AD, and email verification. The backend coordinates job submissions, maintains WebSocket connections~\cite{rfc6455} for progress streaming, and interfaces with MongoDB for the persistent storage of user projects and circuit definitions.
 
     \item \textbf{Remote simulation infrastructure}: SSH-based connectivity to SQUANDER simulation servers, with connection pooling to manage concurrent sessions, automatic file transfer for circuit definitions and results, and streaming of execution output through 11 distinct progress phases.
 \end{enumerate}
