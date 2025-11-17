@@ -35,12 +35,12 @@ Authentication infrastructure combines several specialized libraries. JWT token 
 
 SSH connectivity to remote SQUANDER simulation servers relies on Paramiko~\cite{paramiko2024}, a pure Python implementation of SSH2 protocol with SFTP support for secure file transfer. Since Paramiko operates synchronously with blocking network calls, integration with FastAPI's async architecture required wrapping SSH operations with \texttt{asyncio.run\_in\_executor()}, executing blocking I/O in dedicated worker threads while maintaining async semantics in request handlers.
 
-Development quality assurance uses pytest~\cite{pytest2024} for unit and integration testing, with httpx~\cite{httpx2024} providing async HTTP client capabilities for testing FastAPI endpoints. Structured logging uses \texttt{python-json-logger}~\cite{pythonjsonlogger2024}, producing machine-readable log entries facilitating centralized log aggregation and analysis in production environments.
+Development quality assurance relies on pytest~\cite{pytest2024} with \texttt{pytest-asyncio}~\cite{pytestasyncio2024} for coroutine-aware tests, while httpx~\cite{httpx2024} and Starlette's \texttt{TestClient}~\cite{starlette2024} exercise HTTP and WebSocket routes entirely in-memory. Locust~\cite{locust2024} supplies load, stress, and fuzz scenarios yielding response-time baselines for the test phase, and \texttt{python-json-logger}~\cite{pythonjsonlogger2024} emits structured logs for centralized analysis.
 
 \subsubsection{Development Toolchain}
 \label{subsubsec:impl:dev-tools}
 
-Version control uses Git~\cite{git2024} with a feature branch workflow and conventional commit messages, enabling clear commit history and automated changelog generation. Code quality enforcement uses ESLint~\cite{eslint2024} for JavaScript and TypeScript, catching common errors and enforcing consistent code style. UML diagrams presented in the design chapter were generated from text definitions using PlantUML~\cite{plantuml2024}, enabling version control of diagrams and reducing manual maintenance overhead. MongoDB Compass~\cite{mongodbcompass2024} provides graphical database inspection and query optimization during development, while PhpStorm~\cite{phpstorm2024} and PyCharm~\cite{pycharm2024} serve as the primary development environments for frontend and backend respectively.
+The development toolchain centers on Git~\cite{git2024} with feature branches and conventional commits, ESLint~\cite{eslint2024} enforcing shared TypeScript/JavaScript standards, and PlantUML~\cite{plantuml2024} for text-driven diagram generation. MongoDB Compass~\cite{mongodbcompass2024} handles ad-hoc data inspection, while PhpStorm~\cite{phpstorm2024} and PyCharm~\cite{pycharm2024} remain the primary IDEs for frontend and backend work.
 
 
 \subsection{Representing Circuits as DAGs}
