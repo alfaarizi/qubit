@@ -216,7 +216,7 @@ export default function AuthPage() {
               )}
               <form onSubmit={handleCodeSubmit} className="space-y-6">
                 <div className="space-y-4">
-                  <div className="flex gap-2 justify-center" onPaste={handleCodePaste}>
+                  <div className="flex gap-2 justify-center" onPaste={handleCodePaste} data-testid="code-inputs-container">
                     {code.map((digit, index) => (
                       <Input
                         key={index}
@@ -230,6 +230,7 @@ export default function AuthPage() {
                         disabled={isLoading}
                         className="w-12 h-14 text-center text-2xl font-semibold"
                         autoFocus={index === 0}
+                        data-testid={`code-input-${index}`}
                       />
                     ))}
                   </div>
@@ -237,7 +238,7 @@ export default function AuthPage() {
                     Enter the 5-digit code sent to {email}
                   </p>
                 </div>
-                <Button type="submit" disabled={isLoading || !code.every(d => d)} className="w-full h-11 cursor-pointer">
+                <Button type="submit" disabled={isLoading || !code.every(d => d)} className="w-full h-11 cursor-pointer" data-testid="verify-code-button">
                   {isLoading ? "Verifying..." : "Continue"}
                 </Button>
               </form>

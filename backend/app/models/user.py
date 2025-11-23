@@ -27,7 +27,7 @@ class User:
         self.last_name = last_name
         self.is_active = is_active
         self.is_superuser = is_superuser
-        self.oauth_provider = oauth_provider  # "google", "apple", or None for email/password
+        self.oauth_provider = oauth_provider  # "google", "microsoft", or None for email/password
         self.oauth_subject_id = oauth_subject_id  # unique ID from OAuth provider
         self.profile_url = profile_url  # profile picture URL
         self.created_at = created_at or datetime.now(timezone.utc)

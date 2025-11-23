@@ -10,6 +10,7 @@ from fastapi import status
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.db import get_database
 
 PACKAGE_TO_MODULE = {
     "pydantic-settings": "pydantic_settings",
@@ -65,11 +66,24 @@ async def health_check():
         status_str = "degraded"
         status_code = status.HTTP_200_OK
 
+    # get database info
+    try:
+        db = get_database()
+        db_name = db.name
+        db_environment = settings.ENVIRONMENT
+    except Exception as e:
+        db_name = f"ERROR: {str(e)}"
+        db_environment = settings.ENVIRONMENT
+
     return JSONResponse(
         content={
             "status": status_str,
             "message": f"{settings.PROJECT_NAME} is running{' with issues' if status_str != 'healthy' else ''}",
             "dependencies": dependencies,
+            "database": {
+                "name": db_name,
+                "environment": db_environment,
+            },
         },
         status_code=status_code,
     )

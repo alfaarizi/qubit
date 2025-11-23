@@ -1,27 +1,9 @@
+"""database connection and operations integration tests"""
 import pytest
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
-from app.core.config import settings
 
-
-@pytest.fixture
-def mongo_client():
-    """create MongoDB client and cleanup after test"""
-    client = MongoClient(
-        settings.MONGODB_URL,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000
-    )
-    yield client
-    # cleanup
-    if settings.MONGODB_DATABASE:
-        db = client[settings.MONGODB_DATABASE]
-        if 'test_collection' in db.list_collection_names():
-            db['test_collection'].drop()
-    client.close()
-
-
+@pytest.mark.integration
 class TestMongoDBConnection:
+    """test MongoDB connection"""
     def test_connection(self, mongo_client):
         """test MongoDB server connection"""
         mongo_client.admin.command('ping')
@@ -32,53 +14,43 @@ class TestMongoDBConnection:
         assert 'version' in server_info
         assert server_info['version'] is not None
 
-    def test_database_access(self, mongo_client):
+    def test_database_access(self, db):
         """test database access"""
-        db = mongo_client[settings.MONGODB_DATABASE]
-        assert db is not None
         collections = db.list_collection_names()
         assert isinstance(collections, list)
 
-
+@pytest.mark.integration
 class TestMongoDBOperations:
-    def test_insert_and_read(self, mongo_client):
+    """test MongoDB CRUD operations"""
+    def test_insert_and_read(self, db):
         """test insert and read operations"""
-        db = mongo_client[settings.MONGODB_DATABASE]
         collection = db['test_collection']
-        # insert document
         test_doc = {'test': True, 'message': 'test document'}
         result = collection.insert_one(test_doc)
         assert result.inserted_id is not None
-        # read document
         doc = collection.find_one({'_id': result.inserted_id})
         assert doc is not None
         assert doc['test'] is True
         assert doc['message'] == 'test document'
+        collection.delete_one({'_id': result.inserted_id})
 
-    def test_update_operation(self, mongo_client):
+    def test_update_operation(self, db):
         """test update operation"""
-        db = mongo_client[settings.MONGODB_DATABASE]
         collection = db['test_collection']
-        # insert document
         result = collection.insert_one({'counter': 0})
-        # update document
         collection.update_one(
             {'_id': result.inserted_id},
             {'$set': {'counter': 1}}
         )
-        # verify update
         doc = collection.find_one({'_id': result.inserted_id})
         assert doc['counter'] == 1
+        collection.delete_one({'_id': result.inserted_id})
 
-    def test_delete_operation(self, mongo_client):
+    def test_delete_operation(self, db):
         """test delete operation"""
-        db = mongo_client[settings.MONGODB_DATABASE]
         collection = db['test_collection']
-        # insert document
         result = collection.insert_one({'to_delete': True})
-        # delete document
         delete_result = collection.delete_one({'_id': result.inserted_id})
         assert delete_result.deleted_count == 1
-        # verify deletion
         doc = collection.find_one({'_id': result.inserted_id})
         assert doc is None

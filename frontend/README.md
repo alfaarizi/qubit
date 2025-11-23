@@ -1,69 +1,72 @@
-# React + TypeScript + Vite
+# Qubit Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite quantum circuit visualization and manipulation application.
 
-Currently, two official plugins are available:
+## Installation
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+## Build
+
+```bash
+npm run build
+```
+
+## Testing
+
+### Run Unit Tests
+
+```bash
+npm run test
+```
+
+### View Test UI Dashboard
+
+```bash
+npm run test:ui
+```
+
+### Generate Coverage Report
+
+```bash
+npm run test:coverage
+```
+
+## Unit Tests
+
+Run unit tests with Vitest:
+
+```bash
+npm run test          # Run all tests
+npm run test:ui       # Visual dashboard
+npm run test:coverage # Coverage report
+```
+
+Unit tests are organized by feature:
+- **stores** - Zustand state management
+- **features/gates** - Gate utilities and validation
+- **features/circuit** - Circuit store and DAG logic
+- **lib/qasm** - QASM conversion
+
+## E2E Tests
+
+Run end-to-end tests with Cypress (requires frontend server running):
+
+```bash
+npm run cy:open       # Interactive test runner
+npm run cy:run        # Headless mode
+```
+
+E2E tests cover:
+- **auth.cy.ts** - Authentication flow
+- **circuit-compose.cy.ts** - Circuit composition
+- **visualization.cy.ts** - Results visualization
+- **performance.cy.ts** - UI responsiveness
