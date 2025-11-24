@@ -31,6 +31,8 @@ export function broadcastMessage(message: Message) {
 
     if (type === 'error') {
         store.setJobError(jobId, message.message || 'Unknown error');
+    } else if (type === 'cancelled') {
+        store.dequeueJob(jobId);
     } else if (['phase', 'log', 'complete'].includes(type)) {
         const update = {
             type: type as 'phase' | 'log' | 'complete',

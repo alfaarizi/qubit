@@ -44,10 +44,12 @@ async def partition_circuit(
     active_jobs[job_id] = {
         "circuit_id": circuit_id,
         "status": "queued",
-        "user_id": str(current_user._id)
+        "user_id": str(current_user._id),
+        "job_type": "partition",
+        "task": None
     }
     logger.info(f"[partition_circuit] Received partition request for circuit {circuit_id} with job ID {job_id}")
-    asyncio.create_task(run_partition(
+    task = asyncio.create_task(run_partition(
         job_id=job_id,
         circuit_id=circuit_id,
         num_qubits=request.num_qubits,
@@ -57,6 +59,7 @@ async def partition_circuit(
         strategy=request.strategy or "kahn",
         session_id=request.session_id,
     ))
+    active_jobs[job_id]["task"] = task
     return {"job_id": job_id, "status": "queued"}
 
 @router.get("/{circuit_id}/jobs")
@@ -83,6 +86,38 @@ async def get_job(
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
     return {"job_id": job_id, **job}
 
+@router.post("/{circuit_id}/jobs/{job_id}/cancel")
+async def cancel_job(
+    circuit_id: str,
+    job_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    job = active_jobs.get(job_id)
+    if not job or job["circuit_id"] != circuit_id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.get("user_id") != str(current_user._id):
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this job")
+
+    task = job.get("task")
+    if task and not task.done():
+        task.cancel()
+        logger.info(f"[cancel_job] Cancelled job {job_id} for circuit {circuit_id}")
+        # broadcast cancellation to websocket room
+        job_type = job.get("job_type")
+        room = f"{job_type}-{job_id}"
+        await manager.broadcast_to_room(room, {
+            "type": "cancelled",
+            "job_id": job_id,
+            "circuit_id": circuit_id,
+            "message": "Job cancelled by user"
+        })
+
+    # clean up the job
+    if job_id in active_jobs:
+        del active_jobs[job_id]
+
+    return {"job_id": job_id, "status": "cancelled"}
+
 @router.post("/{circuit_id}/import-qasm")
 async def import_qasm(
     circuit_id: str,
@@ -93,17 +128,20 @@ async def import_qasm(
     active_jobs[job_id] = {
         "circuit_id": circuit_id,
         "status": "processing",
-        "user_id": str(current_user._id)
+        "user_id": str(current_user._id),
+        "job_type": "import",
+        "task": None
     }
     room = f"import-{job_id}"
     logger.info(f"[import_qasm] Received QASM import request for circuit {circuit_id} in room {room}")
-    asyncio.create_task(run_import_qasm(
+    task = asyncio.create_task(run_import_qasm(
         job_id=job_id,
         circuit_id=circuit_id,
         qasm_code=request.qasm_code,
         session_id=request.session_id,
         options=request.options,
     ))
+    active_jobs[job_id]["task"] = task
     return {"job_id": job_id, "status": "processing"}
 
 async def _wait_for_room_connection(room: str, check_interval: float = 0.1) -> None:

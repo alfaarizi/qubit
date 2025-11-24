@@ -90,6 +90,10 @@ export function deserializeGateFromAPI(
 }
 
 export const circuitsApi = {
+    cancelJob: async (circuitId: string, jobId: string): Promise<{ job_id: string; status: string }> => {
+        const { data } = await api.post(`/circuits/${circuitId}/jobs/${jobId}/cancel`);
+        return data;
+    },
     partition: async (
         circuitId: string,
         numQubits: number,
@@ -101,7 +105,6 @@ export const circuitsApi = {
             compute_density_matrix?: boolean;
             compute_entropy?: boolean;
         },
-        signal: AbortSignal,
         strategy?: string,
         sessionId?: string
     ): Promise<PartitionResponse> => {
@@ -119,8 +122,7 @@ export const circuitsApi = {
                 options,
                 strategy: strategy || 'kahn',
                 session_id: sessionId,
-            },
-            { signal }
+            }
         );
         return data;
     },

@@ -48,8 +48,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         if (!lastJsonMessage) {
             return;
         }
-        const msg = lastJsonMessage as Message;
-        console.log(`[WebSocket] New message from server:`, msg);
+        // const msg = lastJsonMessage as Message;
+        // console.log(`[WebSocket] New message from server:`, msg);
         if (lastJsonMessage && typeof lastJsonMessage === 'object' && 'type' in lastJsonMessage) {
             broadcastMessage(lastJsonMessage as Message);
             if (onMessageRef.current) {

@@ -291,7 +291,6 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     compute_density_matrix: simulationOptions.densityMatrix,
                     compute_entropy: simulationOptions.entropy,
                 },
-                new AbortController().signal,
                 partitionStrategy,
                 sessionId
             );
@@ -303,20 +302,18 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             useJobStore.getState().enqueueJob(response.job_id, circuitId);
             useJobStore.getState().setJobToastId(response.job_id, toastId);
         } catch (error) {
-            if ((error as Error).name === 'AbortError' || (error as Error).name === 'CanceledError') return;
-
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
             toast.dismiss(toastId);
-            
-            const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail 
+
+            const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
                 || (error as Error)?.message || 'Unknown error';
-            toast.error('Partition failed', { 
+            toast.error('Partition failed', {
                 description: errorMessage,
                 duration: 5000
             });
-            
+
             console.error('Partition error:', error);
         }
     }, [
@@ -344,15 +341,20 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     setIsExecuting(false);
                     setExecutionProgress(0);
                     setExecutionStatus('Aborted');
-                    
+
                     if (abortToastId.current) toast.dismiss(abortToastId.current);
                     abortToastId.current = null;
-                    
+
                     if (jobId) {
+                        // dismiss loading toast immediately
                         if (job?.toastId) toast.dismiss(job.toastId);
+                        
+                        // cancel job on backend, fire and forget
+                        circuitsApi.cancelJob(circuitId, jobId).catch(() => {});
+                        
                         useJobStore.getState().dequeueJob(jobId);
                     }
-                    
+
                     toast.error('Execution aborted');
                 },
             },
@@ -367,7 +369,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             },
             classNames: { actionButton: 'bg-red-600 hover:bg-red-700 text-white' },
         });
-    }, [isExecuting, jobId, job?.toastId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
+    }, [isExecuting, jobId, circuitId, job?.toastId, setIsExecuting, setExecutionProgress, setExecutionStatus]);
 
     const handleClear = useCallback(() => {
         reset({
