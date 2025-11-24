@@ -59,11 +59,9 @@ const CanvasExecutionOverlay = memo(function CanvasExecutionOverlay() {
     if (!isExecuting) return null;
 
     return (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 pointer-events-none">
-            <div className="flex items-center justify-center h-full">
-                <div className="text-muted-foreground text-sm font-medium">
-                    {executionStatus || 'Executing circuit...'}
-                </div>
+        <div className="absolute top-0 left-0 w-full h-full bg-background/80 backdrop-blur-sm z-50 pointer-events-none flex items-center justify-center">
+            <div className="text-muted-foreground text-sm font-medium">
+                {executionStatus || 'Executing circuit...'}
             </div>
         </div>
     );
@@ -87,8 +85,10 @@ function CircuitTabContent() {
 
     return (
         <>
-            <div className={`h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'} relative`}>
-                <CircuitCanvas />
+            <div className="h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 relative">
+                <div className={`h-full ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
+                    <CircuitCanvas />
+                </div>
                 <CanvasExecutionOverlay />
             </div>
             <CircuitTags />
