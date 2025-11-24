@@ -20,6 +20,7 @@ export default function AuthPage() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [code, setCode] = useState(["", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     clearError();
@@ -30,6 +31,15 @@ export default function AuthPage() {
       navigate("/project");
     }
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      googleButtonRef.current?.querySelectorAll('iframe').forEach(iframe => {
+        iframe.style.width = '100%';
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -157,7 +167,7 @@ export default function AuthPage() {
                 )}
                 <div className="grid grid-cols-1 @[400px]:grid-cols-2 gap-3 @container">
                   <div className={`relative w-full ${isLoading ? 'opacity-50' : ''}`}>
-                    <div className="google-login-wrapper">
+                    <div className="google-login-wrapper" ref={googleButtonRef}>
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => {
