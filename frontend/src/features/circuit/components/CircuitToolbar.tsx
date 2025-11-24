@@ -59,6 +59,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const setNumQubits = useCircuitStore((state) => state.setNumQubits);
     const setMeasurements = useCircuitStore((state) => state.setMeasurements);
+    const setTags = useCircuitStore((state) => state.setTags);
     const reset = useCircuitStore((state) => state.reset);
 
     // Subscribe to version to ensure re-renders on every job store update
@@ -86,6 +87,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const executionStartTimeRef = useRef<number | null>(null);
     const lastProgressRef = useRef<number>(0);
     const prevJobIdRef = useRef<string | null>(null);
+    const importedFilenameRef = useRef<string | null>(null);
 
     // Reset refs when job ID changes
     if (jobId !== prevJobIdRef.current) {
@@ -169,6 +171,12 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             setMeasurements(Array(numQubitsValue).fill(true));
             setPlacedGates([], { skipHistory: true });
 
+            // Add import tag
+            if (importedFilenameRef.current) {
+                setTags([`Imported: ${importedFilenameRef.current}`]);
+                importedFilenameRef.current = null;
+            }
+
             const deserializedGates: (Gate | Circuit)[] = gates.map((gateData: unknown) =>
                 deserializeGateFromAPI({ depth: 0, ...(gateData as Record<string, unknown>) } as SerializedGate)
             );
@@ -189,7 +197,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         };
 
         void constructGates();
-    }, [job, setPlacedGates, setNumQubits, setMeasurements, batchInjectGates]);
+    }, [job, setPlacedGates, setNumQubits, setMeasurements, setTags, batchInjectGates]);
 
     // Clean up abort toast when execution stops
     useEffect(() => {
@@ -216,6 +224,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
 
         processedUpdatesCount.current = 0;
         executionStartTimeRef.current = null;
+        importedFilenameRef.current = file.name;
 
         const toastId = toast.loading(`Importing ${file.name}...`);
 
@@ -365,6 +374,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             placedGates: [],
             numQubits,
             measurements: measurements.map(() => true),
+            tags: [],
             showNestedCircuit,
             isExecuting: false,
             executionProgress: 0,

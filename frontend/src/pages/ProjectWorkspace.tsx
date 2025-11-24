@@ -18,7 +18,7 @@ export default function ProjectWorkspace() {
     const { projectName, circuits, activeCircuitId, setProjectName, setActiveCircuitId, reorderCircuits } = useComposerStore();
 
     const isInitializedRef = useRef(false);
-    const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // load projects from backend
     useEffect(() => {
@@ -49,6 +49,10 @@ export default function ProjectWorkspace() {
                 store.getState().setNumQubits(circuit.numQubits);
                 store.getState().setMeasurements(Array(circuit.numQubits).fill(true));
             }
+            // hydrate tags
+            if (circuit.tags && circuit.tags.length > 0) {
+                store.getState().setTags(circuit.tags);
+            }
             // hydrate results
             if (circuit.results) {
                 void setCircuitResults(circuit.id, circuit.results);
@@ -70,6 +74,7 @@ export default function ProjectWorkspace() {
                 ...circuit,
                 gates: state.placedGates.map(serializeGateForAPI),
                 numQubits: state.numQubits,
+                tags: state.tags,
                 results: results || circuit.results,
             };
         });

@@ -20,7 +20,8 @@ import { toast } from "sonner";
 import { GatesPanel } from "@/features/gates/components/GatesPanel"
 import { CircuitProvider, useCircuitStore, getOrCreateCircuitStore } from "@/features/circuit/store/CircuitStoreContext";
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
-import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas"
+import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas";
+import { CircuitTags } from "@/features/circuit/components/CircuitTags";
 import { CIRCUIT_CONFIG } from "@/features/circuit/constants";
 import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
@@ -90,6 +91,7 @@ function CircuitTabContent() {
                 <CircuitCanvas />
                 <CanvasExecutionOverlay />
             </div>
+            <CircuitTags />
             <div className="mt-4">
                 <ResultsPanel
                     circuitId={activeCircuitId || ''}

@@ -285,7 +285,7 @@ export function CircuitCanvas() {
             {draggableGate && cursorPos && !isExecuting && (
                 <GateIcon
                     item={'circuit' in draggableGate ? draggableGate.circuit : draggableGate.gate}
-                    className="fixed pointer-events-none z-50"
+                    className="fixed pointer-events-none z-[70]"
                     style={{
                         left: 'gate' in draggableGate && draggableGate.gate.numControlQubits + draggableGate.gate.numTargetQubits === 1
                             ? cursorPos.x - dragOffset.x

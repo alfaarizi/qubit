@@ -74,6 +74,7 @@ export const useComposerStore = create<ComposerState>()(
                     name: c.name,
                     numQubits: c.numQubits,
                     gates: c.gates,
+                    tags: c.tags,
                     metadata: c.metadata,
                     // exclude results to save storage space
                 })),

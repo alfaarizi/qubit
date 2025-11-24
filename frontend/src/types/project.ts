@@ -6,6 +6,7 @@ export interface CircuitInfo {
   name: string;
   numQubits: number;
   gates: SerializedGate[];
+  tags?: string[];
   metadata?: Record<string, unknown>;
   results?: SimulationResults;
 }

@@ -13,6 +13,7 @@ interface CircuitState {
     placedGates: (Gate | Circuit)[];
     numQubits: number;
     measurements: boolean[];
+    tags: string[];
     showNestedCircuit: boolean;
     isExecuting: boolean;
     executionProgress: number;
@@ -24,6 +25,9 @@ interface CircuitActions {
     setPlacedGates: (gates: (Gate | Circuit)[] | ((prev: (Gate | Circuit)[]) => (Gate | Circuit)[]), options?: { skipHistory?: boolean }) => void;
     setNumQubits: (qubits: number | ((prev: number) => number)) => void;
     setMeasurements: (measurements: boolean[] | ((prev: boolean[]) => boolean[])) => void;
+    setTags: (tags: string[] | ((prev: string[]) => string[])) => void;
+    addTag: (tag: string) => void;
+    removeTag: (tag: string) => void;
     setShowNestedCircuit: (show: boolean | ((prev: boolean) => boolean)) => void;
     setIsExecuting: (isExecuting: boolean) => void;
     setExecutionProgress: (progress: number) => void;
@@ -45,6 +49,7 @@ const initialState: CircuitState = {
     placedGates: [],
     numQubits: CIRCUIT_CONFIG.defaultNumQubits,
     measurements: Array(CIRCUIT_CONFIG.defaultNumQubits).fill(true),
+    tags: [],
     showNestedCircuit: false,
     isExecuting: false,
     executionProgress: 0,
@@ -77,6 +82,18 @@ const createCircuitStore = (circuitId: string) => {
                         set((state) => ({
                             measurements: typeof measurements === 'function' ? measurements(state.measurements) : measurements,
                         })),
+                    setTags: (tags) =>
+                        set((state) => ({
+                            tags: typeof tags === 'function' ? tags(state.tags) : tags,
+                        })),
+                    addTag: (tag) =>
+                        set((state) => ({
+                            tags: state.tags.includes(tag) ? state.tags : [...state.tags, tag],
+                        })),
+                    removeTag: (tag) =>
+                        set((state) => ({
+                            tags: state.tags.filter(t => t !== tag),
+                        })),
                     setShowNestedCircuit: (show) =>
                         set((state) => ({
                             showNestedCircuit: typeof show === 'function' ? show(state.showNestedCircuit) : show,
@@ -91,6 +108,7 @@ const createCircuitStore = (circuitId: string) => {
                                 placedGates: state.placedGates,
                                 numQubits: state.numQubits,
                                 measurements: state.measurements,
+                                tags: state.tags,
                                 showNestedCircuit: state.showNestedCircuit,
                                 isExecuting: state.isExecuting,
                                 executionProgress: state.executionProgress,

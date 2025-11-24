@@ -95,6 +95,7 @@ class CircuitInfo(BaseModel):
     name: str
     numQubits: int
     gates: List[SerializedGate] = []
+    tags: List[str] = []
     metadata: Optional[Dict[str, Union[str, int, float, bool]]] = None
     results: Optional[SimulationResults] = None
 
