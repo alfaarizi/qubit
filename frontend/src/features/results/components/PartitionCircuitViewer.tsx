@@ -3,8 +3,10 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
+import { useCircuitDAG } from '@/features/circuit/hooks/useCircuitDAG';
 import { deserializeGateFromAPI } from '@/lib/api/circuits';
 import { GATE_CONFIG } from '@/features/gates/constants';
+import { getMaxDepth } from '@/features/gates/utils';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import type { Gate } from '@/features/gates/types';
 import type { Partition } from '@/types';
@@ -33,6 +35,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
 
     const svgRef = useRef<SVGSVGElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const { batchInjectGates } = useCircuitDAG();
 
     const globalQubits = useMemo(() => {
         const qubitSet = new Set<number>();
@@ -45,67 +48,54 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
         globalQubits.forEach((global, local) => { map[global] = local; });
         return map;
     }, [globalQubits]);
-    
+
     const sequentialCircuit = useMemo((): CircuitData => {
-        let allGates: Gate[] = [];
-        let currentDepth = 0;
+        const allGates: Gate[] = [];
         const boundaries: PartitionBoundary[] = [];
+        let offset = 0;
 
-        partitions.forEach((partition) => {
-            const start = currentDepth;
-            const qubitMap: Record<number, number> = {};
-            partition.qubits.forEach((global) => { qubitMap[global] = globalQubitMap[global]; });
-
-            partition.gates.forEach((gateData) => {
-                const gate = deserializeGateFromAPI({
-                    id: gateData.id,
-                    depth: currentDepth,
-                    gate: { name: gateData.name },
-                    target_qubits: gateData.target_qubits.map((q: number) => qubitMap[q]),
-                    control_qubits: gateData.control_qubits.map((q: number) => qubitMap[q]),
+        for (const partition of partitions) {
+            const gates = batchInjectGates(partition.gates.map((g) =>
+                deserializeGateFromAPI({
+                    id: g.id,
+                    depth: 0,
+                    gate: { name: g.name },
+                    target_qubits: g.target_qubits.map(q => globalQubitMap[q]),
+                    control_qubits: g.control_qubits.map(q => globalQubitMap[q]),
                     parameters: [],
-                }) as Gate;
+                }) as Gate
+            )) as Gate[];
 
-                allGates.push(gate);
-                currentDepth += 1;
-            });
+            const depth = getMaxDepth(gates);
+            allGates.push(...gates.map(g => ({ ...g, depth: g.depth + offset })));
+            boundaries.push({ index: partition.index, start: offset, end: offset + depth });
+            offset += depth;
+        }
 
-            boundaries.push({ index: partition.index, start, end: currentDepth });
-        });
-
-        return { gates: allGates, maxDepth: currentDepth, boundaries };
-    }, [partitions, globalQubitMap]);
+        return { gates: allGates, maxDepth: offset, boundaries };
+    }, [partitions, globalQubitMap, batchInjectGates]);
 
     const individualCircuit = useMemo((): CircuitData => {
         const partition = partitions.find(p => p.index === selectedIndex) || partitions[0];
         if (!partition) return { gates: [], maxDepth: 1 };
 
-        const qubitMap: Record<number, number> = {};
-        partition.qubits.forEach((global) => { qubitMap[global] = globalQubitMap[global]; });
-
-        let currentDepth = 0;
-        const gates: Gate[] = partition.gates.map((gateData) => {
-            const gate = deserializeGateFromAPI({
-                id: gateData.id,
-                depth: currentDepth,
-                gate: { name: gateData.name },
-                target_qubits: gateData.target_qubits.map((q: number) => qubitMap[q]),
-                control_qubits: gateData.control_qubits.map((q: number) => qubitMap[q]),
+        const gates = batchInjectGates(partition.gates.map((g) =>
+            deserializeGateFromAPI({
+                id: g.id,
+                depth: 0,
+                gate: { name: g.name },
+                target_qubits: g.target_qubits.map(q => globalQubitMap[q]),
+                control_qubits: g.control_qubits.map(q => globalQubitMap[q]),
                 parameters: [],
-            }) as Gate;
+            }) as Gate
+        )) as Gate[];
 
-            currentDepth += 1;
-            return gate;
-        });
+        return { gates, maxDepth: Math.max(getMaxDepth(gates), 1) };
+    }, [partitions, selectedIndex, globalQubitMap, batchInjectGates]);
 
-        return { gates, maxDepth: currentDepth };
-    }, [partitions, selectedIndex, globalQubitMap]);
-    
     const circuit = viewMode === 'sequential' ? sequentialCircuit : individualCircuit;
-
     const canvasWidth = Math.max(circuit.maxDepth * GATE_CONFIG.gateSpacing + 100, 400);
     const canvasHeight = globalQubits.length * GATE_CONFIG.qubitSpacing + CIRCUIT_CONFIG.headerHeight + CIRCUIT_CONFIG.footerHeight;
-    // CircuitCanvas fits 5 qubits at 385px
     const maxHeight = Math.min(canvasHeight, 385);
 
     const selectedPartition = useMemo(
@@ -118,7 +108,6 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
         const avgGatesPerPartition = totalGates / partitions.length;
         const maxGatesInPartition = Math.max(...partitions.map(p => p.num_gates));
         const efficiency = maxPartitionSize ? (avgGatesPerPartition / maxPartitionSize) * 100 : 0;
-
         return { totalGates, avgGatesPerPartition, maxGatesInPartition, efficiency };
     }, [partitions, maxPartitionSize]);
 
@@ -136,21 +125,28 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
     });
 
     useEffect(() => {
-        if (viewMode !== 'sequential' || !scrollAreaRef.current || !sequentialCircuit.boundaries) return;
-
-        const boundary = sequentialCircuit.boundaries.find(b => b.index === selectedIndex);
-        if (!boundary) return;
-
+        if (!scrollAreaRef.current) return;
         const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-        if (viewport) {
-            viewport.scrollTo({ left: boundary.start * GATE_CONFIG.gateSpacing - 50, behavior: 'smooth' });
+        const container = scrollAreaRef.current.closest('.overflow-y-auto') as HTMLElement;
+        if (!viewport || !container) return;
+
+        const partition = partitions.find(p => p.index === selectedIndex);
+        const minQubit = partition?.qubits.length ? Math.min(...partition.qubits) : 0;
+        const topOffset = globalQubitMap[minQubit] * GATE_CONFIG.qubitSpacing;
+
+        if (viewMode === 'sequential') {
+            const boundary = sequentialCircuit.boundaries?.find(b => b.index === selectedIndex);
+            viewport.scrollTo({ left: boundary ? boundary.start * GATE_CONFIG.gateSpacing - 50 : 0, behavior: 'smooth' });
+        } else {
+            viewport.scrollTo({ left: 0, behavior: 'smooth' });
         }
-    }, [selectedIndex, viewMode, sequentialCircuit.boundaries]);
+        container.scrollTo({ top: topOffset, behavior: 'smooth' });
+    }, [selectedIndex, viewMode, sequentialCircuit.boundaries, partitions, globalQubitMap]);
 
     if (partitions.length === 0) return null;
+
     return (
         <div className="bg-muted border rounded-lg">
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <div>
                     <h3 className="text-sm font-semibold">Partition Viewer</h3>
@@ -170,10 +166,8 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 </Tabs>
             </div>
 
-            {/* Circuit Canvas */}
             <div className="bg-card/95 border-t border-border/50 overflow-y-auto" style={{ maxHeight }}>
                 <div className="flex px-4">
-                    {/* Qubit Labels */}
                     <div className="flex flex-col mr-4 shrink-0">
                         <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
                         {globalQubits.map((globalQubit) => (
@@ -188,7 +182,6 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                         <div style={{ height: CIRCUIT_CONFIG.footerHeight }} />
                     </div>
 
-                    {/* SVG Circuit with Horizontal Scroll */}
                     <div className="flex-1 overflow-x-auto">
                         <ScrollArea ref={scrollAreaRef} className="h-full">
                             <div className="relative" style={{ height: canvasHeight }}>
@@ -227,7 +220,6 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 </div>
             </div>
 
-            {/* Partition Selection */}
             <div className="px-4 pt-3 border-t bg-muted/30">
                 <ScrollArea className="w-full">
                     <div className="flex gap-2 pb-2">
@@ -251,7 +243,6 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 </ScrollArea>
             </div>
 
-            {/* Statistics */}
             {maxPartitionSize && (
                 <div className="grid grid-cols-3 gap-4 px-4 py-2.5 border-t bg-muted/30">
                     <div className="flex flex-col">
