@@ -20,7 +20,6 @@ export default function AuthPage() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [code, setCode] = useState(["", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     clearError();
@@ -31,15 +30,6 @@ export default function AuthPage() {
       navigate("/project");
     }
   }, [isAuthenticated, navigate]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      googleButtonRef.current?.querySelectorAll('iframe').forEach(iframe => {
-        iframe.style.width = '100%';
-      });
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -165,9 +155,9 @@ export default function AuthPage() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <div className="grid grid-cols-1 @[400px]:grid-cols-2 gap-3 @container">
-                  <div className={`relative w-full ${isLoading ? 'opacity-50' : ''}`}>
-                    <div className="google-login-wrapper" ref={googleButtonRef}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`relative overflow-hidden max-w-full ${isLoading ? 'opacity-50' : ''}`}>
+                    <div className="max-w-full overflow-hidden">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => {
@@ -183,14 +173,14 @@ export default function AuthPage() {
                   </div>
                   <button
                     type="button"
-                    className="h-[40px] bg-white border border-[#dadce0] rounded hover:bg-[#f7f8f8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full relative flex items-center justify-center font-['Roboto',arial,sans-serif]"
+                    className="h-[40px] bg-white border border-[#dadce0] rounded hover:bg-[#f7f8f8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors relative flex items-center justify-center font-['Roboto',arial,sans-serif] px-4 overflow-hidden"
                     disabled={isLoading}
                     onClick={handleMicrosoftLogin}
                   >
-                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] absolute left-3 pointer-events-none">
+                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] mr-2 flex-shrink-0">
                       <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z" fill="#00A4EF"/>
                     </svg>
-                    <span className="text-[14px] font-medium text-[#3c4043] whitespace-nowrap pl-[18px] tracking-[0.25px]">Sign in with Microsoft</span>
+                    <span className="text-[14px] font-medium text-[#3c4043] whitespace-nowrap tracking-[0.25px] overflow-hidden text-ellipsis">Sign in with Microsoft</span>
                   </button>
                 </div>
                 <FieldSeparator>Or</FieldSeparator>
