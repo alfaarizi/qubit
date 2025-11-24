@@ -156,15 +156,18 @@ export default function AuthPage() {
                   </Alert>
                 )}
                 <div className="grid grid-cols-1 @[400px]:grid-cols-2 gap-3 @container">
-                  <div className={`relative ${isLoading ? 'opacity-50' : ''}`}>
-                    <GoogleLogin
-                      onSuccess={handleGoogleSuccess}
-                      onError={() => {
-                        console.error('Google Login Error occurred');
-                        clearError();
-                      }}
-                      size="large"
-                    />
+                  <div className={`relative w-full ${isLoading ? 'opacity-50' : ''}`}>
+                    <div className="w-full">
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => {
+                          console.error('Google Login Error occurred');
+                          clearError();
+                        }}
+                        size="large"
+                        width="100%"
+                      />
+                    </div>
                     {isLoading && (
                       <div className="absolute inset-0 cursor-not-allowed" />
                     )}
