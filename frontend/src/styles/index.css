@@ -126,7 +126,15 @@
 }
 
 /* Google OAuth button full-width fix */
+.google-login-wrapper {
+  width: 100% !important;
+  display: block !important;
+}
+
 .google-login-wrapper > div,
+.google-login-wrapper > div > div,
 .google-login-wrapper iframe {
   width: 100% !important;
+  max-width: 100% !important;
+  min-width: 100% !important;
 }
