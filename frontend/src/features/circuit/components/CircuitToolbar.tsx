@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { circuitsApi, deserializeGateFromAPI } from "@/lib/api/circuits";
 import { useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { useJobStore } from "@/stores/jobStore";
+import { useResultsStore } from "@/stores/resultsStore";
 import { useCircuitDAG } from "@/features/circuit/hooks/useCircuitDAG";
 import type { Gate } from "@/features/gates/types";
 import type { Circuit } from "@/features/circuit/types";
@@ -43,7 +44,7 @@ interface CircuitToolbarProps {
 
 export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const svgRef = useCircuitSvgRef();
-    const { circuits } = useComposer();
+    const { circuits, addNewCircuit } = useComposer();
     const circuitId = useCircuitId();
     const circuit = circuits.find(c => c.id === circuitId);
 
@@ -72,6 +73,28 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
     const { batchInjectGates } = useCircuitDAG();
+    const results = useResultsStore((state) => state.results[circuitId]);
+
+    // Build available diagrams from simulation results
+    const availableDiagrams = React.useMemo(() => {
+        if (!results) return [];
+
+        const diagramConfig: Array<{ id: string; label: string; plotId: string; group: string; condition: boolean }> = [
+            { id: 'partition-distribution', label: 'Partition Distribution', plotId: 'plot-partition-distribution', group: 'partition', condition: !!results.partition_info?.partitions?.length },
+            { id: 'probability-comparison', label: 'Probability Comparison', plotId: 'plot-probability-comparison', group: 'probability', condition: !!(results.original?.probabilities && results.partitioned?.probabilities) },
+            { id: 'measurement-original', label: 'Measurement (Original)', plotId: 'plot-measurement-original', group: 'measurement', condition: !!results.original?.counts },
+            { id: 'measurement-partitioned', label: 'Measurement (Partitioned)', plotId: 'plot-measurement-partitioned', group: 'measurement', condition: !!results.partitioned?.counts },
+            { id: 'state-vector-original', label: 'State Vector (Original)', plotId: 'plot-state-vector-original', group: 'state-vector', condition: !!results.original?.state_vector },
+            { id: 'state-vector-partitioned', label: 'State Vector (Partitioned)', plotId: 'plot-state-vector-partitioned', group: 'state-vector', condition: !!results.partitioned?.state_vector },
+            { id: 'density-matrix-original', label: 'Density Matrix (Original)', plotId: 'plot-density-matrix-original', group: 'density-matrix', condition: !!results.original?.density_matrix },
+            { id: 'density-matrix-partitioned', label: 'Density Matrix (Partitioned)', plotId: 'plot-density-matrix-partitioned', group: 'density-matrix', condition: !!results.partitioned?.density_matrix },
+            { id: 'entropy-scaling', label: 'Entropy Scaling', plotId: 'plot-entropy-scaling', group: 'entropy', condition: !!(results.original?.entropy_scaling || results.partitioned?.entropy_scaling) },
+        ];
+
+        return diagramConfig
+            .filter(d => d.condition)
+            .map(({ id, label, plotId, group }) => ({ id, label, plotId, group }));
+    }, [results]);
 
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
@@ -394,6 +417,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         }));
     }, []);
 
+
     return (
         <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-testid="circuit-toolbar">
             <div className="flex items-center gap-1 shrink-0">
@@ -413,13 +437,10 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                        <DropdownMenuItem>New Circuit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={addNewCircuit}>New Circuit</DropdownMenuItem>
                         <DropdownMenuItem data-testid="import-qasm-button" onClick={() => fileInputRef.current?.click()}>
                             Import from QASM
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>Save</DropdownMenuItem>
-                        <DropdownMenuItem>Save As...</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
@@ -617,7 +638,14 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             </div>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center shrink-0">
-                <CircuitExportButton svgRef={svgRef} numQubits={numQubits} placedGates={placedGates} />
+                <CircuitExportButton
+                    svgRef={svgRef}
+                    numQubits={numQubits}
+                    placedGates={placedGates}
+                    measurements={measurements}
+                    availableDiagrams={availableDiagrams}
+                    hasPartitions={!!(results?.partition_info?.partitions?.length)}
+                />
             </div>
         </div>
     );

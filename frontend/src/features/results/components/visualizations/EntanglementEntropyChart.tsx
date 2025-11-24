@@ -11,11 +11,13 @@ interface EntropyData {
 interface EntanglementEntropyChartProps {
     entropyOriginal: EntropyData[];
     entropyPartitioned: EntropyData[];
+    plotId?: string;
 }
 
 export const EntanglementEntropyChart = memo(function EntanglementEntropyChart({
     entropyOriginal,
-    entropyPartitioned
+    entropyPartitioned,
+    plotId
 }: EntanglementEntropyChartProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -150,6 +152,7 @@ export const EntanglementEntropyChart = memo(function EntanglementEntropyChart({
         <Card>
             <CardContent className="p-4">
                 <Plot
+                    divId={plotId}
                     data={data}
                     layout={layout}
                     config={config}

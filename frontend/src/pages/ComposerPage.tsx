@@ -22,11 +22,10 @@ import { CircuitProvider, useCircuitStore, getOrCreateCircuitStore } from "@/fea
 import { CircuitToolbar } from "@/features/circuit/components/CircuitToolbar";
 import { CircuitCanvas } from "@/features/circuit/components/CircuitCanvas";
 import { CircuitTags } from "@/features/circuit/components/CircuitTags";
-import { CIRCUIT_CONFIG } from "@/features/circuit/constants";
 import { GateProperties } from "@/features/inspector/components/GateProperties";
 import { QasmEditor } from "@/features/inspector/components/QasmEditor"
 import { ResultsPanel } from "@/features/results/components/ResultsPanel";
-import type { PartitionInfo, SimulationResults } from "@/types";
+import type {CircuitInfo, PartitionInfo, SimulationResults} from "@/types";
 import { ComposerProvider, useComposer } from "@/features/composer/ComposerStoreContext.tsx";
 import { InspectorProvider } from "@/features/inspector/InspectorContext";
 import { useJobStore } from "@/stores/jobStore";
@@ -104,7 +103,7 @@ function CircuitTabContent() {
 }
 
 interface SortableTabTriggerProps {
-    circuit: any;
+    circuit: CircuitInfo;
     activeCircuitId: string;
     onClose: () => void;
     onUpdateName: (id: string, name: string) => void;
@@ -161,7 +160,7 @@ function SortableTabTrigger({ circuit, activeCircuitId, onClose, onUpdateName }:
 }
 
 function ComposerContent() {
-    const { circuits, activeCircuitId, setActiveCircuitId, addCircuit, removeCircuit, updateCircuit, reorderCircuits } = useComposer()
+    const { circuits, activeCircuitId, setActiveCircuitId, addNewCircuit, removeCircuit, updateCircuit, reorderCircuits } = useComposer()
     const inspectorRef = useRef<ImperativePanelHandle>(null)
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true)
     const [isAnimDelayed, setIsAnimDelayed] = useState(false)
@@ -289,21 +288,7 @@ function ComposerContent() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => {
-                                                const nums = circuits.map(c => {
-                                                    const match = c.name.match(/Circuit\s*(\d+)/);
-                                                    return match ? parseInt(match[1]) : NaN;
-                                                }).filter(n => !isNaN(n)).sort((a, b) => a - b);
-                                                let next = 1;
-                                                for (const n of nums) if (n === next) next++; else break;
-                                                const circuitName = circuits.length === 0 ? 'Circuit' : `Circuit ${next}`;
-                                                addCircuit({
-                                                    id: `circuit-${crypto.randomUUID()}`,
-                                                    name: circuitName,
-                                                    numQubits: CIRCUIT_CONFIG.defaultNumQubits,
-                                                    gates: [],
-                                                });
-                                            }}
+                                            onClick={addNewCircuit}
                                             className='absolute right-0.5 bg-zinc-200 dark:bg-zinc-900 hover:!bg-muted !p-0 !m-0'
                                             data-testid="add-circuit-tab-button"
                                         >

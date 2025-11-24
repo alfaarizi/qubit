@@ -133,6 +133,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                 partitions={partitions}
                                 strategy={partitionStrategy}
                                 maxPartitionSize={maxPartitionSize}
+                                plotId="plot-partition-distribution"
                             />
                         </div>
                     )}
@@ -150,6 +151,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                     <MeasurementHistogram
                                         counts={originalCounts}
                                         title="Original Circuit - Measurement Distribution"
+                                        plotId="plot-measurement-original"
                                     />
                                 </div>
                             )}
@@ -158,6 +160,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                     <MeasurementHistogram
                                         counts={partitionedCounts}
                                         title="Partitioned Circuit - Measurement Distribution"
+                                        plotId="plot-measurement-partitioned"
                                     />
                                 </div>
                             )}
@@ -170,6 +173,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                             <ProbabilityComparison
                                 probabilitiesOriginal={originalProbs}
                                 probabilitiesPartitioned={partitionedProbs}
+                                plotId="plot-probability-comparison"
                             />
                         </div>
                     )}
@@ -187,6 +191,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                     <StateVectorVisualization
                                         stateVector={originalStateVector}
                                         title="Original Circuit - State Vector Amplitudes"
+                                        plotId="plot-state-vector-original"
                                     />
                                 </div>
                             )}
@@ -195,6 +200,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                     <StateVectorVisualization
                                         stateVector={partitionedStateVector}
                                         title="Partitioned Circuit - State Vector Amplitudes"
+                                        plotId="plot-state-vector-partitioned"
                                     />
                                 </div>
                             )}
@@ -209,6 +215,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                     <DensityMatrixHeatmap
                                         densityMatrix={originalDensity}
                                         title="Original Circuit - Density Matrix"
+                                        plotId="plot-density-matrix-original"
                                     />
                                 </div>
                             )}
@@ -217,6 +224,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                     <DensityMatrixHeatmap
                                         densityMatrix={partitionedDensity}
                                         title="Partitioned Circuit - Density Matrix"
+                                        plotId="plot-density-matrix-partitioned"
                                     />
                                 </div>
                             )}
@@ -232,6 +240,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                         <EntanglementEntropyChart
                             entropyOriginal={originalEntropy || []}
                             entropyPartitioned={partitionedEntropy || []}
+                            plotId="plot-entropy-scaling"
                         />
                     </div>
                 </div>

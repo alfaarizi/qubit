@@ -7,12 +7,14 @@ interface ProbabilityComparisonProps {
     probabilitiesOriginal: number[];
     probabilitiesPartitioned: number[];
     maxStates?: number;
+    plotId?: string;
 }
 
 export const ProbabilityComparison = memo(function ProbabilityComparison({
     probabilitiesOriginal,
     probabilitiesPartitioned,
-    maxStates = 16
+    maxStates = 16,
+    plotId
 }: ProbabilityComparisonProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -138,6 +140,7 @@ export const ProbabilityComparison = memo(function ProbabilityComparison({
         <Card>
             <CardContent className="p-4">
                 <Plot
+                    divId={plotId}
                     data={data}
                     layout={layout}
                     config={config}

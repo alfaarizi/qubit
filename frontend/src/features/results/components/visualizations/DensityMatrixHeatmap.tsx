@@ -9,9 +9,10 @@ interface DensityMatrixHeatmapProps {
         imag: number[][] | null;
     };
     title: string;
+    plotId?: string;
 }
 
-export const DensityMatrixHeatmap = memo(function DensityMatrixHeatmap({ densityMatrix, title }: DensityMatrixHeatmapProps) {
+export const DensityMatrixHeatmap = memo(function DensityMatrixHeatmap({ densityMatrix, title, plotId }: DensityMatrixHeatmapProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -122,6 +123,7 @@ export const DensityMatrixHeatmap = memo(function DensityMatrixHeatmap({ density
         <Card>
             <CardContent className="p-4">
                 <Plot
+                    divId={plotId}
                     data={data}
                     layout={layout}
                     config={config}

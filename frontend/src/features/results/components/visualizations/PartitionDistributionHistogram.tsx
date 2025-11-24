@@ -8,12 +8,14 @@ interface PartitionDistributionHistogramProps {
     partitions: Partition[];
     strategy: string;
     maxPartitionSize: number;
+    plotId?: string;
 }
 
 export const PartitionDistributionHistogram = memo(function PartitionDistributionHistogram({
     partitions,
     strategy,
-    maxPartitionSize
+    maxPartitionSize,
+    plotId
 }: PartitionDistributionHistogramProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -143,6 +145,7 @@ export const PartitionDistributionHistogram = memo(function PartitionDistributio
         <Card>
             <CardContent className="p-4">
                 <Plot
+                    divId={plotId}
                     data={data}
                     layout={layout}
                     config={config}

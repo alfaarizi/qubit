@@ -7,9 +7,10 @@ interface MeasurementHistogramProps {
     counts: Record<string, number>;
     title: string;
     maxBars?: number;
+    plotId?: string;
 }
 
-export const MeasurementHistogram = memo(function MeasurementHistogram({ counts, title, maxBars = 20 }: MeasurementHistogramProps) {
+export const MeasurementHistogram = memo(function MeasurementHistogram({ counts, title, maxBars = 20, plotId }: MeasurementHistogramProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -87,6 +88,7 @@ export const MeasurementHistogram = memo(function MeasurementHistogram({ counts,
         <Card>
             <CardContent className="p-4">
                 <Plot
+                    divId={plotId}
                     data={data}
                     layout={layout}
                     config={config}

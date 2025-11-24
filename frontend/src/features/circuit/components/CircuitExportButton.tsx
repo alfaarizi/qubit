@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { getMaxDepth } from '@/features/gates/utils'
 import * as d3 from 'd3';
+import { toast } from 'sonner';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +9,10 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Download, ChevronDown } from "lucide-react";
 
@@ -15,15 +20,26 @@ import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import { GATE_CONFIG } from '@/features/gates/constants';
-import {getInvolvedQubits} from "@/features/gates/utils.ts";
+import { getInvolvedQubits } from "@/features/gates/utils.ts";
+import { getQASMWithMetadata } from '@/lib/qasm/converter';
+
+export interface DiagramInfo {
+    id: string;
+    label: string;
+    plotId: string;
+    group: string;
+}
 
 interface CircuitExportButtonProps {
     svgRef: React.RefObject<SVGSVGElement | null>;
     numQubits: number;
     placedGates: (Gate | Circuit)[];
+    measurements: boolean[];
+    availableDiagrams?: DiagramInfo[];
+    hasPartitions?: boolean;
 }
 
-export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitExportButtonProps) {
+export function CircuitExportButton({ svgRef, numQubits, placedGates, measurements, availableDiagrams = [], hasPartitions = false }: CircuitExportButtonProps) {
     const { defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight} = CIRCUIT_CONFIG;
     const { gateSpacing } = GATE_CONFIG;
 
@@ -35,128 +51,282 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
         return `${date}_${time}`;
     };
 
-    const prepareSVG = useCallback(() => {
-        if (!svgRef.current) return null;
+    const prepareSVG = useCallback((sourceElement?: SVGSVGElement) => {
+        // Use provided element or default to main circuit SVG
+        const sourceRef = sourceElement || svgRef.current;
+        if (!sourceRef) return null;
 
-        const svg = d3.select(svgRef.current.cloneNode(true) as SVGSVGElement);
+        const svg = d3.select(sourceRef.cloneNode(true) as SVGSVGElement);
 
-        const maxDepth = placedGates.length > 0 ? getMaxDepth(placedGates) + 1 : defaultMaxDepth;
-        const maxQubits = placedGates.length > 0 ? Math.max(...placedGates.flatMap(g => getInvolvedQubits(g))) + 1 : numQubits;
-        const trimmedWidth = maxDepth * gateSpacing;
-
+        // Remove preview elements
         svg.selectAll('[data-preview="true"]').remove();
+
+        // Handle background elements
         svg.selectAll('.fill-background').attr('fill', 'white').attr('class', null);
 
-        // add qubit labels
-        for (let i = 0; i < maxQubits; i++) {
-            svg.append('text')
-                .attr('x', qubitLabelWidth / 2)
-                .attr('y', i * gateSpacing + gateSpacing / 2 + headerHeight)
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'middle')
-                .attr('font-family', 'monospace')
-                .attr('font-size', '14px')
-                .attr('fill', 'black')
-                .text(`q[${i}]`);
-        }
+        // Handle circuit lines
+        svg.selectAll('.circuit-line')
+            .attr('stroke', '#e5e7eb')
+            .attr('stroke-width', 2);
 
-        // trim circuit lines and remove unused qubits
-        svg.selectAll('.circuit-line').each(function(_, i) {
-            if (i >= maxQubits) {
-                d3.select(this).remove();
-            } else {
-                d3.select(this)
-                    .attr('x1', qubitLabelWidth)
-                    .attr('x2', qubitLabelWidth + trimmedWidth)
-                    .attr('stroke', '#e5e7eb')
-                    .attr('stroke-width', 2);
+        // Ensure text is black
+        svg.selectAll('text')
+            .attr('fill', 'black');
+
+        // If this is the main circuit (has gates), add labels and adjust layout
+        if (!sourceElement && placedGates.length > 0) {
+            const maxDepth = getMaxDepth(placedGates) + 1;
+            const maxQubits = Math.max(...placedGates.flatMap(g => getInvolvedQubits(g))) + 1;
+            const trimmedWidth = maxDepth * gateSpacing;
+
+            // add qubit labels
+            for (let i = 0; i < maxQubits; i++) {
+                svg.append('text')
+                    .attr('x', qubitLabelWidth / 2)
+                    .attr('y', i * gateSpacing + gateSpacing / 2 + headerHeight)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'middle')
+                    .attr('font-family', 'monospace')
+                    .attr('font-size', '14px')
+                    .attr('fill', 'black')
+                    .text(`q[${i}]`);
             }
-        });
 
-        // Translate gate and circuit groups to account for qubit labels
-        svg.selectAll('.gates-group, .circuits-group, .labels-group, .circuit-backgrounds-group')
-            .attr('transform', `translate(${qubitLabelWidth}, 0)`);
+            // trim circuit lines and remove unused qubits
+            svg.selectAll('.circuit-line').each(function(_, i) {
+                if (i >= maxQubits) {
+                    d3.select(this).remove();
+                } else {
+                    d3.select(this)
+                        .attr('x1', qubitLabelWidth)
+                        .attr('x2', qubitLabelWidth + trimmedWidth);
+                }
+            });
 
-        // adjust depth markers
-        svg.selectAll('.depth-marker').each(function() {
-            const marker = d3.select(this);
-            const x = parseFloat(marker.attr('x') || '0');
-            marker.attr('x', x + qubitLabelWidth)
-                .attr('y', maxQubits * gateSpacing + footerHeight / 2 + headerHeight)
-                .attr('font-size', '12px')
-                .attr('font-family', 'monospace')
-                .attr('fill', '#6b7280');
-            (this as SVGElement).removeAttribute('class');
-        });
+            // Translate gate and circuit groups to account for qubit labels
+            svg.selectAll('.gates-group, .circuits-group, .labels-group, .circuit-backgrounds-group')
+                .attr('transform', `translate(${qubitLabelWidth}, 0)`);
 
-        const totalWidth = trimmedWidth + qubitLabelWidth + gateSpacing / 4
-        const totalHeight = maxQubits * gateSpacing + footerHeight + headerHeight;
+            // adjust depth markers
+            svg.selectAll('.depth-marker').each(function() {
+                const marker = d3.select(this);
+                const x = parseFloat(marker.attr('x') || '0');
+                marker.attr('x', x + qubitLabelWidth)
+                    .attr('y', maxQubits * gateSpacing + footerHeight / 2 + headerHeight)
+                    .attr('font-size', '12px')
+                    .attr('font-family', 'monospace')
+                    .attr('fill', '#6b7280');
+                (this as SVGElement).removeAttribute('class');
+            });
 
-        svg.attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`)
-            .attr('width', totalWidth)
-            .attr('height', totalHeight);
+            const totalWidth = trimmedWidth + qubitLabelWidth + gateSpacing / 4
+            const totalHeight = maxQubits * gateSpacing + footerHeight + headerHeight;
+
+            svg.attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`)
+                .attr('width', totalWidth)
+                .attr('height', totalHeight);
+        } else if (sourceElement) {
+            // for partition circuit - add partition boundaries and labels
+            const bbox = sourceElement.getBoundingClientRect();
+            const width = Math.max(sourceElement.clientWidth || 0, bbox.width, 400);
+            const height = Math.max(sourceElement.clientHeight || 0, bbox.height, 300);
+
+            // get partition data from parent container
+            const container = sourceElement.parentElement as HTMLElement;
+            const boundariesData = container?.dataset.partitionBoundaries;
+            const partitionMapData = container?.dataset.partitionMap;
+
+            if (boundariesData && partitionMapData) {
+                type PartitionData = { index: number; num_gates: number };
+                type BoundaryData = { index: number; start: number; end: number };
+
+                const boundaries = JSON.parse(boundariesData) as BoundaryData[];
+                const partitions = new Map(
+                    (JSON.parse(partitionMapData) as PartitionData[]).map(p => [p.index, p])
+                );
+                const boundariesGroup = svg.append('g').attr('class', 'partition-boundaries');
+
+                boundaries.forEach((boundary) => {
+                    const left = boundary.start * gateSpacing;
+                    const boundaryWidth = (boundary.end - boundary.start) * gateSpacing;
+                    const partition = partitions.get(boundary.index);
+
+                    boundariesGroup.append('rect')
+                        .attr('x', left)
+                        .attr('y', 0)
+                        .attr('width', boundaryWidth)
+                        .attr('height', height)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#9ca3af')
+                        .attr('stroke-width', 2)
+                        .attr('stroke-dasharray', '5,5')
+                        .attr('opacity', 0.3);
+
+                    boundariesGroup.append('rect')
+                        .attr('x', left + 8)
+                        .attr('y', 8)
+                        .attr('width', 60)
+                        .attr('height', 24)
+                        .attr('rx', 4)
+                        .attr('fill', '#f3f4f6')
+                        .attr('opacity', 0.9);
+
+                    const labelText = `P${boundary.index}${partition ? ` ${partition.num_gates}g` : ''}`;
+                    boundariesGroup.append('text')
+                        .attr('x', left + 38)
+                        .attr('y', 24)
+                        .attr('text-anchor', 'middle')
+                        .attr('font-family', 'system-ui, -apple-system, sans-serif')
+                        .attr('font-size', '12px')
+                        .attr('font-weight', '600')
+                        .attr('fill', '#6b7280')
+                        .text(labelText);
+                });
+            }
+
+            svg.attr('viewBox', `0 0 ${width} ${height}`)
+                .attr('width', width)
+                .attr('height', height);
+        }
 
         return svg.node()!;
     }, [svgRef, numQubits, placedGates, gateSpacing, defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight]);
 
-    const exportAsSVG = useCallback(() => {
-        if (!svgRef.current) return;
-        const node = prepareSVG();
-        if (!node) return;
+    const exportCircuit = useCallback((format: 'svg' | 'png', isPartition: boolean = false) => {
+        let sourceElement: SVGSVGElement | null = null;
 
-        const blob = new Blob([new XMLSerializer().serializeToString(node)], { type: 'image/svg+xml;charset=utf-8' });
+        // Get the appropriate SVG element
+        if (isPartition) {
+            const partitionViewerContainer = document.querySelector('[data-testid="results-partition-viewer"]');
+            if (!partitionViewerContainer) {
+                toast.error('Failed to export partition circuit', {
+                    description: 'Partition circuit not found. Please ensure the partition viewer is visible.'
+                });
+                return;
+            }
+            sourceElement = partitionViewerContainer.querySelector('svg');
+            if (!sourceElement) {
+                toast.error('Failed to export partition circuit', {
+                    description: 'Partition SVG not found.'
+                });
+                return;
+            }
+        }
+
+        const node = prepareSVG(sourceElement || undefined);
+        if (!node) {
+            toast.error(`Failed to export ${isPartition ? 'partition ' : ''}circuit`);
+            return;
+        }
+
+        const circuitType = isPartition ? 'partition_circuit' : 'circuit';
+        const svgString = new XMLSerializer().serializeToString(node);
+
+        if (format === 'svg') {
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${circuitType}_${getTimestamp()}.svg`;
+            link.click();
+            URL.revokeObjectURL(url);
+            if (isPartition) toast.success('Partition circuit exported as SVG');
+        } else {
+            // Create a properly encoded data URL for better browser compatibility
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            const img = new window.Image();
+
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const MAX_DIMENSION = 16384;
+                    const scale = Math.min(2, MAX_DIMENSION / img.width, MAX_DIMENSION / img.height);
+
+                    canvas.width = Math.floor(img.width * scale);
+                    canvas.height = Math.floor(img.height * scale);
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        URL.revokeObjectURL(url);
+                        toast.error('Failed to create canvas for PNG export');
+                        return;
+                    }
+
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    canvas.toBlob(pngBlob => {
+                        if (!pngBlob) {
+                            toast.error('Failed to generate PNG');
+                            return;
+                        }
+                        const pngUrl = URL.createObjectURL(pngBlob);
+                        const link = document.createElement('a');
+                        link.href = pngUrl;
+                        link.download = `${circuitType}_${getTimestamp()}.png`;
+                        link.click();
+                        URL.revokeObjectURL(pngUrl);
+                        if (isPartition) toast.success('Partition circuit exported as PNG');
+                    }, 'image/png');
+
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    URL.revokeObjectURL(url);
+                    console.error('PNG export error:', error);
+                    toast.error('Failed to convert to PNG', {
+                        description: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                }
+            };
+
+            img.onerror = (error) => {
+                URL.revokeObjectURL(url);
+                console.error('Image load error:', error);
+                toast.error('Failed to load SVG for PNG conversion', {
+                    description: 'SVG could not be loaded as an image'
+                });
+            };
+
+            img.src = url;
+        }
+    }, [prepareSVG]);
+
+    const exportDiagram = useCallback(async (plotId: string, format: 'svg' | 'png', label: string) => {
+        const graphDiv = document.getElementById(plotId);
+        if (!graphDiv) return;
+        try {
+            // access Plotly from window (attached by react-plotly.js)
+            const Plotly = (window as unknown as { Plotly: { toImage: (gd: HTMLElement, opts: object) => Promise<string> } }).Plotly;
+            if (!Plotly?.toImage) {
+                console.error('Plotly not available on window');
+                return;
+            }
+            const dataUrl = await Plotly.toImage(graphDiv, {
+                format,
+                width: 1200,
+                height: 800,
+                scale: 2,
+            });
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `${label.toLowerCase().replace(/\s+/g, '-')}_${getTimestamp()}.${format}`;
+            link.click();
+        } catch (error) {}
+    }, []);
+
+    const exportAsQASM = useCallback(() => {
+        const qasmData = getQASMWithMetadata(numQubits, placedGates, measurements);
+        const blob = new Blob([qasmData.code], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `circuit_${getTimestamp()}.svg`;
+        link.download = `circuit_${getTimestamp()}.qasm`;
         link.click();
         URL.revokeObjectURL(url);
-    }, [prepareSVG, svgRef]);
-
-    const exportAsPNG = useCallback(() => {
-        const node = prepareSVG();
-        if (!node) return;
-
-        const blob = new Blob([new XMLSerializer().serializeToString(node)], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const scale = 2;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                URL.revokeObjectURL(url);
-                return;
-            }
-
-            ctx.scale(scale, scale);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-
-            canvas.toBlob(pngBlob => {
-                if (!pngBlob) return;
-                const pngUrl = URL.createObjectURL(pngBlob);
-                const link = document.createElement('a');
-                link.href = pngUrl;
-                link.download = `circuit_${getTimestamp()}.png`;
-                link.click();
-                URL.revokeObjectURL(pngUrl);
-            });
-
-            URL.revokeObjectURL(url);
-        };
-
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-        };
-
-        img.src = url;
-    }, [prepareSVG]);
+    }, [numQubits, placedGates, measurements]);
 
     return (
         <DropdownMenu>
@@ -167,11 +337,60 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates }: CircuitE
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportAsSVG}>
-                    Export as SVG
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportAsPNG}>
-                    Export as PNG
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                        Export as SVG
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => exportCircuit('svg', false)}>
+                            Original Circuit
+                        </DropdownMenuItem>
+                        {hasPartitions && (
+                            <DropdownMenuItem onClick={() => exportCircuit('svg', true)}>
+                                Partitioned Circuit
+                            </DropdownMenuItem>
+                        )}
+                        {availableDiagrams.length > 0 && <DropdownMenuSeparator />}
+                        {availableDiagrams.map((diagram, index) => (
+                            <React.Fragment key={`svg-${diagram.id}`}>
+                                {index > 0 && diagram.group !== availableDiagrams[index - 1].group && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                    onClick={() => exportDiagram(diagram.plotId, 'svg', diagram.label)}
+                                >
+                                    {diagram.label}
+                                </DropdownMenuItem>
+                            </React.Fragment>
+                        ))}
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                        Export as PNG
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => exportCircuit('png', false)}>
+                            Original Circuit
+                        </DropdownMenuItem>
+                        {hasPartitions && (
+                            <DropdownMenuItem onClick={() => exportCircuit('png', true)}>
+                                Partitioned Circuit
+                            </DropdownMenuItem>
+                        )}
+                        {availableDiagrams.length > 0 && <DropdownMenuSeparator />}
+                        {availableDiagrams.map((diagram, index) => (
+                            <React.Fragment key={`png-${diagram.id}`}>
+                                {index > 0 && diagram.group !== availableDiagrams[index - 1].group && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                    onClick={() => exportDiagram(diagram.plotId, 'png', diagram.label)}
+                                >
+                                    {diagram.label}
+                                </DropdownMenuItem>
+                            </React.Fragment>
+                        ))}
+                    </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuItem onClick={exportAsQASM}>
+                    Export as QASM
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

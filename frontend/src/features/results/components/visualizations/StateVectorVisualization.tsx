@@ -7,12 +7,14 @@ interface StateVectorVisualizationProps {
     stateVector: number[][];
     title: string;
     maxAmplitudes?: number;
+    plotId?: string;
 }
 
 export const StateVectorVisualization = memo(function StateVectorVisualization({
     stateVector,
     title,
-    maxAmplitudes = 32
+    maxAmplitudes = 32,
+    plotId
 }: StateVectorVisualizationProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -156,6 +158,7 @@ export const StateVectorVisualization = memo(function StateVectorVisualization({
         <Card>
             <CardContent className="p-4">
                 <Plot
+                    divId={plotId}
                     data={data}
                     layout={layout}
                     config={config}

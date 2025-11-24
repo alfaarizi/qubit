@@ -226,7 +226,12 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
 
                     <div className="flex-1 overflow-x-auto">
                         <ScrollArea ref={scrollAreaRef} className="h-full">
-                            <div className="relative" style={{ height: canvasHeight }}>
+                            <div
+                                className="relative"
+                                style={{ height: canvasHeight }}
+                                data-partition-boundaries={viewMode === 'sequential' ? JSON.stringify(sequentialCircuit.boundaries) : undefined}
+                                data-partition-map={JSON.stringify(Array.from(partitionMap.entries()).map(([k, v]) => ({ index: k, num_gates: v.num_gates })))}
+                            >
                                 <svg
                                     ref={svgRef}
                                     style={{ display: 'block', minWidth: canvasWidth, height: canvasHeight }}
