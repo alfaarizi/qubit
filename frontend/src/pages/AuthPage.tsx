@@ -157,7 +157,7 @@ export default function AuthPage() {
                 )}
                 <div className="grid grid-cols-1 @[400px]:grid-cols-2 gap-3 @container">
                   <div className={`relative w-full ${isLoading ? 'opacity-50' : ''}`}>
-                    <div className="w-full [&_iframe]:!w-full">
+                    <div className="w-full [&>div]:!w-full [&_iframe]:!w-full">
                       <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => {
