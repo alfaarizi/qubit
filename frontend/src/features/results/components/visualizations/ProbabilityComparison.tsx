@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
@@ -9,7 +9,7 @@ interface ProbabilityComparisonProps {
     maxStates?: number;
 }
 
-export function ProbabilityComparison({
+export const ProbabilityComparison = memo(function ProbabilityComparison({
     probabilitiesOriginal,
     probabilitiesPartitioned,
     maxStates = 16
@@ -147,4 +147,4 @@ export function ProbabilityComparison({
             </CardContent>
         </Card>
     );
-}
+});

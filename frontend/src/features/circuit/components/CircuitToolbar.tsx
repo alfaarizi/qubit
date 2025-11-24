@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useCallback, useState, startTransition } from 'react';
-import { Undo2, Redo2, Trash2, Play, ChevronDown, FolderOpen, Eye, EyeOff, Square, Loader2 } from 'lucide-react';
+import { Undo2, Redo2, Trash2, Play, ChevronDown, FolderOpen, Eye, EyeOff, Square, Loader2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
@@ -60,8 +61,12 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const setMeasurements = useCircuitStore((state) => state.setMeasurements);
     const reset = useCircuitStore((state) => state.reset);
 
-    const queue = useJobStore((state) => state.queue);
-    const job = Array.from(queue.values()).find(j => j.circuitId === circuitId);
+    // Subscribe to version to ensure re-renders on every job store update
+    const job = useJobStore((state) => {
+        void state.version;
+        const jobs = Array.from(state.queue.values());
+        return jobs.find(j => j.circuitId === circuitId);
+    });
     const jobId = job?.jobId || null;
 
     const { undo, redo, canUndo, canRedo } = useCircuitHistory();
@@ -71,11 +76,24 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const [partitionStrategy, setPartitionStrategy] = useState<string>('kahn');
     const [maxPartitionSize, setMaxPartitionSize] = useState<number>(4);
     const [simulationTimeout, setSimulationTimeout] = useState<number>(0);
+    const [simulationOptions, setSimulationOptions] = useState({
+        densityMatrix: false,
+        entropy: false,
+    });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const abortToastId = useRef<string | number | null>(null);
     const processedUpdatesCount = useRef(0);
     const executionStartTimeRef = useRef<number | null>(null);
     const lastProgressRef = useRef<number>(0);
+    const prevJobIdRef = useRef<string | null>(null);
+
+    // Reset refs when job ID changes
+    if (jobId !== prevJobIdRef.current) {
+        prevJobIdRef.current = jobId;
+        processedUpdatesCount.current = 0;
+        executionStartTimeRef.current = null;
+        lastProgressRef.current = 0;
+    }
 
     // Sync execution state with job status
     useEffect(() => {
@@ -260,7 +278,9 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                 measurements,
                 {
                     max_partition_size: maxPartitionSize,
-                    simulation_timeout: simulationTimeout > 0 ? simulationTimeout : undefined
+                    simulation_timeout: simulationTimeout > 0 ? simulationTimeout : undefined,
+                    compute_density_matrix: simulationOptions.densityMatrix,
+                    compute_entropy: simulationOptions.entropy,
                 },
                 new AbortController().signal,
                 partitionStrategy,
@@ -292,8 +312,8 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         }
     }, [
         placedGates, circuit, circuitId, numQubits, measurements,
-        jobId, maxPartitionSize, partitionStrategy, sessionId, simulationTimeout,
-        setIsExecuting, setExecutionProgress, setExecutionStatus
+        maxPartitionSize, partitionStrategy, sessionId, simulationOptions,
+        simulationTimeout, setIsExecuting, setExecutionProgress, setExecutionStatus, jobId
     ]);
 
     const handleAbortClick = useCallback(() => {
@@ -352,6 +372,13 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             partitionJobId: null,
         });
     }, [reset, numQubits, measurements, showNestedCircuit]);
+
+    const toggleSimulationOption = useCallback((option: keyof typeof simulationOptions) => {
+        setSimulationOptions(prev => ({
+            ...prev,
+            [option]: !prev[option]
+        }));
+    }, []);
 
     return (
         <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-testid="circuit-toolbar">
@@ -498,6 +525,75 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             </div>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-1 shrink-0">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button data-testid="simulation-options-button" disabled={isExecuting} className="p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Simulation options">
+                            <Settings className="h-6 w-6 text-muted-foreground hover:text-foreground transition-colors" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Simulation Options</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <div className="px-2 py-1.5">
+                            <div className="flex items-center space-x-2 py-1.5">
+                                <Checkbox
+                                    id="option-fidelity"
+                                    checked={true}
+                                    disabled={true}
+                                    data-testid="option-fidelity"
+                                />
+                                <label
+                                    htmlFor="option-fidelity"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                    Fidelity Calculation
+                                </label>
+                            </div>
+                            <div className="flex items-center space-x-2 py-1.5">
+                                <Checkbox
+                                    id="option-state-vector"
+                                    checked={true}
+                                    disabled={true}
+                                    data-testid="option-state-vector"
+                                />
+                                <label
+                                    htmlFor="option-state-vector"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                    State Vector & Probabilities
+                                </label>
+                            </div>
+                            <div className="flex items-center space-x-2 py-1.5">
+                                <Checkbox
+                                    id="option-density-matrix"
+                                    checked={simulationOptions.densityMatrix}
+                                    onCheckedChange={() => toggleSimulationOption('densityMatrix')}
+                                    data-testid="option-density-matrix"
+                                />
+                                <label
+                                    htmlFor="option-density-matrix"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                    Density Matrices
+                                </label>
+                            </div>
+                            <div className="flex items-center space-x-2 py-1.5">
+                                <Checkbox
+                                    id="option-entropy"
+                                    checked={simulationOptions.entropy}
+                                    onCheckedChange={() => toggleSimulationOption('entropy')}
+                                    data-testid="option-entropy"
+                                />
+                                <label
+                                    htmlFor="option-entropy"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                    Entropy Analysis (Rényi)
+                                </label>
+                            </div>
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <Button data-testid="run-circuit-button" size="icon" disabled={isExecuting} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
                     {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
                 </Button>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
@@ -9,7 +9,7 @@ interface StateVectorVisualizationProps {
     maxAmplitudes?: number;
 }
 
-export function StateVectorVisualization({
+export const StateVectorVisualization = memo(function StateVectorVisualization({
     stateVector,
     title,
     maxAmplitudes = 32
@@ -165,4 +165,4 @@ export function StateVectorVisualization({
             </CardContent>
         </Card>
     );
-}
+});

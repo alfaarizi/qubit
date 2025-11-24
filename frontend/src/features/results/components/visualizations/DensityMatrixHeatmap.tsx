@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
@@ -11,7 +11,7 @@ interface DensityMatrixHeatmapProps {
     title: string;
 }
 
-export function DensityMatrixHeatmap({ densityMatrix, title }: DensityMatrixHeatmapProps) {
+export const DensityMatrixHeatmap = memo(function DensityMatrixHeatmap({ densityMatrix, title }: DensityMatrixHeatmapProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -131,4 +131,4 @@ export function DensityMatrixHeatmap({ densityMatrix, title }: DensityMatrixHeat
             </CardContent>
         </Card>
     );
-}
+});

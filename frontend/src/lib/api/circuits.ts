@@ -95,7 +95,12 @@ export const circuitsApi = {
         numQubits: number,
         placedGates: (Gate | Circuit)[],
         measurements: boolean[],
-        options: { max_partition_size?: number; simulation_timeout?: number },
+        options: {
+            max_partition_size?: number;
+            simulation_timeout?: number;
+            compute_density_matrix?: boolean;
+            compute_entropy?: boolean;
+        },
         signal: AbortSignal,
         strategy?: string,
         sessionId?: string

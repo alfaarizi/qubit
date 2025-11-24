@@ -108,12 +108,22 @@ class SquanderClient:
                 "hostname": settings.SQUANDER_SSH_HOST,
                 "username": settings.SQUANDER_SSH_USER,
                 "timeout": 30,
+                "banner_timeout": 30,
+                "auth_timeout": 30,
             }
             if settings.SSH_KEY_PATH:
                 key_path = Path(settings.SSH_KEY_PATH).expanduser()
                 connect_kwargs["key_filename"] = str(key_path)
             self.ssh_client.connect(**connect_kwargs)
+
+            # configure keepalive to prevent connection drops
+            transport = self.ssh_client.get_transport()
+            if transport:
+                transport.set_keepalive(30)  # Send keepalive every 30 seconds
+
             self.sftp_client = self.ssh_client.open_sftp()
+            # set SFTP channel timeout
+            self.sftp_client.get_channel().settimeout(120)  # 2 minute timeout for SFTP operations
             self.is_connected = True
         except Exception as e:
             if self.ssh_client:
@@ -270,17 +280,30 @@ class SquanderClient:
         except Exception as e:
             raise SquanderExecutionError(f"Upload failed: {e}") from e
 
-    async def download_file(self, remote_path: str, local_path: str) -> None:
-        """Download file from remote server"""
+    async def download_file(self, remote_path: str, local_path: str, max_retries: int = 3) -> None:
+        """download file from remote server with retry logic"""
         if not self.is_connected:
             raise SSHConnectionError("Not connected")
-        try:
-            def _download():
-                self.sftp_client.get(remote_path, local_path)
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(_io_pool, _download)
-        except Exception as e:
-            raise SquanderExecutionError(f"Download failed: {e}") from e
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(_io_pool, lambda: self.sftp_client.get(remote_path, local_path))
+                return
+            except Exception as e:
+                last_error = e
+                retryable = any(x in str(e).lower() for x in ["garbage", "reset", "pipe", "timeout", "eof"])
+                if retryable and attempt < max_retries - 1:
+                    logger.warning(f"download attempt {attempt + 1} failed: {e}, retrying...")
+                    await asyncio.sleep(attempt + 1)
+                    try:
+                        self.sftp_client = self.ssh_client.open_sftp()
+                        self.sftp_client.get_channel().settimeout(120)
+                    except Exception:
+                        pass
+                else:
+                    break
+        raise SquanderExecutionError(f"Download failed: {last_error}") from last_error
 
     async def run_partition(
         self,
@@ -332,6 +355,8 @@ class SquanderClient:
             yield {"type": "phase", "phase": "building", "message": "Building and partitioning circuit...", "progress": 5}
             max_partition_size = options.get("max_partition_size", 4)
             simulation_timeout = options.get("simulation_timeout")
+            compute_density_matrix = options.get("compute_density_matrix", False)
+            compute_entropy = options.get("compute_entropy", False)
 
             logger.info(f"[run_partition] Received simulation_timeout: {simulation_timeout} (type: {type(simulation_timeout)})")
 
@@ -347,6 +372,12 @@ class SquanderClient:
             if simulation_timeout and simulation_timeout > 0:
                 partition_cmd += f" --timeout {simulation_timeout}"
                 logger.info(f"[run_partition] Command with timeout: {partition_cmd}")
+
+            # Add simulation options
+            if not compute_density_matrix:
+                partition_cmd += " --skip-density-matrix"
+            if not compute_entropy:
+                partition_cmd += " --skip-entropy"
 
             async for update in self.stream_command_output(partition_cmd):
                 yield update

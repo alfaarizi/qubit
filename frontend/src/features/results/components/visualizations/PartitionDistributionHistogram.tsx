@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
@@ -10,7 +10,7 @@ interface PartitionDistributionHistogramProps {
     maxPartitionSize: number;
 }
 
-export function PartitionDistributionHistogram({
+export const PartitionDistributionHistogram = memo(function PartitionDistributionHistogram({
     partitions,
     strategy,
     maxPartitionSize
@@ -152,4 +152,4 @@ export function PartitionDistributionHistogram({
             </CardContent>
         </Card>
     );
-}
+});

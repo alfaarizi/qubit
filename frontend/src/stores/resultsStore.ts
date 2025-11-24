@@ -15,7 +15,10 @@ export const useResultsStore = create<ResultsState>((set, get) => ({
         set((state) => ({
             results: {
                 ...state.results,
-                [circuitId]: results,
+                [circuitId]: {
+                    ...results,
+                    timestamp: results.timestamp || Date.now(),
+                },
             },
         }));
     },

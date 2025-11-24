@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
@@ -9,7 +9,7 @@ interface MeasurementHistogramProps {
     maxBars?: number;
 }
 
-export function MeasurementHistogram({ counts, title, maxBars = 20 }: MeasurementHistogramProps) {
+export const MeasurementHistogram = memo(function MeasurementHistogram({ counts, title, maxBars = 20 }: MeasurementHistogramProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -96,4 +96,4 @@ export function MeasurementHistogram({ counts, title, maxBars = 20 }: Measuremen
             </CardContent>
         </Card>
     );
-}
+});

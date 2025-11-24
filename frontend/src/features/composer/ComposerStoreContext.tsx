@@ -65,6 +65,19 @@ export const useComposerStore = create<ComposerState>()(
         }),
         {
             name: 'project-storage',
+            partialize: (state) => ({
+                projectName: state.projectName,
+                activeCircuitId: state.activeCircuitId,
+                // only persist essential circuit info, exclude large data like results
+                circuits: state.circuits.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    numQubits: c.numQubits,
+                    gates: c.gates,
+                    metadata: c.metadata,
+                    // exclude results to save storage space
+                })),
+            }),
         }
     )
 );

@@ -78,7 +78,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
     }
 
     return (
-        <div className="space-y-4" data-testid="results-panel">
+        <div className="space-y-6" data-testid="results-panel">
             {/* Header with Summary Stats */}
             <Card className="border-border/50 bg-gradient-to-br from-card/95 to-card/80 backdrop-blur" data-testid="results-summary-card">
                 <CardHeader>
@@ -115,131 +115,127 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                 </CardHeader>
             </Card>
 
-            <div className="p-4" data-testid="results-partition-section">
-                {/* Partition Circuit Viewer */}
-                {partitions && partitions.length > 0 && (
+            {/* Partition Section */}
+            {(partitions && partitions.length > 0) && (
+                <div className="space-y-6" data-testid="results-partition-section">
+                    {/* Partition Circuit Viewer */}
                     <div data-testid="results-partition-viewer">
                         <PartitionCircuitViewer
                             partitions={partitions}
                             maxPartitionSize={maxPartitionSize}
                         />
                     </div>
-                )}
 
-                {/* Partition Distribution Analysis */}
-                {partitions && partitionStrategy && maxPartitionSize && (
-                    <div data-testid="results-partition-histogram">
-                        <PartitionDistributionHistogram
-                            partitions={partitions}
-                            strategy={partitionStrategy}
-                            maxPartitionSize={maxPartitionSize}
+                    {/* Partition Distribution Analysis */}
+                    {partitionStrategy && maxPartitionSize && (
+                        <div data-testid="results-partition-histogram">
+                            <PartitionDistributionHistogram
+                                partitions={partitions}
+                                strategy={partitionStrategy}
+                                maxPartitionSize={maxPartitionSize}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Measurements Section */}
+            {(originalCounts || partitionedCounts || (originalProbs && partitionedProbs)) && (
+                <div className="space-y-6" data-testid="results-measurements-section">
+                    {/* Measurement Distribution Analysis */}
+                    {(originalCounts || partitionedCounts) && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="results-measurement-histograms">
+                            {originalCounts && (
+                                <div data-testid="results-measurement-original">
+                                    <MeasurementHistogram
+                                        counts={originalCounts}
+                                        title="Original Circuit - Measurement Distribution"
+                                    />
+                                </div>
+                            )}
+                            {partitionedCounts && (
+                                <div data-testid="results-measurement-partitioned">
+                                    <MeasurementHistogram
+                                        counts={partitionedCounts}
+                                        title="Partitioned Circuit - Measurement Distribution"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Probability Comparison Analysis */}
+                    {originalProbs && partitionedProbs && (
+                        <div data-testid="results-probability-comparison">
+                            <ProbabilityComparison
+                                probabilitiesOriginal={originalProbs}
+                                probabilitiesPartitioned={partitionedProbs}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Quantum State Section */}
+            {(originalStateVector || partitionedStateVector || originalDensity || partitionedDensity) && (
+                <div className="space-y-6" data-testid="results-quantum-state-section">
+                    {/* State Vector Analysis */}
+                    {(originalStateVector || partitionedStateVector) && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="results-state-vectors">
+                            {originalStateVector && (
+                                <div data-testid="results-state-vector-original">
+                                    <StateVectorVisualization
+                                        stateVector={originalStateVector}
+                                        title="Original Circuit - State Vector Amplitudes"
+                                    />
+                                </div>
+                            )}
+                            {partitionedStateVector && (
+                                <div data-testid="results-state-vector-partitioned">
+                                    <StateVectorVisualization
+                                        stateVector={partitionedStateVector}
+                                        title="Partitioned Circuit - State Vector Amplitudes"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Density Matrix Heatmaps */}
+                    {(originalDensity || partitionedDensity) && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="results-density-matrices">
+                            {originalDensity && (
+                                <div data-testid="results-density-matrix-original">
+                                    <DensityMatrixHeatmap
+                                        densityMatrix={originalDensity}
+                                        title="Original Circuit - Density Matrix"
+                                    />
+                                </div>
+                            )}
+                            {partitionedDensity && (
+                                <div data-testid="results-density-matrix-partitioned">
+                                    <DensityMatrixHeatmap
+                                        densityMatrix={partitionedDensity}
+                                        title="Partitioned Circuit - Density Matrix"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Entropy Section */}
+            {(originalEntropy || partitionedEntropy) && (
+                <div data-testid="results-entropy-section">
+                    <div data-testid="results-entropy-chart">
+                        <EntanglementEntropyChart
+                            entropyOriginal={originalEntropy || []}
+                            entropyPartitioned={partitionedEntropy || []}
                         />
                     </div>
-                )}
-            </div>
-
-            <div className="p-4" data-testid="results-measurements-section">
-            {/* Measurement Distribution Analysis */}
-            {(originalCounts || partitionedCounts) && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="results-measurement-histograms">
-                    {originalCounts && (
-                        <div data-testid="results-measurement-original">
-                            <MeasurementHistogram
-                                counts={originalCounts}
-                                title="Original Circuit - Measurement Distribution"
-                            />
-                        </div>
-                    )}
-                    {partitionedCounts && (
-                        <div data-testid="results-measurement-partitioned">
-                            <MeasurementHistogram
-                                counts={partitionedCounts}
-                                title="Partitioned Circuit - Measurement Distribution"
-                            />
-                        </div>
-                    )}
                 </div>
             )}
-
-            {/* Probability Comparison Analysis */}
-            {originalProbs && partitionedProbs && (
-                <div data-testid="results-probability-comparison">
-                    <ProbabilityComparison
-                        probabilitiesOriginal={originalProbs}
-                        probabilitiesPartitioned={partitionedProbs}
-                    />
-                </div>
-            )}
-            </div>
-
-            <div className="p-4" data-testid="results-quantum-state-section">
-            {/* State Vector Analysis */}
-            {(originalStateVector || partitionedStateVector) && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="results-state-vectors">
-                    {originalStateVector && (
-                        <div data-testid="results-state-vector-original">
-                            <StateVectorVisualization
-                                stateVector={originalStateVector}
-                                title="Original Circuit - State Vector Amplitudes"
-                            />
-                        </div>
-                    )}
-                    {partitionedStateVector && (
-                        <div data-testid="results-state-vector-partitioned">
-                            <StateVectorVisualization
-                                stateVector={partitionedStateVector}
-                                title="Partitioned Circuit - State Vector Amplitudes"
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Bloch Sphere Representation (for single qubit) */}
-            {/* {canShowBlochSphere && originalStateVector && (
-                <div className="max-w-3xl mx-auto">
-                    <BlochSphere
-                        stateVector={originalStateVector}
-                        title="Single-Qubit Bloch Sphere Representation"
-                    />
-                </div>
-            )} */}
-
-            {/* Density Matrix Heatmaps */}
-            {(originalDensity || partitionedDensity) && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="results-density-matrices">
-                    {originalDensity && (
-                        <div data-testid="results-density-matrix-original">
-                            <DensityMatrixHeatmap
-                                densityMatrix={originalDensity}
-                                title="Original Circuit - Density Matrix"
-                            />
-                        </div>
-                    )}
-                    {partitionedDensity && (
-                        <div data-testid="results-density-matrix-partitioned">
-                            <DensityMatrixHeatmap
-                                densityMatrix={partitionedDensity}
-                                title="Partitioned Circuit - Density Matrix"
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-            </div>
-
-            <div className="p-4" data-testid="results-entropy-section">
-            {/* Entanglement Entropy */}
-            {(originalEntropy || partitionedEntropy) && (
-                <div data-testid="results-entropy-chart">
-                    <EntanglementEntropyChart
-                        entropyOriginal={originalEntropy || []}
-                        entropyPartitioned={partitionedEntropy || []}
-                    />
-                </div>
-            )}
-            </div>
         </div>
-
     );
 }

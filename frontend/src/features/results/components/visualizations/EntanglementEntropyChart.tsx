@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import Plot from 'react-plotly.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
@@ -13,7 +13,7 @@ interface EntanglementEntropyChartProps {
     entropyPartitioned: EntropyData[];
 }
 
-export function EntanglementEntropyChart({
+export const EntanglementEntropyChart = memo(function EntanglementEntropyChart({
     entropyOriginal,
     entropyPartitioned
 }: EntanglementEntropyChartProps) {
@@ -159,4 +159,4 @@ export function EntanglementEntropyChart({
             </CardContent>
         </Card>
     );
-}
+});
