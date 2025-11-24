@@ -131,7 +131,7 @@ export default function AuthPage() {
       <div className="w-full md:w-[520px] flex flex-col justify-center p-8 md:p-12 lg:p-16 bg-background relative z-10">
         <div className="w-full max-w-sm mx-auto space-y-8">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 text-white">
               Q
             </div>
             <span className="text-xl font-semibold">QubitKit</span>
