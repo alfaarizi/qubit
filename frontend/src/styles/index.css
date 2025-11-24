@@ -124,3 +124,9 @@
     background-color: rgb(17 17 17);
   }
 }
+
+/* Google OAuth button full-width fix */
+.google-login-wrapper > div,
+.google-login-wrapper iframe {
+  width: 100% !important;
+}
