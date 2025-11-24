@@ -155,8 +155,8 @@ export default function AuthPage() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className={`relative overflow-hidden ${isLoading ? 'opacity-50' : ''}`}>
+                <div className="grid grid-cols-1 @[400px]:grid-cols-2 gap-3 @container">
+                  <div className={`relative ${isLoading ? 'opacity-50' : ''}`}>
                     <GoogleLogin
                       onSuccess={handleGoogleSuccess}
                       onError={() => {
@@ -171,16 +171,14 @@ export default function AuthPage() {
                   </div>
                   <button
                     type="button"
-                    className="h-[40px] px-3 bg-white border border-[#dadce0] rounded-[4px] hover:bg-[#f7f8f8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full"
+                    className="h-[40px] bg-white border border-[#dadce0] rounded hover:bg-[#f7f8f8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors w-full relative flex items-center justify-center font-['Roboto',arial,sans-serif]"
                     disabled={isLoading}
                     onClick={handleMicrosoftLogin}
                   >
-                    <div className="flex items-center justify-center gap-2 overflow-hidden">
-                      <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] shrink-0">
-                        <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z" fill="#00A4EF"/>
-                      </svg>
-                      <span className="text-sm font-medium text-[#3c4043] truncate">Sign in with Microsoft</span>
-                    </div>
+                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px] absolute left-3 pointer-events-none">
+                      <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z" fill="#00A4EF"/>
+                    </svg>
+                    <span className="text-[14px] font-medium text-[#3c4043] whitespace-nowrap pl-[18px] tracking-[0.25px]">Sign in with Microsoft</span>
                   </button>
                 </div>
                 <FieldSeparator>Or</FieldSeparator>
