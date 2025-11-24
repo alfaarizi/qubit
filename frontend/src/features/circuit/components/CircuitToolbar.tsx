@@ -380,6 +380,8 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             executionProgress: 0,
             executionStatus: '',
             partitionJobId: null,
+            partitionHighlightIds: [],
+            partitionHighlightEnabled: false,
         });
     }, [reset, numQubits, measurements, showNestedCircuit]);
 

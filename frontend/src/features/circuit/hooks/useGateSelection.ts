@@ -27,13 +27,18 @@ const SCROLL_SPEED = 10;
 export const SELECTION_STYLES = {
     // selected gate border styles
     strokeColor: '#eab308',
-    strokeWidth: 2.0,
+    strokeWidth: 2.5,
     // selection rectangle styles
     rectFillLight: 'rgba(59, 130, 246, 0.1)',
     rectStrokeLight: 'rgba(59, 130, 246, 0.5)',
     rectFillDark: 'rgba(255, 255, 255, 0.1)',
     rectStrokeDark: 'rgba(255, 255, 255, 0.5)',
     rectStrokeWidth: 1,
+} as const;
+
+export const HIGHLIGHT_STYLES = {
+    strokeColor: '#14b8a6',
+    strokeWidth: 2.5,
 } as const;
 
 export function useGateSelection({

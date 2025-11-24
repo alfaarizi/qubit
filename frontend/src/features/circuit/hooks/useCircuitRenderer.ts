@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
-import { SELECTION_STYLES } from '@/features/circuit/hooks/useGateSelection';
+import { SELECTION_STYLES, HIGHLIGHT_STYLES } from '@/features/circuit/hooks/useGateSelection';
 import type { Gate } from '@/features/gates/types';
 import type { Circuit } from '@/features/circuit/types';
 import {getBounds, getInvolvedQubits, getQubitSpan} from "@/features/gates/utils";
@@ -15,6 +15,7 @@ interface UseCircuitRendererProps {
     placedGates: (Gate | Circuit)[];
     draggableGateId?: string | null;
     selectedGateIdsKey?: string;
+    highlightedGateIdsKey?: string;
     scrollContainerWidth?: number | null;
     showNestedCircuit?: boolean;
     isExecuting?: boolean;
@@ -42,6 +43,7 @@ export function useCircuitRenderer({
     placedGates,
     draggableGateId = '',
     selectedGateIdsKey = '',
+    highlightedGateIdsKey = '',
     scrollContainerWidth,
     showNestedCircuit = false,
     isExecuting = false,
@@ -69,6 +71,7 @@ export function useCircuitRenderer({
         gate: Gate,
         isPreview: boolean,
         isSelected: boolean,
+        isHighlighted: boolean,
         hasHitbox: boolean,
         group: d3.Selection<SVGGElement, unknown, null, undefined>
     ) => {
@@ -99,14 +102,17 @@ export function useCircuitRenderer({
                 .attr('rx', borderRadius)
                 .attr('pointer-events', isPreview ? 'none' : 'auto');
 
+            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : isHighlighted ? HIGHLIGHT_STYLES.strokeColor : gate.gate.color;
+            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : isHighlighted ? HIGHLIGHT_STYLES.strokeWidth : borderWidth;
+
             group.append('rect')
                 .attr('x', x - gateSize / 2)
                 .attr('y', y - gateSize / 2)
                 .attr('width', gateSize)
                 .attr('height', gateSize)
                 .attr('fill', `${gate.gate.color}${backgroundOpacity}`)
-                .attr('stroke', isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color)
-                .attr('stroke-width', isSelected ? SELECTION_STYLES.strokeWidth : borderWidth)
+                .attr('stroke', strokeColor)
+                .attr('stroke-width', strokeWidth)
                 .attr('rx', borderRadius)
                 .attr('pointer-events', isPreview ? 'none' : 'auto');
 
@@ -127,8 +133,8 @@ export function useCircuitRenderer({
             const yFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
             const yLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
 
-            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color;
-            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
+            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : isHighlighted ? HIGHLIGHT_STYLES.strokeColor : gate.gate.color;
+            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : isHighlighted ? HIGHLIGHT_STYLES.strokeWidth : lineWidth;
 
             const drawCircle = (cy: number, radius: number) => {
                 group.append('circle')
@@ -348,6 +354,11 @@ export function useCircuitRenderer({
         [selectedGateIdsKey]
     );
 
+    const highlightedGateIdsSet = useMemo(
+        () => new Set(highlightedGateIdsKey ? highlightedGateIdsKey.split(',') : []),
+        [highlightedGateIdsKey]
+    );
+
     useEffect(() => {
         if (!svgRef.current) return;
 
@@ -431,7 +442,7 @@ export function useCircuitRenderer({
                     depth: dOffset + g.depth,
                     targetQubits: g.targetQubits.map(q => q + qOffset),
                     controlQubits: g.controlQubits.map(q => q + qOffset),
-                }, isPreview, false, false, group);
+                }, isPreview, false, false, false, group);
             } else {
                 g.circuit.gates.forEach(nested =>
                     renderGateRecursive(nested, dOffset + g.depth, qOffset + g.startQubit, isPreview, depth + 1)
@@ -450,6 +461,7 @@ export function useCircuitRenderer({
         placedGates.forEach(gate => {
             const isPreview = draggableGateId === gate.id;
             const isSelected = selectedGateIds.has(gate.id);
+            const isHighlighted = highlightedGateIdsSet.has(gate.id);
             if ('circuit' in gate) {
                 const {circuit, depth, startQubit} = gate;
                 if (circuit.gates.length === 0) return;
@@ -461,7 +473,7 @@ export function useCircuitRenderer({
                 }
             } else {
                 const group = gateContainer.append('g');
-                renderGate(gate, isPreview, isSelected, true, group);
+                renderGate(gate, isPreview, isSelected, isHighlighted, true, group);
             }
         });
 
@@ -486,6 +498,7 @@ export function useCircuitRenderer({
         draggableGateId,
         showNestedCircuit,
         selectedGateIds,
+        highlightedGateIdsSet,
         gateSpacing,
         qubitSpacing,
         footerHeight,

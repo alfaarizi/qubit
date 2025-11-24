@@ -19,6 +19,8 @@ interface CircuitState {
     executionProgress: number;
     executionStatus: string;
     partitionJobId: string | null;
+    partitionHighlightIds: string[];
+    partitionHighlightEnabled: boolean;
 }
 
 interface CircuitActions {
@@ -33,6 +35,8 @@ interface CircuitActions {
     setExecutionProgress: (progress: number) => void;
     setExecutionStatus: (status: string) => void;
     setPartitionJobId: (jobId: string | null) => void;
+    setPartitionHighlightIds: (ids: string[]) => void;
+    setPartitionHighlightEnabled: (enabled: boolean) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;
     addQubit: () => void;
     removeQubit: () => void;
@@ -55,6 +59,8 @@ const initialState: CircuitState = {
     executionProgress: 0,
     executionStatus: '',
     partitionJobId: null,
+    partitionHighlightIds: [],
+    partitionHighlightEnabled: false,
 };
 
 const circuitStores = new Map<string, CircuitStoreApi>();
@@ -102,6 +108,8 @@ const createCircuitStore = (circuitId: string) => {
                     setExecutionProgress: (progress) => set({ executionProgress: progress }),
                     setExecutionStatus: (status) => set({ executionStatus: status }),
                     setPartitionJobId: (jobId) => set({ partitionJobId: jobId }),
+                    setPartitionHighlightIds: (ids) => set({ partitionHighlightIds: ids }),
+                    setPartitionHighlightEnabled: (enabled) => set({ partitionHighlightEnabled: enabled }),
                     updateCircuit: (updater) =>
                         set((state) => {
                             return updater({
@@ -114,6 +122,8 @@ const createCircuitStore = (circuitId: string) => {
                                 executionProgress: state.executionProgress,
                                 executionStatus: state.executionStatus,
                                 partitionJobId: state.partitionJobId,
+                                partitionHighlightIds: state.partitionHighlightIds,
+                                partitionHighlightEnabled: state.partitionHighlightEnabled,
                             });
                         }),
                     addQubit: () =>
@@ -189,7 +199,7 @@ const createCircuitStore = (circuitId: string) => {
                     limit: 50,
                     partialize: (state) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { showNestedCircuit, ...rest } = state;
+                        const { showNestedCircuit, partitionHighlightIds, partitionHighlightEnabled, ...rest } = state;
                         return rest;
                     },
                     equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),

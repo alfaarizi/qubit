@@ -1,9 +1,11 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useTransition } from 'react';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { useCircuitRenderer } from '@/features/circuit/hooks/useCircuitRenderer';
 import { useCircuitDAG } from '@/features/circuit/hooks/useCircuitDAG';
+import { useCircuitStore } from '@/features/circuit/store/CircuitStoreContext';
 import { deserializeGateFromAPI } from '@/lib/api/circuits';
 import { GATE_CONFIG } from '@/features/gates/constants';
 import { getMaxDepth } from '@/features/gates/utils';
@@ -36,6 +38,10 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
     const svgRef = useRef<SVGSVGElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { batchInjectGates } = useCircuitDAG();
+    const highlightEnabled = useCircuitStore((state) => state.partitionHighlightEnabled);
+    const setPartitionHighlightEnabled = useCircuitStore((state) => state.setPartitionHighlightEnabled);
+    const setPartitionHighlightIds = useCircuitStore((state) => state.setPartitionHighlightIds);
+    const [, startTransition] = useTransition();
 
     const globalQubits = useMemo(() => {
         const qubitSet = new Set<number>();
@@ -49,9 +55,10 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
         return map;
     }, [globalQubits]);
 
-    const sequentialCircuit = useMemo((): CircuitData => {
+    const { sequentialCircuit, individualCircuits } = useMemo(() => {
         const allGates: Gate[] = [];
         const boundaries: PartitionBoundary[] = [];
+        const circuits = new Map<number, CircuitData>();
         let offset = 0;
 
         for (const partition of partitions) {
@@ -66,42 +73,50 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 }) as Gate
             )) as Gate[];
 
-            const depth = getMaxDepth(gates);
+            const depth = gates.length ? getMaxDepth(gates) + 1 : 0;
             allGates.push(...gates.map(g => ({ ...g, depth: g.depth + offset })));
             boundaries.push({ index: partition.index, start: offset, end: offset + depth });
+            circuits.set(partition.index, { gates, maxDepth: Math.max(depth, 1) });
             offset += depth;
         }
 
-        return { gates: allGates, maxDepth: offset, boundaries };
+        return {
+            sequentialCircuit: { gates: allGates, maxDepth: offset, boundaries },
+            individualCircuits: circuits
+        };
     }, [partitions, globalQubitMap, batchInjectGates]);
 
-    const individualCircuit = useMemo((): CircuitData => {
-        const partition = partitions.find(p => p.index === selectedIndex) || partitions[0];
-        if (!partition) return { gates: [], maxDepth: 1 };
-
-        const gates = batchInjectGates(partition.gates.map((g) =>
-            deserializeGateFromAPI({
-                id: g.id,
-                depth: 0,
-                gate: { name: g.name },
-                target_qubits: g.target_qubits.map(q => globalQubitMap[q]),
-                control_qubits: g.control_qubits.map(q => globalQubitMap[q]),
-                parameters: [],
-            }) as Gate
-        )) as Gate[];
-
-        return { gates, maxDepth: Math.max(getMaxDepth(gates), 1) };
-    }, [partitions, selectedIndex, globalQubitMap, batchInjectGates]);
+    const individualCircuit = individualCircuits.get(selectedIndex) || { gates: [], maxDepth: 1 };
 
     const circuit = viewMode === 'sequential' ? sequentialCircuit : individualCircuit;
     const canvasWidth = Math.max(circuit.maxDepth * GATE_CONFIG.gateSpacing + 100, 400);
     const canvasHeight = globalQubits.length * GATE_CONFIG.qubitSpacing + CIRCUIT_CONFIG.headerHeight + CIRCUIT_CONFIG.footerHeight;
     const maxHeight = Math.min(canvasHeight, 385);
 
-    const selectedPartition = useMemo(
-        () => partitions.find(p => p.index === selectedIndex),
-        [partitions, selectedIndex]
-    );
+    const { partitionMap, partitionMeta } = useMemo(() => {
+        const map = new Map<number, Partition>();
+        const meta = new Map<number, { minQubit: number; gateIds: string[] }>();
+        for (const p of partitions) {
+            map.set(p.index, p);
+            meta.set(p.index, {
+                minQubit: p.qubits.length ? Math.min(...p.qubits) : 0,
+                gateIds: p.gates.map(g => g.id)
+            });
+        }
+        return { partitionMap: map, partitionMeta: meta };
+    }, [partitions]);
+
+    const boundaryMap = useMemo(() => {
+        const map = new Map<number, PartitionBoundary>();
+        if (sequentialCircuit.boundaries) {
+            for (const b of sequentialCircuit.boundaries) {
+                map.set(b.index, b);
+            }
+        }
+        return map;
+    }, [sequentialCircuit.boundaries]);
+
+    const selectedPartition = partitionMap.get(selectedIndex);
 
     const stats = useMemo(() => {
         const totalGates = partitions.reduce((sum, p) => sum + p.num_gates, 0);
@@ -125,23 +140,37 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
     });
 
     useEffect(() => {
+        // Update highlights with lower priority to avoid blocking UI
+        startTransition(() => {
+            if (highlightEnabled) {
+                const meta = partitionMeta.get(selectedIndex);
+                setPartitionHighlightIds(meta?.gateIds || []);
+            } else {
+                setPartitionHighlightIds([]);
+            }
+        });
+
+        // Scroll to partition
         if (!scrollAreaRef.current) return;
         const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
         const container = scrollAreaRef.current.closest('.overflow-y-auto') as HTMLElement;
         if (!viewport || !container) return;
 
-        const partition = partitions.find(p => p.index === selectedIndex);
-        const minQubit = partition?.qubits.length ? Math.min(...partition.qubits) : 0;
-        const topOffset = globalQubitMap[minQubit] * GATE_CONFIG.qubitSpacing;
+        const meta = partitionMeta.get(selectedIndex);
+        const topOffset = globalQubitMap[meta?.minQubit ?? 0] * GATE_CONFIG.qubitSpacing;
 
         if (viewMode === 'sequential') {
-            const boundary = sequentialCircuit.boundaries?.find(b => b.index === selectedIndex);
+            const boundary = boundaryMap.get(selectedIndex);
             viewport.scrollTo({ left: boundary ? boundary.start * GATE_CONFIG.gateSpacing - 50 : 0, behavior: 'smooth' });
         } else {
             viewport.scrollTo({ left: 0, behavior: 'smooth' });
         }
         container.scrollTo({ top: topOffset, behavior: 'smooth' });
-    }, [selectedIndex, viewMode, sequentialCircuit.boundaries, partitions, globalQubitMap]);
+    }, [selectedIndex, viewMode, boundaryMap, partitionMeta, globalQubitMap, highlightEnabled, setPartitionHighlightIds, startTransition]);
+
+    useEffect(() => {
+        return () => setPartitionHighlightIds([]);
+    }, [setPartitionHighlightIds]);
 
     if (partitions.length === 0) return null;
 
@@ -158,12 +187,25 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                         )}
                     </p>
                 </div>
-                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'sequential' | 'individual')} className="w-auto">
-                    <TabsList className="h-8">
-                        <TabsTrigger value="sequential" className="text-xs">Sequential</TabsTrigger>
-                        <TabsTrigger value="individual" className="text-xs">Individual</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            id="highlight-toggle"
+                            checked={highlightEnabled}
+                            onCheckedChange={setPartitionHighlightEnabled}
+                            className="scale-75"
+                        />
+                        <label htmlFor="highlight-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                            Highlight Original
+                        </label>
+                    </div>
+                    <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'sequential' | 'individual')} className="w-auto">
+                        <TabsList className="h-8">
+                            <TabsTrigger value="sequential" className="text-xs">Sequential</TabsTrigger>
+                            <TabsTrigger value="individual" className="text-xs">Individual</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
             </div>
 
             <div className="bg-card/95 border-t border-border/50 overflow-y-auto" style={{ maxHeight }}>
@@ -191,7 +233,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                                     className="select-none"
                                 />
                                 {viewMode === 'sequential' && sequentialCircuit.boundaries?.map((boundary) => {
-                                    const partition = partitions.find(p => p.index === boundary.index);
+                                    const partition = partitionMap.get(boundary.index);
                                     const isActive = hoveredPartition === boundary.index || selectedIndex === boundary.index;
                                     return (
                                         <div

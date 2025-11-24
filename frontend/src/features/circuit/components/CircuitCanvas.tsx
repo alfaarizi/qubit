@@ -135,6 +135,8 @@ export function CircuitCanvas() {
     const measurements = useCircuitStore((state) => state.measurements);
     const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
     const isExecuting = useCircuitStore((state) => state.isExecuting);
+    const partitionHighlightIds = useCircuitStore((state) => state.partitionHighlightIds);
+    const highlightedGateIdsKey = useMemo(() => partitionHighlightIds.join(','), [partitionHighlightIds]);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
 
@@ -229,6 +231,7 @@ export function CircuitCanvas() {
         placedGates,
         draggableGateId: draggableGate?.id,
         selectedGateIdsKey,
+        highlightedGateIdsKey,
         scrollContainerWidth,
         showNestedCircuit,
         isExecuting,
@@ -271,7 +274,7 @@ export function CircuitCanvas() {
                                     onDragLeave={isExecuting ? undefined : handleDragLeave}
                                     onDrop={isExecuting ? undefined : handleDrop}
                                 />
-                                <ScrollBar orientation="horizontal" className="invisible" />
+                                <ScrollBar orientation="horizontal" />
                             </ScrollArea>
                         </SelectionContextMenu>
                     </div>
