@@ -11,6 +11,7 @@ import { GATE_CONFIG } from '@/features/gates/constants';
 import { getMaxDepth } from '@/features/gates/utils';
 import { CIRCUIT_CONFIG } from '@/features/circuit/constants';
 import type { Gate } from '@/features/gates/types';
+import type { Circuit } from '@/features/circuit/types';
 import type { Partition } from '@/types';
 
 interface PartitionCircuitViewerProps {
@@ -25,9 +26,29 @@ interface PartitionBoundary {
 }
 
 interface CircuitData {
-    gates: Gate[];
+    gates: (Gate | Circuit)[];
     maxDepth: number;
     boundaries?: PartitionBoundary[];
+}
+
+// Vibrant colors for partition circuits (similar opacity to gate colors)
+const PARTITION_COLORS = [
+    '#f59e0b', // amber
+    '#8b5cf6', // violet
+    '#14b8a6', // teal
+    '#ef4444', // red
+    '#22c55e', // green
+    '#3b82f6', // blue
+    '#ec4899', // pink
+    '#f97316', // orange
+    '#06b6d4', // cyan
+    '#a855f7', // purple
+];
+
+function getPartitionColor(index: number, seed: number): string {
+    // Use both index and seed for consistent but varied colors
+    const colorIndex = (index + seed) % PARTITION_COLORS.length;
+    return PARTITION_COLORS[colorIndex];
 }
 
 export function PartitionCircuitViewer({ partitions, maxPartitionSize }: PartitionCircuitViewerProps) {
@@ -56,13 +77,14 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
     }, [globalQubits]);
 
     const { sequentialCircuit, individualCircuits } = useMemo(() => {
-        const allGates: Gate[] = [];
+        const allGates: (Gate | Circuit)[] = [];
         const boundaries: PartitionBoundary[] = [];
         const circuits = new Map<number, CircuitData>();
+        const colorSeed = Math.floor(Math.abs(Math.sin(partitions.length) * 10));
+        
         let offset = 0;
-
         for (const partition of partitions) {
-            const gates = batchInjectGates(partition.gates.map((g) =>
+            const partitionGates = batchInjectGates(partition.gates.map((g) =>
                 deserializeGateFromAPI({
                     id: g.id,
                     depth: 0,
@@ -73,10 +95,25 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 }) as Gate
             )) as Gate[];
 
-            const depth = gates.length ? getMaxDepth(gates) + 1 : 0;
-            allGates.push(...gates.map(g => ({ ...g, depth: g.depth + offset })));
+            const depth = partitionGates.length ? getMaxDepth(partitionGates) + 1 : 1;
+            const partitionCircuit: Circuit = {
+                id: `partition-${partition.index}`,
+                depth: offset,
+                startQubit: 0,
+                parents: [],
+                children: [],
+                circuit: {
+                    id: `partition-template-${partition.index}`,
+                    name: `P${partition.index}`,
+                    symbol: `P${partition.index}`,
+                    color: getPartitionColor(partition.index, colorSeed),
+                    gates: partitionGates,
+                }
+            };
+
+            allGates.push(partitionCircuit);
             boundaries.push({ index: partition.index, start: offset, end: offset + depth });
-            circuits.set(partition.index, { gates, maxDepth: Math.max(depth, 1) });
+            circuits.set(partition.index, { gates: partitionGates, maxDepth: Math.max(depth, 1) });
             offset += depth;
         }
 
