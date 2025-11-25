@@ -16,14 +16,12 @@ export const GATE_CONFIG = {
     fontStyle: 'normal',
     fontFamily: 'serif',
     singleQubit: {
-        textSize: 'text-md',
         borderWidth: 1,
         borderRadius: 0
     },
     multiQubit: {
-        textSize: 'text-sm',
         lineWidth: 1,
-        targetRadius: 16,
+        targetRadius: 21,
         controlDotRadius: 4
     }
 } as const;

@@ -13,11 +13,10 @@ export function GateIcon({ item, className, style, ...props }: GateIconProps) {
     const isCircuit = 'gates' in item;
     const title = item.symbol;
     const color = item.color;
-    const textSize = isCircuit ? 'text-xs' : singleQubit.textSize;
 
     return (
         <div
-            className={`flex items-center justify-center border-2 ${textSize} ${className || ''}`}
+            className={`flex items-center justify-center border-2 text-sm ${className || ''}`}
             style={{
                 width: gateSize,
                 height: gateSize,

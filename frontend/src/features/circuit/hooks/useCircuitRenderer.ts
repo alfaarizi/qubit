@@ -111,7 +111,7 @@ export function useCircuitRenderer({
         const totalQubits = gate.gate.numTargetQubits + gate.gate.numControlQubits;
 
         if (totalQubits === 1) {
-            const {textSize, borderWidth, borderRadius} = GATE_CONFIG.singleQubit;
+            const {borderWidth, borderRadius} = GATE_CONFIG.singleQubit;
             const qubitY = gate.targetQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
 
             group.append('rect')
@@ -137,7 +137,8 @@ export function useCircuitRenderer({
                 .attr('rx', borderRadius)
                 .attr('pointer-events', isPreview ? 'none' : 'auto');
 
-            group.append('text')
+            // Create text element and measure it to calculate optimal font size
+            const text = group.append('text')
                 .attr('x', x)
                 .attr('y', y)
                 .attr('text-anchor', 'middle')
@@ -145,11 +146,24 @@ export function useCircuitRenderer({
                 .attr('font-family', fontFamily)
                 .attr('font-weight', fontWeight)
                 .attr('font-style', fontStyle)
-                .attr('class', `${textSize} fill-foreground`)
+                .attr('class', 'fill-foreground')
                 .attr('pointer-events', 'none')
                 .text(gate.gate.symbol);
+
+            // Measure and scale to fit within gate bounds
+            const textNode = text.node();
+            if (textNode) {
+                const bbox = textNode.getBBox();
+                const maxWidth = gateSize * 0.8;
+                const maxHeight = gateSize * 0.8;
+                const scaleX = maxWidth / bbox.width;
+                const scaleY = maxHeight / bbox.height;
+                const scale = Math.min(scaleX, scaleY, 1);
+
+                text.style('font-size', `${scale}em`);
+            }
         } else {
-            const {textSize, lineWidth, targetRadius, controlDotRadius} = GATE_CONFIG.multiQubit;
+            const {lineWidth, targetRadius, controlDotRadius} = GATE_CONFIG.multiQubit;
             const involvedQubits = metadata.involvedQubits;
             const yFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
             const yLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
@@ -188,7 +202,9 @@ export function useCircuitRenderer({
             });
 
             const textY = gate.targetQubits[gate.targetQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
-            group.append('text')
+
+            // Create text element and measure it to calculate optimal font size
+            const text = group.append('text')
                 .attr('x', x)
                 .attr('y', textY)
                 .attr('text-anchor', 'middle')
@@ -196,9 +212,22 @@ export function useCircuitRenderer({
                 .attr('font-family', fontFamily)
                 .attr('font-weight', fontWeight)
                 .attr('font-style', fontStyle)
-                .attr('class', `${textSize} fill-foreground`)
+                .attr('class', 'fill-foreground')
                 .attr('pointer-events', 'none')
                 .text(gate.gate.symbol);
+
+            // Measure and scale to fit within target circle
+            const textNode = text.node();
+            if (textNode) {
+                const bbox = textNode.getBBox();
+                const maxWidth = targetRadius * 1.6;
+                const maxHeight = targetRadius * 1.6;
+                const scaleX = maxWidth / bbox.width;
+                const scaleY = maxHeight / bbox.height;
+                const scale = Math.min(scaleX, scaleY, 0.875);
+
+                text.style('font-size', `${scale}em`);
+            }
         }
 
         // add interaction hitbox

@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LaTeX } from "@/components/common/LaTeX";
 import { useInspector } from "@/features/inspector/InspectorContext";
+import { GateIcon } from "@/features/gates/components/GateIcon";
 
 export function GateProperties() {
     const { hoveredGate } = useInspector();
@@ -40,15 +41,8 @@ export function GateProperties() {
                     <div className="space-y-2.5">
                         {/* Gate Header */}
                         <div className="flex items-start gap-2">
-                            <div
-                                className="w-9 h-9 flex items-center justify-center rounded border-2 font-semibold shadow-sm shrink-0"
-                                style={{
-                                    backgroundColor: `${hoveredGate.color}20`,
-                                    borderColor: hoveredGate.color,
-                                    color: hoveredGate.color,
-                                }}
-                            >
-                                <span className="text-sm">{hoveredGate.symbol}</span>
+                            <div className="shrink-0">
+                                <GateIcon item={hoveredGate} className="shadow-sm" />
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col gap-1">
                                 <div className="flex items-center justify-between gap-2">
