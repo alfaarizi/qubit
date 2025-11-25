@@ -25,18 +25,18 @@ const PARTITION_BACKENDS = [
 ] as const;
 
 const PARTITION_STRATEGIES = [
-    { value: 'kahn', label: 'Kahn', description: 'Fast greedy topological sort' },
-    { value: 'ilp', label: 'ILP', description: 'Integer linear programming' },
-    { value: 'ilp-fusion', label: 'ILP Fusion', description: 'ILP with fusion cost' },
-    { value: 'ilp-fusion-ca', label: 'ILP Fusion CA', description: 'ILP fusion with control awareness' },
-    { value: 'tdag', label: 'TDAG', description: 'Tree-based DAG partitioning' },
-    { value: 'gtqcp', label: 'GTQCP', description: 'TDAG with GTQCP variant' },
-    { value: 'qiskit', label: 'Qiskit', description: 'Qiskit partitioning' },
-    { value: 'qiskit-fusion', label: 'Qiskit Fusion', description: 'Qiskit with fusion' },
-    { value: 'bqskit-Quick', label: 'BQSKit Quick', description: 'BQSKit quick partitioner' },
-    { value: 'bqskit-Scan', label: 'BQSKit Scan', description: 'BQSKit scan partitioner' },
-    { value: 'bqskit-Greedy', label: 'BQSKit Greedy', description: 'BQSKit greedy partitioner' },
-    { value: 'bqskit-Cluster', label: 'BQSKit Cluster', description: 'BQSKit cluster partitioner' },
+    { value: 'kahn', label: 'Kahn', description: 'Fast greedy topological sort', disabled: false },
+    { value: 'ilp', label: 'ILP', description: 'Integer linear programming', disabled: false },
+    { value: 'ilp-fusion', label: 'ILP Fusion', description: 'ILP with fusion cost', disabled: false },
+    { value: 'ilp-fusion-ca', label: 'ILP Fusion CA', description: 'ILP fusion with control awareness', disabled: false },
+    { value: 'tdag', label: 'TDAG', description: 'Tree-based DAG partitioning', disabled: false },
+    { value: 'gtqcp', label: 'GTQCP', description: 'TDAG with GTQCP variant', disabled: false },
+    { value: 'qiskit', label: 'Qiskit', description: 'Qiskit partitioning (Disabled)', disabled: true },
+    { value: 'qiskit-fusion', label: 'Qiskit Fusion', description: 'Qiskit with fusion (Disabled)', disabled: true },
+    { value: 'bqskit-Quick', label: 'BQSKit Quick', description: 'BQSKit quick partitioner (Disabled)', disabled: true },
+    { value: 'bqskit-Scan', label: 'BQSKit Scan', description: 'BQSKit scan partitioner (Disabled)', disabled: true },
+    { value: 'bqskit-Greedy', label: 'BQSKit Greedy', description: 'BQSKit greedy partitioner (Disabled)', disabled: true },
+    { value: 'bqskit-Cluster', label: 'BQSKit Cluster', description: 'BQSKit cluster partitioner (Disabled)', disabled: true },
 ] as const;
 
 interface CircuitToolbarProps {
@@ -505,7 +505,13 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                             <DropdownMenuLabel>Partition Strategy</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {PARTITION_STRATEGIES.map((strategy) => (
-                                <DropdownMenuItem key={strategy.value} onClick={() => setPartitionStrategy(strategy.value)} className="cursor-pointer" data-testid={`strategy-${strategy.value}`}>
+                                <DropdownMenuItem
+                                    key={strategy.value}
+                                    onClick={() => !strategy.disabled && setPartitionStrategy(strategy.value)}
+                                    className={strategy.disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+                                    disabled={strategy.disabled}
+                                    data-testid={`strategy-${strategy.value}`}
+                                >
                                     <div className="flex flex-col gap-0.5">
                                         <div className="font-medium flex items-center gap-2">
                                             {strategy.label}
