@@ -408,6 +408,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             partitionJobId: null,
             partitionHighlightIds: [],
             partitionHighlightEnabled: false,
+            partitionHighlightColor: '#14b8a6',
         });
     }, [reset, numQubits, measurements, showNestedCircuit]);
 

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     MeasurementHistogram,
     DensityMatrixHeatmap,
@@ -83,13 +82,27 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
             <Card className="border-border/50 bg-gradient-to-br from-card/95 to-card/80 backdrop-blur" data-testid="results-summary-card">
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                             <CardTitle className="text-xl font-bold">Simulation Results</CardTitle>
-                            <CardDescription className="mt-1.5" data-testid="results-metadata">
-                                {numQubits && `${numQubits}-qubit circuit`}
-                                {numShots && ` • ${numShots.toLocaleString()} shots`}
-                                {partitions && ` • ${partitions.length} partitions`}
-                            </CardDescription>
+                            <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="results-metadata">
+                                {numShots && (
+                                    <>
+                                        <span>shots: {numShots.toLocaleString()}</span>
+                                    </>
+                                )}
+                                {partitionStrategy && (
+                                    <>
+                                        {(numQubits || numShots || partitions) && <span>•</span>}
+                                        <span>strategy: {partitionStrategy}</span>
+                                    </>
+                                )}
+                                {maxPartitionSize && (
+                                    <>
+                                        {(numQubits || numShots || partitions || partitionStrategy) && <span>•</span>}
+                                        <span>max partition size: {maxPartitionSize} qubits</span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                         {fidelity !== undefined && (
                             <div className="text-right" data-testid="results-fidelity">
@@ -104,12 +117,15 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                     </div>
 
                     {errors && errors.length > 0 && (
-                        <div className="mt-4 space-y-1" data-testid="results-errors">
-                            {errors.slice(0, 3).map((error, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                    {error.timeout ? '⏱️' : '⚠️'} {error.stage}: {error.error.substring(0, 60)}
-                                </Badge>
-                            ))}
+                        <div className="mt-4 pt-4 border-t border-border/50" data-testid="results-errors">
+                            <div className="text-sm font-medium text-muted-foreground mb-2">Simulation Warnings</div>
+                            <div className="space-y-1 text-xs text-muted-foreground">
+                                {errors.slice(0, 3).map((error, idx) => (
+                                    <div key={idx}>
+                                        {error.timeout ? '⏱️ Timeout' : '⚠️ Warning'} during {error.stage}: {error.error.substring(0, 80)}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </CardHeader>

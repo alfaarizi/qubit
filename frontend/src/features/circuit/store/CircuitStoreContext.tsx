@@ -21,6 +21,7 @@ interface CircuitState {
     partitionJobId: string | null;
     partitionHighlightIds: string[];
     partitionHighlightEnabled: boolean;
+    partitionHighlightColor: string;
 }
 
 interface CircuitActions {
@@ -37,6 +38,7 @@ interface CircuitActions {
     setPartitionJobId: (jobId: string | null) => void;
     setPartitionHighlightIds: (ids: string[]) => void;
     setPartitionHighlightEnabled: (enabled: boolean) => void;
+    setPartitionHighlightColor: (color: string) => void;
     updateCircuit: (updater: (prev: CircuitState) => Partial<CircuitState>) => void;
     addQubit: () => void;
     removeQubit: () => void;
@@ -61,6 +63,7 @@ const initialState: CircuitState = {
     partitionJobId: null,
     partitionHighlightIds: [],
     partitionHighlightEnabled: false,
+    partitionHighlightColor: '#14b8a6',
 };
 
 const circuitStores = new Map<string, CircuitStoreApi>();
@@ -110,6 +113,7 @@ const createCircuitStore = (circuitId: string) => {
                     setPartitionJobId: (jobId) => set({ partitionJobId: jobId }),
                     setPartitionHighlightIds: (ids) => set({ partitionHighlightIds: ids }),
                     setPartitionHighlightEnabled: (enabled) => set({ partitionHighlightEnabled: enabled }),
+                    setPartitionHighlightColor: (color) => set({ partitionHighlightColor: color }),
                     updateCircuit: (updater) =>
                         set((state) => {
                             return updater({
@@ -124,6 +128,7 @@ const createCircuitStore = (circuitId: string) => {
                                 partitionJobId: state.partitionJobId,
                                 partitionHighlightIds: state.partitionHighlightIds,
                                 partitionHighlightEnabled: state.partitionHighlightEnabled,
+                                partitionHighlightColor: state.partitionHighlightColor,
                             });
                         }),
                     addQubit: () =>
@@ -199,7 +204,7 @@ const createCircuitStore = (circuitId: string) => {
                     limit: 50,
                     partialize: (state) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { showNestedCircuit, partitionHighlightIds, partitionHighlightEnabled, ...rest } = state;
+                        const { showNestedCircuit, partitionHighlightIds, partitionHighlightEnabled, partitionHighlightColor, ...rest } = state;
                         return rest;
                     },
                     equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),

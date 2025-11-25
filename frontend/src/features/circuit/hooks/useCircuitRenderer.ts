@@ -16,6 +16,7 @@ interface UseCircuitRendererProps {
     draggableGateId?: string | null;
     selectedGateIdsKey?: string;
     highlightedGateIdsKey?: string;
+    highlightColor?: string;
     scrollContainerWidth?: number | null;
     showNestedCircuit?: boolean;
     isExecuting?: boolean;
@@ -44,6 +45,7 @@ export function useCircuitRenderer({
     draggableGateId = '',
     selectedGateIdsKey = '',
     highlightedGateIdsKey = '',
+    highlightColor = HIGHLIGHT_STYLES.strokeColor,
     scrollContainerWidth,
     showNestedCircuit = false,
     isExecuting = false,
@@ -73,7 +75,8 @@ export function useCircuitRenderer({
         isSelected: boolean,
         isHighlighted: boolean,
         hasHitbox: boolean,
-        group: d3.Selection<SVGGElement, unknown, null, undefined>
+        group: d3.Selection<SVGGElement, unknown, null, undefined>,
+        highlightColor: string
     ) => {
         const metadata = getGateMetadata(gate);
         const {minQubit} = metadata.bounds;
@@ -86,6 +89,24 @@ export function useCircuitRenderer({
             .attr('data-gate-id', gate.id)
             .attr('opacity', isPreview ? previewOpacity : 1)
             .style('cursor', isPreview || isExecuting ? 'default' : 'grab');
+
+        // add highlighted background if this gate is highlighted
+        if (isHighlighted && !isPreview) {
+            const involvedQubits = metadata.involvedQubits;
+            const hitboxYFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
+            const hitboxYLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
+            const hitboxHeight = hitboxYLast - hitboxYFirst + gateSize;
+            group.append('rect')
+                .attr('x', x - gateSize / 2 - 2)
+                .attr('y', hitboxYFirst - gateSize / 2 - 2)
+                .attr('width', gateSize + 4)
+                .attr('height', hitboxHeight + 4)
+                .attr('fill', `${highlightColor}30`)
+                .attr('stroke', highlightColor)
+                .attr('stroke-width', 2)
+                .attr('rx', 4)
+                .attr('pointer-events', 'none');
+        }
 
         const totalQubits = gate.gate.numTargetQubits + gate.gate.numControlQubits;
 
@@ -102,8 +123,8 @@ export function useCircuitRenderer({
                 .attr('rx', borderRadius)
                 .attr('pointer-events', isPreview ? 'none' : 'auto');
 
-            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : isHighlighted ? HIGHLIGHT_STYLES.strokeColor : gate.gate.color;
-            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : isHighlighted ? HIGHLIGHT_STYLES.strokeWidth : borderWidth;
+            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color;
+            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : borderWidth;
 
             group.append('rect')
                 .attr('x', x - gateSize / 2)
@@ -133,8 +154,8 @@ export function useCircuitRenderer({
             const yFirst = involvedQubits[0] * qubitSpacing + qubitSpacing / 2 + headerHeight;
             const yLast = involvedQubits[involvedQubits.length - 1] * qubitSpacing + qubitSpacing / 2 + headerHeight;
 
-            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : isHighlighted ? HIGHLIGHT_STYLES.strokeColor : gate.gate.color;
-            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : isHighlighted ? HIGHLIGHT_STYLES.strokeWidth : lineWidth;
+            const strokeColor = isSelected ? SELECTION_STYLES.strokeColor : gate.gate.color;
+            const strokeWidth = isSelected ? SELECTION_STYLES.strokeWidth : lineWidth;
 
             const drawCircle = (cy: number, radius: number) => {
                 group.append('circle')
@@ -442,7 +463,7 @@ export function useCircuitRenderer({
                     depth: dOffset + g.depth,
                     targetQubits: g.targetQubits.map(q => q + qOffset),
                     controlQubits: g.controlQubits.map(q => q + qOffset),
-                }, isPreview, false, false, false, group);
+                }, isPreview, false, false, false, group, highlightColor);
             } else {
                 g.circuit.gates.forEach(nested =>
                     renderGateRecursive(nested, dOffset + g.depth, qOffset + g.startQubit, isPreview, depth + 1)
@@ -473,7 +494,7 @@ export function useCircuitRenderer({
                 }
             } else {
                 const group = gateContainer.append('g');
-                renderGate(gate, isPreview, isSelected, isHighlighted, true, group);
+                renderGate(gate, isPreview, isSelected, isHighlighted, true, group, highlightColor);
             }
         });
 
@@ -499,6 +520,7 @@ export function useCircuitRenderer({
         showNestedCircuit,
         selectedGateIds,
         highlightedGateIdsSet,
+        highlightColor,
         gateSpacing,
         qubitSpacing,
         footerHeight,

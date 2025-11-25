@@ -135,6 +135,7 @@ export function CircuitCanvas() {
     const showNestedCircuit = useCircuitStore((state) => state.showNestedCircuit);
     const isExecuting = useCircuitStore((state) => state.isExecuting);
     const partitionHighlightIds = useCircuitStore((state) => state.partitionHighlightIds);
+    const partitionHighlightColor = useCircuitStore((state) => state.partitionHighlightColor);
     const highlightedGateIdsKey = useMemo(() => partitionHighlightIds.join(','), [partitionHighlightIds]);
     const setPlacedGates = useCircuitStore((state) => state.setPlacedGates);
     const updateCircuit = useCircuitStore((state) => state.updateCircuit);
@@ -231,6 +232,7 @@ export function CircuitCanvas() {
         draggableGateId: draggableGate?.id,
         selectedGateIdsKey,
         highlightedGateIdsKey,
+        highlightColor: partitionHighlightColor,
         scrollContainerWidth,
         showNestedCircuit,
         isExecuting,

@@ -31,7 +31,6 @@ interface CircuitData {
     boundaries?: PartitionBoundary[];
 }
 
-// Vibrant colors for partition circuits (similar opacity to gate colors)
 const PARTITION_COLORS = [
     '#f59e0b', // amber
     '#8b5cf6', // violet
@@ -45,12 +44,6 @@ const PARTITION_COLORS = [
     '#a855f7', // purple
 ];
 
-function getPartitionColor(index: number, seed: number): string {
-    // Use both index and seed for consistent but varied colors
-    const colorIndex = (index + seed) % PARTITION_COLORS.length;
-    return PARTITION_COLORS[colorIndex];
-}
-
 export function PartitionCircuitViewer({ partitions, maxPartitionSize }: PartitionCircuitViewerProps) {
     const [viewMode, setViewMode] = useState<'sequential' | 'individual'>('sequential');
     const [selectedIndex, setSelectedIndex] = useState<number>(partitions.length > 0 ? partitions[0].index : 0);
@@ -62,6 +55,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
     const highlightEnabled = useCircuitStore((state) => state.partitionHighlightEnabled);
     const setPartitionHighlightEnabled = useCircuitStore((state) => state.setPartitionHighlightEnabled);
     const setPartitionHighlightIds = useCircuitStore((state) => state.setPartitionHighlightIds);
+    const setPartitionHighlightColor = useCircuitStore((state) => state.setPartitionHighlightColor);
     const [, startTransition] = useTransition();
 
     const globalQubits = useMemo(() => {
@@ -106,7 +100,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                     id: `partition-template-${partition.index}`,
                     name: `P${partition.index}`,
                     symbol: `P${partition.index}`,
-                    color: getPartitionColor(partition.index, colorSeed),
+                    color: PARTITION_COLORS[(partition.index + colorSeed) % PARTITION_COLORS.length],
                     gates: partitionGates,
                 }
             };
@@ -132,12 +126,14 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
 
     const { partitionMap, partitionMeta } = useMemo(() => {
         const map = new Map<number, Partition>();
-        const meta = new Map<number, { minQubit: number; gateIds: string[] }>();
+        const meta = new Map<number, { minQubit: number; gateIds: string[]; color: string }>();
+        const colorSeed = Math.floor(Math.abs(Math.sin(partitions.length) * 10));
         for (const p of partitions) {
             map.set(p.index, p);
             meta.set(p.index, {
                 minQubit: p.qubits.length ? Math.min(...p.qubits) : 0,
-                gateIds: p.gates.map(g => g.id)
+                gateIds: p.gates.map(g => g.id),
+                color: PARTITION_COLORS[(p.index + colorSeed) % PARTITION_COLORS.length]
             });
         }
         return { partitionMap: map, partitionMeta: meta };
@@ -159,8 +155,10 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
         const totalGates = partitions.reduce((sum, p) => sum + p.num_gates, 0);
         const avgGatesPerPartition = totalGates / partitions.length;
         const maxGatesInPartition = Math.max(...partitions.map(p => p.num_gates));
-        const efficiency = maxPartitionSize ? (avgGatesPerPartition / maxPartitionSize) * 100 : 0;
-        return { totalGates, avgGatesPerPartition, maxGatesInPartition, efficiency };
+        const avgQubitsPerPartition = partitions.reduce((sum, p) => sum + p.num_qubits, 0) / partitions.length;
+        const maxQubitsInPartition = Math.max(...partitions.map(p => p.num_qubits));
+        const efficiency = maxPartitionSize ? (avgQubitsPerPartition / maxPartitionSize) * 100 : 0;
+        return { totalGates, avgGatesPerPartition, maxGatesInPartition, avgQubitsPerPartition, maxQubitsInPartition, efficiency };
     }, [partitions, maxPartitionSize]);
 
     useCircuitRenderer({
@@ -182,6 +180,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
             if (highlightEnabled) {
                 const meta = partitionMeta.get(selectedIndex);
                 setPartitionHighlightIds(meta?.gateIds || []);
+                setPartitionHighlightColor(meta?.color || '#14b8a6');
             } else {
                 setPartitionHighlightIds([]);
             }
@@ -203,7 +202,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
             viewport.scrollTo({ left: 0, behavior: 'smooth' });
         }
         container.scrollTo({ top: topOffset, behavior: 'smooth' });
-    }, [selectedIndex, viewMode, boundaryMap, partitionMeta, globalQubitMap, highlightEnabled, setPartitionHighlightIds, startTransition]);
+    }, [selectedIndex, viewMode, boundaryMap, partitionMeta, globalQubitMap, highlightEnabled, setPartitionHighlightIds, setPartitionHighlightColor, startTransition]);
 
     useEffect(() => {
         return () => setPartitionHighlightIds([]);
@@ -215,8 +214,8 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
         <div className="bg-muted border rounded-lg">
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <div>
-                    <h3 className="text-sm font-semibold">Partition Viewer</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <h3 className="text-base font-semibold">Partition Viewer</h3>
+                    <p className="text-xs font-medium text-muted-foreground mt-0.5">
                         {viewMode === 'sequential' ? (
                             <>{partitions.length} partitions • {stats.totalGates} total gates</>
                         ) : (
@@ -232,14 +231,14 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                             onCheckedChange={setPartitionHighlightEnabled}
                             className="scale-75"
                         />
-                        <label htmlFor="highlight-toggle" className="text-xs text-muted-foreground cursor-pointer">
-                            Highlight Original
+                        <label htmlFor="highlight-toggle" className="text-xs font-medium text-muted-foreground cursor-pointer">
+                            Show in Original Circuit
                         </label>
                     </div>
                     <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'sequential' | 'individual')} className="w-auto">
                         <TabsList className="h-8">
-                            <TabsTrigger value="sequential" className="text-xs">Sequential</TabsTrigger>
-                            <TabsTrigger value="individual" className="text-xs">Individual</TabsTrigger>
+                            <TabsTrigger value="sequential" className="text-xs font-medium">Sequential</TabsTrigger>
+                            <TabsTrigger value="individual" className="text-xs font-medium">Individual</TabsTrigger>
                         </TabsList>
                     </Tabs>
                 </div>
@@ -327,15 +326,15 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
             {maxPartitionSize && (
                 <div className="grid grid-cols-3 gap-4 px-4 py-2.5 border-t bg-muted/30">
                     <div className="flex flex-col">
-                        <span className="text-xs font-medium text-muted-foreground">Average Gates</span>
-                        <span className="text-sm font-semibold mt-0.5">{stats.avgGatesPerPartition.toFixed(1)}</span>
+                        <span className="text-xs font-medium text-muted-foreground">Avg Gates / Partition</span>
+                        <span className="text-sm font-semibold mt-0.5">{Math.round(stats.avgGatesPerPartition)}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-xs font-medium text-muted-foreground">Max Gates</span>
-                        <span className="text-sm font-semibold mt-0.5">{stats.maxGatesInPartition} / {maxPartitionSize}</span>
+                        <span className="text-xs font-medium text-muted-foreground">Avg Qubits / Partition</span>
+                        <span className="text-sm font-semibold mt-0.5">{Math.round(stats.avgQubitsPerPartition)}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-xs font-medium text-muted-foreground">Utilization</span>
+                        <span className="text-xs font-medium text-muted-foreground">Qubit Utilization</span>
                         <span className={`text-sm font-semibold mt-0.5 ${
                             stats.efficiency >= 80 ? 'text-green-600 dark:text-green-400' :
                             stats.efficiency >= 60 ? 'text-blue-600 dark:text-blue-400' :
