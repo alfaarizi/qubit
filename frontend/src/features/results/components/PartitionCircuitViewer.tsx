@@ -152,8 +152,8 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
 
         // Scroll to partition
         if (!scrollAreaRef.current) return;
-        const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
-        const container = scrollAreaRef.current.closest('.overflow-y-auto') as HTMLElement;
+        const viewport = scrollAreaRef.current as HTMLElement;
+        const container = scrollAreaRef.current.parentElement?.parentElement as HTMLElement;
         if (!viewport || !container) return;
 
         const meta = partitionMeta.get(selectedIndex);
@@ -208,7 +208,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 </div>
             </div>
 
-            <div className="bg-card/95 border-t border-border/50 overflow-y-auto" style={{ maxHeight }}>
+            <div className="bg-card/95 border-t border-border/50 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80" style={{ maxHeight }}>
                 <div className="flex px-4">
                     <div className="flex flex-col mr-4 shrink-0">
                         <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
@@ -224,52 +224,49 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                         <div style={{ height: CIRCUIT_CONFIG.footerHeight }} />
                     </div>
 
-                    <div className="flex-1 overflow-x-auto">
-                        <ScrollArea ref={scrollAreaRef} className="h-full">
-                            <div
-                                className="relative"
-                                style={{ height: canvasHeight }}
-                                data-partition-boundaries={viewMode === 'sequential' ? JSON.stringify(sequentialCircuit.boundaries) : undefined}
-                                data-partition-map={JSON.stringify(Array.from(partitionMap.entries()).map(([k, v]) => ({ index: k, num_gates: v.num_gates })))}
-                            >
-                                <svg
-                                    ref={svgRef}
-                                    style={{ display: 'block', minWidth: canvasWidth, height: canvasHeight }}
-                                    className="select-none"
-                                />
-                                {viewMode === 'sequential' && sequentialCircuit.boundaries?.map((boundary) => {
-                                    const partition = partitionMap.get(boundary.index);
-                                    const isActive = hoveredPartition === boundary.index || selectedIndex === boundary.index;
-                                    return (
-                                        <div
-                                            key={boundary.index}
-                                            className={`absolute top-0 bottom-0 border-l-2 border-r-2 border-dashed pointer-events-none transition-all duration-200 ${
-                                                isActive ? 'border-primary bg-primary/10' : 'border-muted-foreground/20 bg-muted/5'
-                                            }`}
-                                            style={{
-                                                left: `${boundary.start * GATE_CONFIG.gateSpacing}px`,
-                                                width: `${(boundary.end - boundary.start) * GATE_CONFIG.gateSpacing}px`
-                                            }}
-                                        >
-                                            <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-semibold transition-colors ${
-                                                isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                                            }`}>
-                                                P{boundary.index}
-                                                {partition && <span className="ml-1.5 opacity-70 font-normal">{partition.num_gates}g</span>}
-                                            </div>
+                    <div ref={scrollAreaRef} className="flex-1 overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80">
+                        <div
+                            className="relative"
+                            style={{ height: canvasHeight }}
+                            data-partition-boundaries={viewMode === 'sequential' ? JSON.stringify(sequentialCircuit.boundaries) : undefined}
+                            data-partition-map={JSON.stringify(Array.from(partitionMap.entries()).map(([k, v]) => ({ index: k, num_gates: v.num_gates })))}
+                        >
+                            <svg
+                                ref={svgRef}
+                                style={{ display: 'block', minWidth: canvasWidth, height: canvasHeight }}
+                                className="select-none"
+                            />
+                            {viewMode === 'sequential' && sequentialCircuit.boundaries?.map((boundary) => {
+                                const partition = partitionMap.get(boundary.index);
+                                const isActive = hoveredPartition === boundary.index || selectedIndex === boundary.index;
+                                return (
+                                    <div
+                                        key={boundary.index}
+                                        className={`absolute top-0 bottom-0 border-l-2 border-r-2 border-dashed pointer-events-none transition-all duration-200 ${
+                                            isActive ? 'border-primary bg-primary/10' : 'border-muted-foreground/20 bg-muted/5'
+                                        }`}
+                                        style={{
+                                            left: `${boundary.start * GATE_CONFIG.gateSpacing}px`,
+                                            width: `${(boundary.end - boundary.start) * GATE_CONFIG.gateSpacing}px`
+                                        }}
+                                    >
+                                        <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                                            isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                                        }`}>
+                                            P{boundary.index}
+                                            {partition && <span className="ml-1.5 opacity-70 font-normal">{partition.num_gates}g</span>}
                                         </div>
-                                    );
-                                })}
-                            </div>
-                            <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="px-4 pt-3 border-t bg-muted/30">
-                <ScrollArea className="w-full">
-                    <div className="flex gap-2 pb-2">
+            <div className="px-4 py-3 pb-1 border-t bg-muted/30">
+                <ScrollArea className="w-full" type="always">
+                    <div className="flex gap-2 pb-3">
                         {partitions.map((partition) => (
                             <Badge
                                 key={partition.index}

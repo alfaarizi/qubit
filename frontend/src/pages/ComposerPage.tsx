@@ -85,7 +85,7 @@ function CircuitTabContent() {
     return (
         <>
             <div className="h-[385px] bg-zinc-200/35 dark:bg-zinc-700/35 relative">
-                <div className={`h-full ${isExecuting ? 'overflow-hidden' : 'overflow-x-auto'}`}>
+                <div className={`h-full ${isExecuting ? 'overflow-hidden' : 'overflow-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80'}`}>
                     <CircuitCanvas />
                 </div>
                 <CanvasExecutionOverlay />

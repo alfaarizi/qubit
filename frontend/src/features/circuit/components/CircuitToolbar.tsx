@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { CircuitExportButton } from "@/features/circuit/components/CircuitExportButton";
@@ -419,8 +420,10 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
 
 
     return (
-        <div className="w-full h-10 bg-muted border-b flex items-center px-2 sm:px-4 gap-1 sm:gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-testid="circuit-toolbar">
-            <div className="flex items-center gap-1 shrink-0">
+        <div className="w-full h-12 bg-muted border-b" data-testid="circuit-toolbar">
+            <ScrollArea className="w-full h-12 [&>div]:h-12 [&>div]:overflow-y-hidden" type="always">
+                <div className="flex items-center px-2 sm:px-4 gap-1 sm:gap-2 h-12 min-w-max">
+                    <div className="flex items-center gap-1 shrink-0">
                 <input
                     ref={fileInputRef}
                     type="file"
@@ -646,7 +649,10 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     availableDiagrams={availableDiagrams}
                     hasPartitions={!!(results?.partition_info?.partitions?.length)}
                 />
-            </div>
+                    </div>
+                </div>
+                <ScrollBar orientation="horizontal" />
+            </ScrollArea>
         </div>
     );
 }

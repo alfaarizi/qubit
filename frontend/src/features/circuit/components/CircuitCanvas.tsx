@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 
 import { GateIcon } from "@/features/gates/components/GateIcon";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { useDraggableGate } from "@/features/circuit/hooks/useDraggableGate";
@@ -240,7 +239,7 @@ export function CircuitCanvas() {
 
     return (
         <div onContextMenu={e => e.preventDefault()} className="relative">
-            <Card className="flex flex-col rounded-none border-border/50 bg-card/95 gap-0 p-4 pt-0 h-fit">
+            <Card className="flex flex-col rounded-none border-border/50 bg-card/95 gap-0 p-4 pt-0 pb-0 h-fit">
                 <CardContent className="flex-1 p-0 flex overflow-hidden">
                     <QubitLabels
                         numQubits={numQubits}
@@ -262,10 +261,8 @@ export function CircuitCanvas() {
                             onPreventClearSelection={setPreventClearSelection}
                             onClearSelection={clearSelection}
                         >
-                            <ScrollArea 
-                                className={`h-full w-full ${isExecuting ? 'pointer-events-none' : ''}`}
-                            >
-                                <svg 
+                            <div className={`h-full w-full overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 ${isExecuting ? 'pointer-events-none' : ''}`}>
+                                <svg
                                     ref={svgRef}
                                     data-testid="circuit-canvas"
                                     style={{ display: 'block', minWidth: scrollableDepth * GATE_CONFIG.gateSpacing + 6}}
@@ -274,8 +271,7 @@ export function CircuitCanvas() {
                                     onDragLeave={isExecuting ? undefined : handleDragLeave}
                                     onDrop={isExecuting ? undefined : handleDrop}
                                 />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                            </div>
                         </SelectionContextMenu>
                     </div>
                     <MeasurementToggles
