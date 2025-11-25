@@ -40,7 +40,7 @@ interface CircuitExportButtonProps {
 }
 
 export function CircuitExportButton({ svgRef, numQubits, placedGates, measurements, availableDiagrams = [], hasPartitions = false }: CircuitExportButtonProps) {
-    const { defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight} = CIRCUIT_CONFIG;
+    const { qubitLabelWidth, footerHeight, headerHeight} = CIRCUIT_CONFIG;
     const { gateSpacing } = GATE_CONFIG;
 
     const getTimestamp = (): string => {
@@ -52,86 +52,79 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
     };
 
     const prepareSVG = useCallback((sourceElement?: SVGSVGElement) => {
-        // Use provided element or default to main circuit SVG
         const sourceRef = sourceElement || svgRef.current;
         if (!sourceRef) return null;
 
         const svg = d3.select(sourceRef.cloneNode(true) as SVGSVGElement);
 
-        // Remove preview elements
+        // cleanup
         svg.selectAll('[data-preview="true"]').remove();
-
-        // Handle background elements
         svg.selectAll('.fill-background').attr('fill', 'white').attr('class', null);
+        svg.selectAll('.circuit-line').attr('stroke', '#e5e7eb').attr('stroke-width', 2);
+        svg.selectAll('text').attr('fill', 'black');
 
-        // Handle circuit lines
-        svg.selectAll('.circuit-line')
-            .attr('stroke', '#e5e7eb')
-            .attr('stroke-width', 2);
-
-        // Ensure text is black
-        svg.selectAll('text')
-            .attr('fill', 'black');
-
-        // If this is the main circuit (has gates), add labels and adjust layout
+        // get circuit dimensions
+        let maxQubits: number, maxDepth: number;
         if (!sourceElement && placedGates.length > 0) {
-            const maxDepth = getMaxDepth(placedGates) + 1;
-            const maxQubits = Math.max(...placedGates.flatMap(g => getInvolvedQubits(g))) + 1;
-            const trimmedWidth = maxDepth * gateSpacing;
-
-            // add qubit labels
-            for (let i = 0; i < maxQubits; i++) {
-                svg.append('text')
-                    .attr('x', qubitLabelWidth / 2)
-                    .attr('y', i * gateSpacing + gateSpacing / 2 + headerHeight)
-                    .attr('text-anchor', 'middle')
-                    .attr('dominant-baseline', 'middle')
-                    .attr('font-family', 'monospace')
-                    .attr('font-size', '14px')
-                    .attr('fill', 'black')
-                    .text(`q[${i}]`);
-            }
-
-            // trim circuit lines and remove unused qubits
-            svg.selectAll('.circuit-line').each(function(_, i) {
-                if (i >= maxQubits) {
-                    d3.select(this).remove();
-                } else {
-                    d3.select(this)
-                        .attr('x1', qubitLabelWidth)
-                        .attr('x2', qubitLabelWidth + trimmedWidth);
-                }
-            });
-
-            // Translate gate and circuit groups to account for qubit labels
-            svg.selectAll('.gates-group, .circuits-group, .labels-group, .circuit-backgrounds-group')
-                .attr('transform', `translate(${qubitLabelWidth}, 0)`);
-
-            // adjust depth markers
-            svg.selectAll('.depth-marker').each(function() {
-                const marker = d3.select(this);
-                const x = parseFloat(marker.attr('x') || '0');
-                marker.attr('x', x + qubitLabelWidth)
-                    .attr('y', maxQubits * gateSpacing + footerHeight / 2 + headerHeight)
-                    .attr('font-size', '12px')
-                    .attr('font-family', 'monospace')
-                    .attr('fill', '#6b7280');
-                (this as SVGElement).removeAttribute('class');
-            });
-
-            const totalWidth = trimmedWidth + qubitLabelWidth + gateSpacing / 4
-            const totalHeight = maxQubits * gateSpacing + footerHeight + headerHeight;
-
-            svg.attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`)
-                .attr('width', totalWidth)
-                .attr('height', totalHeight);
+            maxDepth = getMaxDepth(placedGates) + 1;
+            maxQubits = Math.max(...placedGates.flatMap(g => getInvolvedQubits(g))) + 1;
         } else if (sourceElement) {
-            // for partition circuit - add partition boundaries and labels
-            const bbox = sourceElement.getBoundingClientRect();
-            const width = Math.max(sourceElement.clientWidth || 0, bbox.width, 400);
-            const height = Math.max(sourceElement.clientHeight || 0, bbox.height, 300);
+            const container = sourceElement.parentElement as HTMLElement;
+            const numQubitsData = container?.dataset.numQubits;
+            const maxDepthData = container?.dataset.maxDepth;
+            if (!numQubitsData || !maxDepthData) return null;
+            maxQubits = parseInt(numQubitsData);
+            maxDepth = parseInt(maxDepthData);
+        } else {
+            return svg.node()!;
+        }
 
-            // get partition data from parent container
+        const trimmedWidth = maxDepth * gateSpacing;
+        const totalWidth = trimmedWidth + qubitLabelWidth + gateSpacing / 4;
+        const totalHeight = maxQubits * gateSpacing + footerHeight + headerHeight;
+
+        // add qubit labels
+        for (let i = 0; i < maxQubits; i++) {
+            svg.append('text')
+                .attr('x', qubitLabelWidth / 2)
+                .attr('y', i * gateSpacing + gateSpacing / 2 + headerHeight)
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'middle')
+                .attr('font-family', 'monospace')
+                .attr('font-size', '14px')
+                .attr('fill', 'black')
+                .text(`q[${i}]`);
+        }
+
+        // trim circuit lines
+        svg.selectAll('.circuit-line').each(function(_, i) {
+            if (i >= maxQubits) {
+                d3.select(this).remove();
+            } else {
+                d3.select(this)
+                    .attr('x1', qubitLabelWidth)
+                    .attr('x2', qubitLabelWidth + trimmedWidth);
+            }
+        });
+
+        // shift content groups
+        svg.selectAll('.gates-group, .circuits-group, .labels-group, .circuit-backgrounds-group')
+            .attr('transform', `translate(${qubitLabelWidth}, 0)`);
+
+        // adjust depth markers
+        svg.selectAll('.depth-marker').each(function() {
+            const marker = d3.select(this);
+            const x = parseFloat(marker.attr('x') || '0');
+            marker.attr('x', x + qubitLabelWidth)
+                .attr('y', totalHeight - footerHeight / 2)
+                .attr('font-size', '12px')
+                .attr('font-family', 'monospace')
+                .attr('fill', '#6b7280');
+            (this as SVGElement).removeAttribute('class');
+        });
+
+        // add partition boundaries if this is a partition circuit
+        if (sourceElement) {
             const container = sourceElement.parentElement as HTMLElement;
             const boundariesData = container?.dataset.partitionBoundaries;
             const partitionMapData = container?.dataset.partitionMap;
@@ -144,7 +137,9 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
                 const partitions = new Map(
                     (JSON.parse(partitionMapData) as PartitionData[]).map(p => [p.index, p])
                 );
-                const boundariesGroup = svg.append('g').attr('class', 'partition-boundaries');
+                const boundariesGroup = svg.append('g')
+                    .attr('class', 'partition-boundaries')
+                    .attr('transform', `translate(${qubitLabelWidth}, 0)`);
 
                 boundaries.forEach((boundary) => {
                     const left = boundary.start * gateSpacing;
@@ -152,45 +147,35 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
                     const partition = partitions.get(boundary.index);
 
                     boundariesGroup.append('rect')
-                        .attr('x', left)
-                        .attr('y', 0)
-                        .attr('width', boundaryWidth)
-                        .attr('height', height)
-                        .attr('fill', 'none')
-                        .attr('stroke', '#9ca3af')
-                        .attr('stroke-width', 2)
-                        .attr('stroke-dasharray', '5,5')
+                        .attr('x', left).attr('y', 0)
+                        .attr('width', boundaryWidth).attr('height', totalHeight)
+                        .attr('fill', 'none').attr('stroke', '#9ca3af')
+                        .attr('stroke-width', 2).attr('stroke-dasharray', '5,5')
                         .attr('opacity', 0.3);
 
                     boundariesGroup.append('rect')
-                        .attr('x', left + 8)
-                        .attr('y', 8)
-                        .attr('width', 60)
-                        .attr('height', 24)
-                        .attr('rx', 4)
-                        .attr('fill', '#f3f4f6')
-                        .attr('opacity', 0.9);
+                        .attr('x', left + 8).attr('y', 8)
+                        .attr('width', 60).attr('height', 24).attr('rx', 4)
+                        .attr('fill', '#f3f4f6').attr('opacity', 0.9);
 
-                    const labelText = `P${boundary.index}${partition ? ` ${partition.num_gates}g` : ''}`;
                     boundariesGroup.append('text')
-                        .attr('x', left + 38)
-                        .attr('y', 24)
+                        .attr('x', left + 38).attr('y', 24)
                         .attr('text-anchor', 'middle')
                         .attr('font-family', 'system-ui, -apple-system, sans-serif')
-                        .attr('font-size', '12px')
-                        .attr('font-weight', '600')
+                        .attr('font-size', '12px').attr('font-weight', '600')
                         .attr('fill', '#6b7280')
-                        .text(labelText);
+                        .text(`P${boundary.index}${partition ? ` ${partition.num_gates}g` : ''}`);
                 });
             }
-
-            svg.attr('viewBox', `0 0 ${width} ${height}`)
-                .attr('width', width)
-                .attr('height', height);
         }
 
+        // set final dimensions
+        svg.attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`)
+            .attr('width', totalWidth)
+            .attr('height', totalHeight);
+
         return svg.node()!;
-    }, [svgRef, numQubits, placedGates, gateSpacing, defaultMaxDepth, qubitLabelWidth, footerHeight, headerHeight]);
+    }, [svgRef, numQubits, placedGates, gateSpacing, qubitLabelWidth, footerHeight, headerHeight]);
 
     const exportCircuit = useCallback((format: 'svg' | 'png', isPartition: boolean = false) => {
         let sourceElement: SVGSVGElement | null = null;

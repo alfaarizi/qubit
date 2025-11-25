@@ -211,7 +211,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
     if (partitions.length === 0) return null;
 
     return (
-        <div className="bg-muted border rounded-lg">
+        <div className="bg-muted border rounded-lg" data-testid="results-partition-viewer">
             <div className="flex items-center justify-between px-4 py-3 border-b">
                 <div>
                     <h3 className="text-base font-semibold">Partition Viewer</h3>
@@ -266,6 +266,8 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                             style={{ height: canvasHeight }}
                             data-partition-boundaries={viewMode === 'sequential' ? JSON.stringify(sequentialCircuit.boundaries) : undefined}
                             data-partition-map={JSON.stringify(Array.from(partitionMap.entries()).map(([k, v]) => ({ index: k, num_gates: v.num_gates })))}
+                            data-num-qubits={globalQubits.length}
+                            data-max-depth={circuit.maxDepth}
                         >
                             <svg
                                 ref={svgRef}
