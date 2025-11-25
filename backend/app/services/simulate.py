@@ -459,33 +459,27 @@ def run_simulation(
     # finalizing results
     step += 1
     report_progress("finalizing", step, total_steps, "Finalizing results...")
-    
+
+    original_data = {'state_vector': state_original, 'probabilities': probs_original, 'counts': counts_original}
+    if density_original is not None:
+        original_data['density_matrix'] = {'real': density_original.real, 'imag': density_original.imag}
+    if entropy_original:
+        original_data['entropy_scaling'] = entropy_original
+
+    partitioned_data = {'state_vector': state_partitioned, 'probabilities': probs_partitioned, 'counts': counts_partitioned}
+    if density_partitioned is not None:
+        partitioned_data['density_matrix'] = {'real': density_partitioned.real, 'imag': density_partitioned.imag}
+    if entropy_partitioned:
+        partitioned_data['entropy_scaling'] = entropy_partitioned
+
     results = {
         'timestamp': int(time.time() * 1000),
         'num_qubits': num_qubits,
         'num_shots': num_shots,
         'errors': errors,
         'partition_info': partition_result['partition_info'],
-        'original': {
-            'state_vector': state_original,
-            'probabilities': probs_original,
-            'counts': counts_original,
-            'density_matrix': {
-                'real': density_original.real if density_original is not None else None,
-                'imag': density_original.imag if density_original is not None else None
-            },
-            'entropy_scaling': entropy_original
-        },
-        'partitioned': {
-            'state_vector': state_partitioned,
-            'probabilities': probs_partitioned,
-            'counts': counts_partitioned,
-            'density_matrix': {
-                'real': density_partitioned.real if density_partitioned is not None else None,
-                'imag': density_partitioned.imag if density_partitioned is not None else None
-            },
-            'entropy_scaling': entropy_partitioned
-        },
+        'original': original_data,
+        'partitioned': partitioned_data,
         'comparison': {
             'fidelity': fidelity,
             'probability_difference': np.abs(probs_original - probs_partitioned).tolist(),
