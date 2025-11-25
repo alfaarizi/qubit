@@ -145,7 +145,13 @@ class CircuitConverter:
     def squander_to_qasm(circuit: Circuit, parameters: np.ndarray, output_file: str) -> None:
         """Convert SQUANDER Circuit to QASM file."""
         qiskit_circuit = Qiskit_IO.get_Qiskit_Circuit(circuit, parameters)
-        qasm_str = qiskit_circuit.qasm()
+        try:
+            # try new Qiskit API
+            from qiskit import qasm2
+            qasm_str = qasm2.dumps(qiskit_circuit)
+        except (ImportError, AttributeError):
+            # fall back to old Qiskit API (v0.x)
+            qasm_str = qiskit_circuit.qasm()
         with open(output_file, 'w') as f:
             f.write(qasm_str)
 

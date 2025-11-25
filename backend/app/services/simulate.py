@@ -14,6 +14,8 @@ Licensed under Apache License 2.0
 import json
 import argparse
 import time
+import os
+import tempfile
 import numpy as np
 import multiprocessing
 from typing import Dict, List, Optional, Callable, Any
@@ -64,11 +66,22 @@ class QuantumCircuitSimulator:
         self.matrix_size = 1 << num_qubits
         self.gate_ids = []
 
-    def partition_circuit(self, circuit: Circuit, parameters: np.ndarray, max_partition_size: int = 4, strategy: str = 'kahn') -> Dict:
+    def partition_circuit(self, circuit: Circuit, parameters: np.ndarray, max_partition_size: int = 4, strategy: str = 'kahn', qasm_file: str = None) -> Dict:
+        """
+        Partition a circuit using the specified strategy.
+
+        For qiskit/bqskit strategies, qasm_file must be provided.
+        For other strategies, circuit and parameters are used directly.
+        """
+        qasm_strategies = ["qiskit", "qiskit-fusion", "bqskit-Quick", "bqskit-Scan", "bqskit-Greedy", "bqskit-Cluster"]
+
+        if strategy in qasm_strategies and not qasm_file:
+            raise ValueError(f"Strategy '{strategy}' requires a QASM file, but none was provided")
+
         partitioned_circ, partitioned_params, partition_assignments = PartitionCircuit(
-            circuit, parameters, max_partition_size, strategy
+            circuit, parameters, max_partition_size, strategy, qasm_file
         )
-        
+
         partitions = []
         for i, partition in enumerate(partitioned_circ.get_Gates()):
             gates = partition.get_Gates()
@@ -309,10 +322,24 @@ def run_simulation(
     # partition circuit
     step += 1
     report_progress("partitioning", step, total_steps, f"Partitioning circuit (strategy: {strategy})...")
+
+    # Create QASM file for qiskit/bqskit strategies
+    qasm_strategies = ["qiskit", "qiskit-fusion", "bqskit-Quick", "bqskit-Scan", "bqskit-Greedy", "bqskit-Cluster"]
+    qasm_file = None
+    if strategy in qasm_strategies:
+        fd, qasm_file = tempfile.mkstemp(suffix='.qasm', text=True)
+        try:
+            os.close(fd)
+            CircuitConverter.squander_to_qasm(circuit, parameters, qasm_file)
+        except Exception as e:
+            if qasm_file and os.path.exists(qasm_file):
+                os.unlink(qasm_file)
+            raise RuntimeError(f"Failed to create QASM file for {strategy}: {str(e)}")
+
     try:
         partition_result = run_with_timeout(
             simulator.partition_circuit,
-            args=(circuit, parameters, max_partition_size, strategy),
+            args=(circuit, parameters, max_partition_size, strategy, qasm_file),
             timeout_seconds=simulation_timeout
         )
         partitioned_circ = partition_result['partitioned_circuit']
@@ -320,7 +347,6 @@ def run_simulation(
     except TimeoutError as e:
         report_progress("partitioning", step, total_steps, f"Skipping circuit partitioning - timed out after {simulation_timeout}s")
         errors.append({'stage': 'partitioning', 'error': str(e), 'timeout': True})
-        # Use original circuit if partitioning times out
         partition_result = {
             'partitioned_circuit': circuit,
             'partitioned_params': parameters,
@@ -333,6 +359,13 @@ def run_simulation(
         }
         partitioned_circ = circuit
         partitioned_params = parameters
+    except Exception as e:
+        if qasm_file and os.path.exists(qasm_file):
+            os.unlink(qasm_file)
+        raise
+    finally:
+        if qasm_file and os.path.exists(qasm_file):
+            os.unlink(qasm_file)
 
     # simulate partitioned circuit
     step += 1
