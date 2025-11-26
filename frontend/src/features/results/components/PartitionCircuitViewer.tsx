@@ -244,7 +244,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                 </div>
             </div>
 
-            <div className="bg-card/95 border-t border-border/50 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80" style={{ maxHeight }}>
+            <div className="bg-card/95 border-t border-border/50 overflow-y-auto [scrollbar-width:auto] [scrollbar-color:hsl(var(--border))_transparent] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb:hover]:!bg-border/80" style={{ maxHeight }}>
                 <div className="flex px-4">
                     <div className="flex flex-col mr-4 shrink-0">
                         <div style={{ height: CIRCUIT_CONFIG.headerHeight }} />
@@ -260,7 +260,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                         <div style={{ height: CIRCUIT_CONFIG.footerHeight }} />
                     </div>
 
-                    <div ref={scrollAreaRef} className="flex-1 overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 touch-pan-y overscroll-x-none">
+                    <div ref={scrollAreaRef} className="flex-1 overflow-x-auto [scrollbar-width:auto] [scrollbar-color:hsl(var(--border))_transparent] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 touch-pan-y overscroll-x-none">
                         <div
                             className="relative"
                             style={{ height: canvasHeight }}
@@ -303,7 +303,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
             </div>
 
             <div className="px-4 py-3 pb-1 border-t bg-muted/30">
-                <ScrollArea className="w-full" type="always">
+                <ScrollArea className="w-full [&>[data-radix-scroll-area-viewport]]:overscroll-x-none [&>[data-radix-scroll-area-viewport]]:touch-pan-x" type="always">
                     <div className="flex gap-2 pb-3">
                         {partitions.map((partition) => (
                             <Badge

@@ -423,7 +423,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     return (
         <div className="w-full h-12 bg-muted border-b" data-testid="circuit-toolbar">
             <ScrollArea className="w-full h-12 [&>div]:h-12 [&>div]:overflow-y-hidden" type="always">
-                <div className="flex items-center px-2 sm:px-4 gap-1 sm:gap-2 h-12 min-w-max">
+                <div className="flex items-center px-2 sm:px-4 gap-1 sm:gap-2 h-12 min-w-max py-1">
                     <div className="flex items-center gap-1 shrink-0">
                 <input
                     ref={fileInputRef}
@@ -639,10 +639,10 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                         </div>
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <Button data-testid="run-circuit-button" size="icon" disabled={isExecuting} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={() => handleRun()} title="Execute circuit">
-                    {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4"/>}
+                <Button data-testid="run-circuit-button" size="icon" disabled={isExecuting} className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-8 w-8" onClick={() => handleRun()} title="Execute circuit">
+                    {isExecuting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-3 w-4"/>}
                 </Button>
-                <Button data-testid="abort-execution-button" size="icon" variant="destructive" disabled={!isExecuting} className="disabled:opacity-50 disabled:cursor-not-allowed shrink-0" onClick={handleAbortClick} title="Abort execution">
+                <Button data-testid="abort-execution-button" size="icon" variant="destructive" disabled={!isExecuting} className="disabled:opacity-50 disabled:cursor-not-allowed shrink-0 h-8 w-8" onClick={handleAbortClick} title="Abort execution">
                     <Square className="h-4 w-4"/>
                 </Button>
             </div>

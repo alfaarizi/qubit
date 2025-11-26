@@ -179,7 +179,7 @@ export function GatesPanel() {
         return grouped;
     }, [filteredItems]);
 
-    const calcPanelWidth = (cols: number) => gateSize * cols + 8 * (cols - 1) + 16;
+    const calcPanelWidth = (cols: number) => gateSize * cols + 8 * (cols - 1) + 20;
     const gridColumns = showExpandedGrid ? 4 : 2;
 
     return (
@@ -227,7 +227,7 @@ export function GatesPanel() {
                 )}
 
                 <CardContent className="flex-1 overflow-hidden p-0">
-                    <ScrollArea className="h-full [&>[data-radix-scroll-area-viewport]]:overscroll-none [&>[data-radix-scroll-area-viewport]]:touch-none">
+                    <ScrollArea className="h-full [&>[data-radix-scroll-area-viewport]]:overscroll-x-none [&>[data-radix-scroll-area-viewport]]:touch-pan-y">
                         <div className="p-3 space-y-3">
                             {isExpanded ? (
                                 filteredItems.length === 0 ? (

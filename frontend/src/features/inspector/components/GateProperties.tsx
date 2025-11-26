@@ -37,7 +37,7 @@ export function GateProperties() {
             </div>
             <Card className="w-full flex flex-col rounded-none border border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 flex-1 min-h-0">
                 <CardContent className="flex-1 overflow-hidden p-0">
-                <ScrollArea className="h-full px-3 pb-3 overscroll-none touch-none">
+                <ScrollArea className="h-full px-3 pb-3 overscroll-x-none touch-pan-y">
                     <div className="space-y-2.5">
                         {/* Gate Header */}
                         <div className="flex items-start gap-2">
@@ -101,7 +101,7 @@ export function GateProperties() {
                                         <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide truncate">
                                             Matrix
                                         </h4>
-                                        <div className="flex-1 space-y-1 flex justify-start items-start overflow-x-auto overscroll-none touch-none">
+                                        <div className="flex-1 space-y-1 flex justify-start items-start overflow-x-auto [scrollbar-width:auto] [scrollbar-color:hsl(var(--border))_transparent] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 overscroll-x-none touch-pan-x">
                                             <div className="text-xs">
                                                 <LaTeX block>{hoveredGate.matrix}</LaTeX>
                                             </div>

@@ -21,9 +21,6 @@ interface UseGateSelectionProps {
     preventClearSelection?: boolean;
 }
 
-const SCROLL_EDGE_THRESHOLD = 50;
-const SCROLL_SPEED = 10;
-
 export const SELECTION_STYLES = {
     // selected gate border styles
     strokeColor: '#eab308',
@@ -131,13 +128,16 @@ export function useGateSelection({
 
         if (preventClearSelection) return;
 
-        // Clear selection if clicking outside SVG or on empty space
-        if (!isInsideSvg || (!isSelectingGate && selectedGateIds.size > 0)) {
+        // Don't do anything if clicking outside SVG
+        if (!isInsideSvg) return;
+
+        // Clear selection only if clicking inside SVG on empty space
+        if (!isSelectingGate && selectedGateIds.size > 0) {
             clearSelection();
         }
 
         // Start selection rectangle on empty space within SVG
-        if (isInsideSvg && !isSelectingGate) {
+        if (!isSelectingGate) {
             const rect = svgRef.current.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -149,10 +149,16 @@ export function useGateSelection({
         }
     }, [isEnabled, svgRef, clearSelection, selectedGateIds.size, preventClearSelection]);
 
+    const updateFrameRef = useRef<number | undefined>(undefined);
     const handleMouseMove = useCallback((event: MouseEvent) => {
         if (!isSelecting) return;
         selectionPosRef.current = { x: event.clientX, y: event.clientY };
-        updateSelection();
+
+        if (updateFrameRef.current !== undefined) return;
+        updateFrameRef.current = requestAnimationFrame(() => {
+            updateSelection();
+            updateFrameRef.current = undefined;
+        });
     }, [isSelecting, updateSelection]);
 
     const handleMouseUp = useCallback(() => {
@@ -173,15 +179,14 @@ export function useGateSelection({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isEnabled, clearSelection]);
 
-    // Auto-scroll during selection
+    // auto-scroll during selection
     useEffect(() => {
-        if (!isSelecting) return;
+        if (!isSelecting || !scrollContainerRef?.current) return;
 
         let frameId: number;
-        let lastUpdate = 0;
-        
-        const autoScroll = (timestamp: number) => {
-            const viewport = scrollContainerRef?.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+
+        const autoScroll = () => {
+            const viewport = scrollContainerRef.current;
             if (!viewport) {
                 frameId = requestAnimationFrame(autoScroll);
                 return;
@@ -190,15 +195,19 @@ export function useGateSelection({
             const rect = viewport.getBoundingClientRect();
             const { x, y } = selectionPosRef.current;
 
-            if (x < rect.left + SCROLL_EDGE_THRESHOLD) viewport.scrollLeft -= SCROLL_SPEED;
-            else if (x > rect.right - SCROLL_EDGE_THRESHOLD) viewport.scrollLeft += SCROLL_SPEED;
+            const edgeThreshold = 50;
+            const scrollSpeed = 10;
 
-            if (y < rect.top + SCROLL_EDGE_THRESHOLD) viewport.scrollTop -= SCROLL_SPEED;
-            else if (y > rect.bottom - SCROLL_EDGE_THRESHOLD) viewport.scrollTop += SCROLL_SPEED;
+            if (x < rect.left + edgeThreshold) {
+                viewport.scrollLeft = Math.max(0, viewport.scrollLeft - scrollSpeed);
+            } else if (x > rect.right - edgeThreshold) {
+                viewport.scrollLeft += scrollSpeed;
+            }
 
-            if (timestamp - lastUpdate > 16) {
-                updateSelection();
-                lastUpdate = timestamp;
+            if (y < rect.top + edgeThreshold) {
+                viewport.scrollTop = Math.max(0, viewport.scrollTop - scrollSpeed);
+            } else if (y > rect.bottom - edgeThreshold) {
+                viewport.scrollTop += scrollSpeed;
             }
 
             frameId = requestAnimationFrame(autoScroll);
@@ -206,7 +215,7 @@ export function useGateSelection({
 
         frameId = requestAnimationFrame(autoScroll);
         return () => cancelAnimationFrame(frameId);
-    }, [isSelecting, scrollContainerRef, updateSelection]);
+    }, [isSelecting, scrollContainerRef]);
 
     // Mouse events
     useEffect(() => {

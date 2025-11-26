@@ -208,7 +208,7 @@ export function CircuitCanvas() {
 
     const scrollPosRef = useRef(0);
     useEffect(() => {
-        const viewport = scrollContainerRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+        const viewport = scrollContainerRef.current;
         if (!viewport) return;
         const saveScroll = () => { scrollPosRef.current = viewport.scrollLeft; };
         viewport.addEventListener('scroll', saveScroll);
@@ -263,7 +263,7 @@ export function CircuitCanvas() {
                             onPreventClearSelection={setPreventClearSelection}
                             onClearSelection={clearSelection}
                         >
-                            <div className={`h-full w-full overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 touch-pan-y overscroll-x-none ${isExecuting ? 'pointer-events-none' : ''}`}>
+                            <div ref={scrollContainerRef} className={`h-full w-full overflow-x-auto [scrollbar-width:auto] [scrollbar-color:hsl(var(--border))_transparent] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 touch-pan-y overscroll-x-none ${isExecuting ? 'pointer-events-none' : ''}`}>
                                 <svg
                                     ref={svgRef}
                                     data-testid="circuit-canvas"
