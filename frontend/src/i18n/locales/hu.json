@@ -1,6 +1,6 @@
 {
   "homepage": {
-    "badge": "Kvantum Áramkör Szimulátor és Vizualizáló",
+    "badge": "Kvantum Unitér Benchmarking és Interaktív Eszközkészlet",
     "hero": {
       "title": "Tervezzen, Szimuláljon és Vizualizáljon Kvantum Áramköröket",
       "subtitle": "Egy hatékony vizuális platform a kvantumszámítástechnika felfedezésére. Építsen összetett kvantum áramköröket, particionálja őket intelligensen, és elemezze az eredményeket professzionális vizualizációkkal.",
@@ -42,7 +42,7 @@
     },
     "squander": {
       "title": "A SQUANDER Technológiával",
-      "description": "A SQUANDER (Sequential Quantum Gate Decomposer) alapjaira épül, egy élvonalbeli C++/Python keretrendszer, amelyet az Eötvös Loránd Tudományegyetemen fejlesztettek. A SQUANDER kiválóan alkalmas n-qubites unitárok optimalizált kvantum áramkörökké történő dekompozíciójára párhuzamos feldolgozás, vektorizált AVX kernelek és innovatív gradiens-mentes optimalizációs technikák használatával, amelyek hatékonyan kikerülik a lapos fennsíkokat.",
+      "description": "A SQUANDER (Sequential Quantum Gate Decomposer) alapjaira épül, egy élvonalbeli C++/Python keretrendszer, amelyet az Eötvös Loránd Tudományegyetemen fejlesztettek. A SQUANDER kiválóan alkalmas n-qubites unitárok optimalizált kvantum áramkörökké történő dekompozíciójára párhuzamos feldolgozás, vektorizált AVX kernelek és innovatív gradiens-mentes optimalizációs technikák használatával.",
       "learn": "Fedezze fel a SQUANDER-t a GitHub-on"
     },
     "capabilities": {
@@ -65,7 +65,7 @@
       "button": "Áramkör Szerkesztő Megnyitása"
     },
     "footer": {
-      "text": "Kvantum Áramkör Szimulátor - Oktatásra és kutatásra épülve"
+      "text": "Kvantum Áramkör Szimulátor és Vizualizáló - Oktatásra és kutatásra épülve"
     }
   },
   "composer": {

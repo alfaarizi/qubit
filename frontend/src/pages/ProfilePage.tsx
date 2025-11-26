@@ -82,11 +82,11 @@ export default function ProfilePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">First Name</label>
-                  <p className="mt-1 text-base">{user?.first_name || "Not set"}</p>
+                  <p className="mt-1 text-base">{user?.first_name || "N/A"}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Last Name</label>
-                  <p className="mt-1 text-base">{user?.last_name || "Not set"}</p>
+                  <p className="mt-1 text-base">{user?.last_name || "N/A"}</p>
                 </div>
               </div>
               <div>

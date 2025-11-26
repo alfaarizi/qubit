@@ -2,6 +2,9 @@ import { Link } from "react-router-dom"
 import { HelpCircle, Share2, Github, Mail, Home} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { useTheme } from "@/providers/ThemeProvider"
+import squanderLogoLightSm from '@/assets/Squander_logo_light_sm.png'
+import squanderLogoDarkSm from '@/assets/squander_logo_dark_sm.png'
 import {
     Tooltip,
     TooltipContent,
@@ -28,19 +31,27 @@ export function Header({
    emailUrl = "mailto:contact@example.com",
 }: HeaderProps) {
     const { activeCircuitId, projectName, setProjectName } = useComposer();
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     return (
         <header className="h-12 w-full border-b bg-muted/50 flex items-center px-4 text-xs text-muted-foreground">
             {/* Column 1: Logo and Name */}
-            <div className="flex items-center gap-2 w-52">
+            <div className="flex items-center gap-1.5 w-52">
                 <span className="font-semibold text-foreground">Qubitkit</span>
+                <span className="text-muted-foreground text-xs">by</span>
+                <img
+                    src={isDarkMode ? squanderLogoDarkSm : squanderLogoLightSm}
+                    alt="Squander"
+                    className="h-3.5"
+                />
                 <Separator orientation="vertical" className="h-4" />
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-5 w-5" asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 -ml-0.5" asChild>
                                 <Link to="/project">
-                                    <Home className="w-3.5 h-3.5" />
+                                    <Home className="w-3.5 h-3.5 -translate-y-[1px]" />
                                     <span className="sr-only">Back to projects</span>
                                 </Link>
                             </Button>

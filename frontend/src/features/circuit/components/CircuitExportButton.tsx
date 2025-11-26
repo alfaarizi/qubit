@@ -175,7 +175,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
             .attr('height', totalHeight);
 
         return svg.node()!;
-    }, [svgRef, numQubits, placedGates, gateSpacing, qubitLabelWidth, footerHeight, headerHeight]);
+    }, [svgRef, placedGates, gateSpacing, qubitLabelWidth, footerHeight, headerHeight]);
 
     const exportCircuit = useCallback((format: 'svg' | 'png', isPartition: boolean = false) => {
         let sourceElement: SVGSVGElement | null = null;

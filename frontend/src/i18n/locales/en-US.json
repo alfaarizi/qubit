@@ -1,6 +1,6 @@
 {
   "homepage": {
-    "badge": "Quantum Circuit Simulator & Visualizer",
+    "badge": "Quantum Unitary Benchmarking and Interactive Toolkit",
     "hero": {
       "title": "Design, Simulate, and Visualize Quantum Circuits",
       "subtitle": "A powerful visual platform for quantum computing exploration. Build complex quantum circuits, partition them intelligently, and analyze results with professional-grade visualizations.",
@@ -42,7 +42,7 @@
     },
     "squander": {
       "title": "Powered by SQUANDER",
-      "description": "Built on SQUANDER (Sequential Quantum Gate Decomposer), a cutting-edge C++/Python framework developed at Eötvös Loránd University. SQUANDER excels at decomposing n-qubit unitaries into optimized quantum circuits using parallel processing, vectorized AVX kernels, and innovative gradient-free optimization techniques that effectively circumvent barren plateaus.",
+      "description": "Built on SQUANDER (Sequential Quantum Gate Decomposer), a cutting-edge C++/Python framework developed at Eötvös Loránd University. SQUANDER excels at decomposing n-qubit unitaries into optimized quantum circuits using parallel processing, vectorized AVX kernels, and innovative gradient-free optimization techniques.",
       "learn": "Explore SQUANDER on GitHub"
     },
     "capabilities": {
@@ -65,7 +65,7 @@
       "button": "Open Circuit Composer"
     },
     "footer": {
-      "text": "Quantum Circuit Simulator - Built for education and research"
+      "text": "Quantum Circuit Simulator & Visualizer - Built for education and research"
     }
   },
   "composer": {

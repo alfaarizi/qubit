@@ -1,6 +1,6 @@
 {
   "homepage": {
-    "badge": "Quantenschaltkreis-Simulator & Visualisierer",
+    "badge": "Quantum Unitary Benchmarking und Interaktives Toolkit",
     "hero": {
       "title": "Quantenschaltkreise Entwerfen, Simulieren und Visualisieren",
       "subtitle": "Eine leistungsstarke visuelle Plattform zur Erforschung des Quantencomputings. Erstellen Sie komplexe Quantenschaltkreise, partitionieren Sie sie intelligent und analysieren Sie Ergebnisse mit professionellen Visualisierungen.",
@@ -42,7 +42,7 @@
     },
     "squander": {
       "title": "Angetrieben von SQUANDER",
-      "description": "Basierend auf SQUANDER (Sequential Quantum Gate Decomposer), einem hochmodernen C++/Python-Framework, das an der Eötvös-Loránd-Universität entwickelt wurde. SQUANDER zeichnet sich durch die Zerlegung von n-Qubit-Unitären in optimierte Quantenschaltkreise aus, unter Verwendung paralleler Verarbeitung, vektorisierter AVX-Kernel und innovativer gradientenfreier Optimierungstechniken, die Barren-Plateaus effektiv umgehen.",
+      "description": "Basierend auf SQUANDER (Sequential Quantum Gate Decomposer), einem hochmodernen C++/Python-Framework, das an der Eötvös-Loránd-Universität entwickelt wurde. SQUANDER zeichnet sich durch die Zerlegung von n-Qubit-Unitären in optimierte Quantenschaltkreise aus, unter Verwendung paralleler Verarbeitung, vektorisierter AVX-Kernel und innovativer gradientenfreier Optimierungstechniken.",
       "learn": "SQUANDER auf GitHub erkunden"
     },
     "capabilities": {
@@ -65,7 +65,7 @@
       "button": "Schaltkreis-Editor Öffnen"
     },
     "footer": {
-      "text": "Quantenschaltkreis-Simulator - Für Bildung und Forschung entwickelt"
+      "text": "Quantenschaltkreis-Simulator & Visualisierer - Für Bildung und Forschung entwickelt"
     }
   },
   "composer": {

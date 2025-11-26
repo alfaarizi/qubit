@@ -9,11 +9,15 @@ import {
 } from "@/components/ui/dropdown-menu.tsx"
 import { useTheme } from "@/providers/ThemeProvider.tsx"
 
-export function ModeToggle() {
+interface ModeToggleProps {
+    modal?: boolean;
+}
+
+export function ModeToggle({ modal = true }: ModeToggleProps) {
     const { setTheme } = useTheme()
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={modal}>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="h-8 w-8" data-testid="theme-toggle">
                     <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />

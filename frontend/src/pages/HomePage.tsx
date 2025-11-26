@@ -17,10 +17,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {ModeToggle} from "@/components/common/ModeToggle.tsx";
+import squanderLogoLight from '@/assets/squander_logo_light.jpeg';
+import squanderLogoDark from '@/assets/squander_logo_dark.jpeg';
+import { useTheme } from '@/providers/ThemeProvider';
 
 function HomePage() {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { theme } = useTheme();
+
+    const isDarkMode = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     const navigateToComposer = () => {
         navigate('/project');
@@ -89,8 +95,8 @@ function HomePage() {
         <div className="min-h-screen bg-background">
             {/* Language Switcher - Top Right */}
             <div className="fixed top-6 right-6 z-50 flex items-center gap-3">
-            <ModeToggle />
-                <LanguageSwitcher />
+                <ModeToggle modal={false} />
+                <LanguageSwitcher modal={false} />
             </div>
 
             {/* Hero Section */}
@@ -124,7 +130,9 @@ function HomePage() {
                                 className="text-lg px-10 py-7 group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all"
                             >
                                 {t('homepage.hero.getStarted')}
-                                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                <span className="inline-block ml-2 w-5">
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </span>
                             </Button>
                             <Button
                                 size="lg"
@@ -194,11 +202,18 @@ function HomePage() {
                 <div className="container relative mx-auto px-4">
                     <div className="max-w-4xl mx-auto">
                         <div className="flex flex-col items-center text-center space-y-8 p-12 md:p-16 rounded-3xl bg-background/80 dark:bg-background/40 backdrop-blur-xl border border-purple-200/50 dark:border-purple-800/30 shadow-2xl">
-                            <h2 className="text-4xl md:text-5xl font-bold">
-                                <span className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 dark:from-purple-400 dark:via-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
-                                    {t('homepage.squander.title')}
-                                </span>
-                            </h2>
+                            <div className="flex flex-col items-center gap-6">
+                                <h2 className="text-4xl md:text-5xl font-bold">
+                                    <span className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 dark:from-purple-400 dark:via-indigo-400 dark:to-blue-400 bg-clip-text text-transparent">
+                                        {t('homepage.squander.title')}
+                                    </span>
+                                </h2>
+                                <img
+                                    src={isDarkMode ? squanderLogoDark : squanderLogoLight}
+                                    alt="SQUANDER"
+                                    className="h-20 md:h-32"
+                                />
+                            </div>
                             <p className="text-muted-foreground text-lg md:text-xl leading-relaxed max-w-2xl font-light">
                                 {t('homepage.squander.description')}
                             </p>
@@ -263,7 +278,9 @@ function HomePage() {
                                 className="text-lg px-12 py-7 group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
                             >
                                 {t('homepage.cta.button')}
-                                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                <span className="inline-block ml-2 w-5">
+                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </span>
                             </Button>
                         </div>
                     </div>

@@ -11,15 +11,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuthStore } from "@/stores/authStore";
 import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 import { ModeToggle } from "@/components/common/ModeToggle";
+import squanderLogoLightSm from '@/assets/Squander_logo_light_sm.png';
+import squanderLogoDarkSm from '@/assets/squander_logo_dark_sm.png';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const { sendEmailCode, verifyEmailCode, oauthLogin, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const { instance } = useMsal();
+  const { theme } = useTheme();
   const [email, setEmail] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [code, setCode] = useState(["", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const isDarkMode = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   useEffect(() => {
     clearError();
@@ -135,6 +141,12 @@ export default function AuthPage() {
               Q
             </div>
             <span className="text-xl font-semibold">QubitKit</span>
+            <span className="text-muted-foreground text-sm translate-y-[2px]">by</span>
+            <img
+              src={isDarkMode ? squanderLogoDarkSm : squanderLogoLightSm}
+              alt="Squander"
+              className="h-5 translate-y-[1.5px]"
+            />
           </Link>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">

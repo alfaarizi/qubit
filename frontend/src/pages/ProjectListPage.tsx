@@ -48,6 +48,9 @@ import { useProjectsStore, type Project } from '@/stores/projectsStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CircuitThumbnail } from '@/features/circuit/components/CircuitThumbnail';
+import squanderLogoLightSm from '@/assets/Squander_logo_light_sm.png';
+import squanderLogoDarkSm from '@/assets/squander_logo_dark_sm.png';
+import { useTheme } from '@/providers/ThemeProvider';
 
 type ViewMode = 'grid' | 'list';
 type FilterType = 'all' | 'yours' | 'shared' | 'archived' | 'trashed';
@@ -63,11 +66,14 @@ const sidebarItems = [
 export default function ProjectListPage() {
     const navigate = useNavigate();
     const { projects, loadProjects, addProject, updateProject, deleteProject, duplicateProject } = useProjectsStore();
+    const { theme } = useTheme();
 
     // Load projects from the backend when component mounts
     useEffect(() => {
         void loadProjects();
     }, [loadProjects]);
+
+    const isDarkMode = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [searchQuery, setSearchQuery] = useState('');
@@ -179,9 +185,15 @@ export default function ProjectListPage() {
             {/* header */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div className="container flex h-14 items-center px-4 mx-auto max-w-7xl">
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="flex items-center flex-1">
                         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                             <h1 className="font-semibold text-lg">Qubitkit</h1>
+                            <span className="text-muted-foreground text-sm translate-y-[1px]">by</span>
+                            <img
+                                src={isDarkMode ? squanderLogoDarkSm : squanderLogoLightSm}
+                                alt="Squander"
+                                className="h-5"
+                            />
                         </Link>
                     </div>
 

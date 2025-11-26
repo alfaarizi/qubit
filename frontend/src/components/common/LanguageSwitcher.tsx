@@ -14,7 +14,11 @@ const languages = [
     { code: 'de', name: 'Deutsch', flag: '🇩🇪' }
 ];
 
-export function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+    modal?: boolean;
+}
+
+export function LanguageSwitcher({ modal = true }: LanguageSwitcherProps) {
     const { i18n } = useTranslation();
 
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
@@ -24,7 +28,7 @@ export function LanguageSwitcher() {
     };
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={modal}>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2" data-testid="language-switcher">
                     <Languages className="h-4 w-4" />

@@ -21,7 +21,7 @@ export const GATE_CONFIG = {
     },
     multiQubit: {
         lineWidth: 1,
-        targetRadius: 21,
+        targetRadius: 18,
         controlDotRadius: 4
     }
 } as const;
