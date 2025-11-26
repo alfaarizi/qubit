@@ -260,7 +260,7 @@ export function PartitionCircuitViewer({ partitions, maxPartitionSize }: Partiti
                         <div style={{ height: CIRCUIT_CONFIG.footerHeight }} />
                     </div>
 
-                    <div ref={scrollAreaRef} className="flex-1 overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80">
+                    <div ref={scrollAreaRef} className="flex-1 overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 touch-pan-y overscroll-x-none">
                         <div
                             className="relative"
                             style={{ height: canvasHeight }}

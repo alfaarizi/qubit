@@ -263,7 +263,7 @@ export function CircuitCanvas() {
                             onPreventClearSelection={setPreventClearSelection}
                             onClearSelection={clearSelection}
                         >
-                            <div className={`h-full w-full overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 ${isExecuting ? 'pointer-events-none' : ''}`}>
+                            <div className={`h-full w-full overflow-x-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:!bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:!bg-border/80 touch-pan-y overscroll-x-none ${isExecuting ? 'pointer-events-none' : ''}`}>
                                 <svg
                                     ref={svgRef}
                                     data-testid="circuit-canvas"

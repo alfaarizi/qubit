@@ -227,7 +227,7 @@ export function GatesPanel() {
                 )}
 
                 <CardContent className="flex-1 overflow-hidden p-0">
-                    <ScrollArea className="h-full">
+                    <ScrollArea className="h-full [&>[data-radix-scroll-area-viewport]]:overscroll-none [&>[data-radix-scroll-area-viewport]]:touch-none">
                         <div className="p-3 space-y-3">
                             {isExpanded ? (
                                 filteredItems.length === 0 ? (

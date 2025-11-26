@@ -119,8 +119,9 @@
     -khtml-user-select: none;
     user-select: none;
   }
+  html,
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overscroll-y-none;
     background-color: rgb(17 17 17);
   }
 }
