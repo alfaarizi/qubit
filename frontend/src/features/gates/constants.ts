@@ -145,7 +145,7 @@ export const GATE_DEFINITIONS: GateInfo[] = [
     {
         id: 'sdg',
         name: 'S† Gate',
-        symbol: 'S†',
+        symbol: 'Sdg',
         color: '#d1546a',
         description: 'Adjoint S gate',
         longDescription: 'The S† gate is the complex conjugate transpose (adjoint) of the S gate. It applies a -π/2 phase shift and undoes the effect of the S gate.',
@@ -172,6 +172,22 @@ export const GATE_DEFINITIONS: GateInfo[] = [
         formulas: [
             '|0\\rangle \\rightarrow |0\\rangle',
             '|1\\rangle \\rightarrow e^{i\\pi/4}|1\\rangle'
+        ],
+    },
+    {
+        id: 'tdg',
+        name: 'T† Gate',
+        symbol: 'Tdg',
+        color: '#fde047',
+        description: 'Adjoint T gate',
+        longDescription: 'The T† gate (Tdg) is the complex conjugate transpose (adjoint) of the T gate. It applies a -π/4 phase shift and undoes the effect of the T gate.',
+        numControlQubits: 0,
+        numTargetQubits: 1,
+        category: GATE_CATEGORIES.SINGLE_QUBIT,
+        matrix: '\\begin{pmatrix}1 & 0\\\\0 & e^{-i\\pi/4}\\end{pmatrix}',
+        formulas: [
+            '|0\\rangle \\rightarrow |0\\rangle',
+            '|1\\rangle \\rightarrow e^{-i\\pi/4}|1\\rangle'
         ],
     },
     // Hadamard Gate
@@ -395,6 +411,22 @@ export const GATE_DEFINITIONS: GateInfo[] = [
             '|1\\rangle \\rightarrow e^{-i(\\phi+\\lambda)/2}[\\cos(\\theta/2)|0\\rangle + i\\sin(\\theta/2)|1\\rangle] (three-axis rotation)'
         ],
     },
+    {
+        id: 'cu',
+        name: 'Controlled U3',
+        symbol: 'CU',
+        color: '#ea580c',
+        description: 'Controlled U3 gate',
+        longDescription: 'The CU gate is a controlled version of the U3 gate. It applies a general unitary rotation (parameterized by θ, φ, and λ) to the target qubit when the control qubit is |1⟩.',
+        numControlQubits: 1,
+        numTargetQubits: 1,
+        category: GATE_CATEGORIES.TWO_QUBIT,
+        matrix: '\\begin{pmatrix}1 & 0 & 0 & 0\\\\0 & 1 & 0 & 0\\\\0 & 0 & \\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2)\\\\0 & 0 & e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)\\end{pmatrix}',
+        formulas: [
+            '|0\\rangle \\rightarrow |0\\rangle (no rotation)',
+            '|1\\rangle \\rightarrow \\cos(\\theta/2)|0\\rangle + e^{i\\phi}\\sin(\\theta/2)|1\\rangle (U3 rotation)'
+        ],
+    },
     // Two-Qubit Gates - Other
     {
         id: 'swap',
@@ -438,6 +470,22 @@ export const GATE_DEFINITIONS: GateInfo[] = [
         formulas: [
             '|110\\rangle \\rightarrow |111\\rangle',
             '|111\\rangle \\rightarrow |110\\rangle'
+        ],
+    },
+    {
+        id: 'cswap',
+        name: 'Fredkin',
+        symbol: 'CSWAP',
+        color: '#c026d3',
+        description: 'Controlled-SWAP gate',
+        longDescription: 'The Fredkin gate (CSWAP) is a three-qubit gate that performs a SWAP operation on two target qubits when the control qubit is in state |1⟩. It is a universal reversible gate and is useful for quantum error correction.',
+        numControlQubits: 1,
+        numTargetQubits: 2,
+        category: GATE_CATEGORIES.MULTI_QUBIT,
+        matrix: '\\begin{pmatrix}1&0&0&0&0&0&0&0\\\\0&1&0&0&0&0&0&0\\\\0&0&1&0&0&0&0&0\\\\0&0&0&1&0&0&0&0\\\\0&0&0&0&1&0&0&0\\\\0&0&0&0&0&0&1&0\\\\0&0&0&0&0&1&0&0\\\\0&0&0&0&0&0&0&1\\end{pmatrix}',
+        formulas: [
+            '|0ab\\rangle \\rightarrow |0ab\\rangle (no swap)',
+            '|1ab\\rangle \\rightarrow |1ba\\rangle (swap a and b)'
         ],
     }
 ];

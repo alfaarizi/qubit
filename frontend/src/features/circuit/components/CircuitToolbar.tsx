@@ -296,6 +296,30 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             return;
         }
 
+        const UNSUPPORTED_GATES = ['CRX', 'CRZ', 'CU'];
+        const collectUnsupported = (items: (Gate | Circuit)[]) => {
+            const unsupportedSet = new Set<string>();
+            const scan = (item: Gate | Circuit) => {
+                if (!item) return;
+                if ('gate' in item && item.gate?.symbol && UNSUPPORTED_GATES.includes(item.gate.symbol)) {
+                    unsupportedSet.add(item.gate.symbol);
+                } else if ('circuit' in item) {
+                    for (const gate of item.circuit.gates) scan(gate);
+                }
+            };
+            for (const it of items) scan(it);
+            return unsupportedSet;
+        };
+        const found = collectUnsupported(placedGates);
+        if (found.size) {
+            toast(`Unsupported gates (${Array.from(found).join(', ')})`, {
+                description: `Currently, these gates are disabled: ${Array.from(UNSUPPORTED_GATES).join(', ')}`,
+                duration: 4000,
+                style: { background: '#FEF3C7', color: '#92400E' },
+            });
+            return;
+        }
+
         processedUpdatesCount.current = 0;
         executionStartTimeRef.current = null;
 

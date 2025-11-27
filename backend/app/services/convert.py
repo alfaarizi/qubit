@@ -51,6 +51,7 @@ class GateRegistry:
         'CP': GateSpec('add_CP', 2, [0]),
         'CR': GateSpec('add_CR', 2, [np.pi]),
         'CROT': GateSpec('add_CROT', 2, [0, 0, 0]),
+        'CU': GateSpec('add_CU', 2, [0, 0, 0, 0]),
         'SWAP': GateSpec('add_SWAP', 2, []),
         'CSWAP': GateSpec('add_CSWAP', 3, []),
         'CCX': GateSpec('add_CCX', 3, []),
