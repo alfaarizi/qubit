@@ -80,21 +80,24 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
     const availableDiagrams = React.useMemo(() => {
         if (!results) return [];
 
+        const maxPartitionSize = results.partition_info?.max_partition_size;
+        const strategy = results.partition_info?.strategy;
+
         const diagramConfig: Array<{ id: string; label: string; plotId: string; group: string; condition: boolean }> = [
             { id: 'partition-distribution', label: 'Partition Distribution', plotId: 'plot-partition-distribution', group: 'partition', condition: !!results.partition_info?.partitions?.length },
             { id: 'probability-comparison', label: 'Probability Comparison', plotId: 'plot-probability-comparison', group: 'probability', condition: !!(results.original?.probabilities && results.partitioned?.probabilities) },
-            { id: 'measurement-original', label: 'Measurement (Original)', plotId: 'plot-measurement-original', group: 'measurement', condition: !!results.original?.counts },
-            { id: 'measurement-partitioned', label: 'Measurement (Partitioned)', plotId: 'plot-measurement-partitioned', group: 'measurement', condition: !!results.partitioned?.counts },
-            { id: 'state-vector-original', label: 'State Vector (Original)', plotId: 'plot-state-vector-original', group: 'state-vector', condition: !!results.original?.state_vector },
-            { id: 'state-vector-partitioned', label: 'State Vector (Partitioned)', plotId: 'plot-state-vector-partitioned', group: 'state-vector', condition: !!results.partitioned?.state_vector },
-            { id: 'density-matrix-original', label: 'Density Matrix (Original)', plotId: 'plot-density-matrix-original', group: 'density-matrix', condition: !!results.original?.density_matrix },
-            { id: 'density-matrix-partitioned', label: 'Density Matrix (Partitioned)', plotId: 'plot-density-matrix-partitioned', group: 'density-matrix', condition: !!results.partitioned?.density_matrix },
-            { id: 'entropy-scaling', label: 'Entropy Scaling', plotId: 'plot-entropy-scaling', group: 'entropy', condition: !!(results.original?.entropy_scaling || results.partitioned?.entropy_scaling) },
+            { id: 'measurement', label: 'Measurement (Original)', plotId: 'plot-measurement-original', group: 'measurement', condition: !!results.original?.counts },
+            { id: 'measurement-partition', label: 'Measurement (Partitioned)', plotId: 'plot-measurement-partitioned', group: 'measurement', condition: !!results.partitioned?.counts },
+            { id: 'state-vector', label: 'State Vector (Original)', plotId: 'plot-state-vector-original', group: 'state-vector', condition: !!results.original?.state_vector },
+            { id: 'state-vector-partition', label: 'State Vector (Partitioned)', plotId: 'plot-state-vector-partitioned', group: 'state-vector', condition: !!results.partitioned?.state_vector },
+            { id: 'density-matrix', label: 'Density Matrix (Original)', plotId: 'plot-density-matrix-original', group: 'density-matrix', condition: !!results.original?.density_matrix },
+            { id: 'density-matrix-partition', label: 'Density Matrix (Partitioned)', plotId: 'plot-density-matrix-partitioned', group: 'density-matrix', condition: !!results.partitioned?.density_matrix },
+            { id: 'entropy-analysis', label: 'Entropy Analysis', plotId: 'plot-entropy-scaling', group: 'entropy', condition: !!(results.original?.entropy_scaling || results.partitioned?.entropy_scaling) },
         ];
 
         return diagramConfig
             .filter(d => d.condition)
-            .map(({ id, label, plotId, group }) => ({ id, label, plotId, group }));
+            .map(({ id, label, plotId, group }) => ({ id, label, plotId, group, maxPartitionSize, strategy }));
     }, [results]);
 
     const [partitionBackend, setPartitionBackend] = useState<string>('squander');
@@ -679,6 +682,9 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     measurements={measurements}
                     availableDiagrams={availableDiagrams}
                     hasPartitions={!!(results?.partition_info?.partitions?.length)}
+                    circuitName={circuit?.name || 'circuit'}
+                    maxPartitionSize={results?.partition_info?.max_partition_size}
+                    strategy={results?.partition_info?.strategy}
                 />
                     </div>
                 </div>

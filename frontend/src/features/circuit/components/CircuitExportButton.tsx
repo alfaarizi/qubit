@@ -28,6 +28,9 @@ export interface DiagramInfo {
     label: string;
     plotId: string;
     group: string;
+    // metadata for persistent filename generation
+    maxPartitionSize?: number;
+    strategy?: string;
 }
 
 interface CircuitExportButtonProps {
@@ -37,18 +40,27 @@ interface CircuitExportButtonProps {
     measurements: boolean[];
     availableDiagrams?: DiagramInfo[];
     hasPartitions?: boolean;
+    circuitName?: string;
+    maxPartitionSize?: number;
+    strategy?: string;
 }
 
-export function CircuitExportButton({ svgRef, numQubits, placedGates, measurements, availableDiagrams = [], hasPartitions = false }: CircuitExportButtonProps) {
+export function CircuitExportButton({ svgRef, numQubits, placedGates, measurements, availableDiagrams = [], hasPartitions = false, circuitName = 'circuit', maxPartitionSize, strategy }: CircuitExportButtonProps) {
     const { qubitLabelWidth, footerHeight, headerHeight} = CIRCUIT_CONFIG;
     const { gateSpacing } = GATE_CONFIG;
 
-    const getTimestamp = (): string => {
-        const now = new Date();
-        const pad = (n: number) => n.toString().padStart(2, "0");
-        const date = `${now.getFullYear().toString().slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-        const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-        return `${date}_${time}`;
+    // sanitize circuit name for filename
+    const sanitizeName = (name: string): string => {
+        return name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    };
+
+    // build filename based on diagram type
+    const buildFilename = (baseType: string, isPartition: boolean = false): string => {
+        const sanitized = sanitizeName(circuitName);
+        if (isPartition && maxPartitionSize && strategy) {
+            return `${baseType}_${maxPartitionSize}_${strategy}_${sanitized}`;
+        }
+        return `${baseType}_${sanitized}`;
     };
 
     const prepareSVG = useCallback((sourceElement?: SVGSVGElement) => {
@@ -180,7 +192,6 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
     const exportCircuit = useCallback((format: 'svg' | 'png', isPartition: boolean = false) => {
         let sourceElement: SVGSVGElement | null = null;
 
-        // Get the appropriate SVG element
         if (isPartition) {
             const partitionViewerContainer = document.querySelector('[data-testid="results-partition-viewer"]');
             if (!partitionViewerContainer) {
@@ -204,7 +215,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
             return;
         }
 
-        const circuitType = isPartition ? 'partition_circuit' : 'circuit';
+        const filename = buildFilename(isPartition ? 'partition' : 'circuit', isPartition);
         const svgString = new XMLSerializer().serializeToString(node);
 
         if (format === 'svg') {
@@ -212,7 +223,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${circuitType}_${getTimestamp()}.svg`;
+            link.download = `${filename}.svg`;
             link.click();
             URL.revokeObjectURL(url);
             if (isPartition) toast.success('Partition circuit exported as SVG');
@@ -251,7 +262,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
                         const pngUrl = URL.createObjectURL(pngBlob);
                         const link = document.createElement('a');
                         link.href = pngUrl;
-                        link.download = `${circuitType}_${getTimestamp()}.png`;
+                        link.download = `${filename}.png`;
                         link.click();
                         URL.revokeObjectURL(pngUrl);
                         if (isPartition) toast.success('Partition circuit exported as PNG');
@@ -277,13 +288,12 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
 
             img.src = url;
         }
-    }, [prepareSVG]);
+    }, [prepareSVG, buildFilename]);
 
-    const exportDiagram = useCallback(async (plotId: string, format: 'svg' | 'png', label: string) => {
-        const graphDiv = document.getElementById(plotId);
+    const exportDiagram = useCallback(async (diagram: DiagramInfo, format: 'svg' | 'png') => {
+        const graphDiv = document.getElementById(diagram.plotId);
         if (!graphDiv) return;
         try {
-            // access Plotly from window (attached by react-plotly.js)
             const Plotly = (window as unknown as { Plotly: { toImage: (gd: HTMLElement, opts: object) => Promise<string> } }).Plotly;
             if (!Plotly?.toImage) {
                 console.error('Plotly not available on window');
@@ -295,12 +305,24 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
                 height: 800,
                 scale: 2,
             });
+
+            // use persistent metadata if available
+            const size = diagram.maxPartitionSize ?? maxPartitionSize;
+            const strat = diagram.strategy ?? strategy;
+
+            // convert diagram id (with "-") to base type (with "_")
+            const baseType = diagram.id.replace(/-/g, '_');
+            const isPartitionSpecific = baseType.includes('partition');
+            const filename = isPartitionSpecific && size && strat
+                ? `${baseType}_${size}_${strat}_${sanitizeName(circuitName)}`
+                : `${baseType}_${sanitizeName(circuitName)}`;
+
             const link = document.createElement('a');
             link.href = dataUrl;
-            link.download = `${label.toLowerCase().replace(/\s+/g, '-')}_${getTimestamp()}.${format}`;
+            link.download = `${filename}.${format}`;
             link.click();
         } catch (error) {}
-    }, []);
+    }, [maxPartitionSize, strategy, circuitName, sanitizeName]);
 
     const exportAsQASM = useCallback(() => {
         const qasmData = getQASMWithMetadata(numQubits, placedGates, measurements);
@@ -308,10 +330,10 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `circuit_${getTimestamp()}.qasm`;
+        link.download = `${sanitizeName(circuitName)}.qasm`;
         link.click();
         URL.revokeObjectURL(url);
-    }, [numQubits, placedGates, measurements]);
+    }, [numQubits, placedGates, measurements, circuitName, sanitizeName]);
 
     return (
         <DropdownMenu>
@@ -340,7 +362,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
                             <React.Fragment key={`svg-${diagram.id}`}>
                                 {index > 0 && diagram.group !== availableDiagrams[index - 1].group && <DropdownMenuSeparator />}
                                 <DropdownMenuItem
-                                    onClick={() => exportDiagram(diagram.plotId, 'svg', diagram.label)}
+                                    onClick={() => exportDiagram(diagram, 'svg')}
                                 >
                                     {diagram.label}
                                 </DropdownMenuItem>
@@ -366,7 +388,7 @@ export function CircuitExportButton({ svgRef, numQubits, placedGates, measuremen
                             <React.Fragment key={`png-${diagram.id}`}>
                                 {index > 0 && diagram.group !== availableDiagrams[index - 1].group && <DropdownMenuSeparator />}
                                 <DropdownMenuItem
-                                    onClick={() => exportDiagram(diagram.plotId, 'png', diagram.label)}
+                                    onClick={() => exportDiagram(diagram, 'png')}
                                 >
                                     {diagram.label}
                                 </DropdownMenuItem>
