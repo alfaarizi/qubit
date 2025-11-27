@@ -63,6 +63,7 @@ export interface SimulationError {
 export interface SimulationResults {
   num_qubits?: number;
   num_shots?: number;
+  circuit_name?: string;
   errors?: SimulationError[];
   partition_info?: PartitionInfo;
   original?: QuantumState;

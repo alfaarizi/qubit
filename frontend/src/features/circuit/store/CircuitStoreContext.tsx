@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { type ReactNode, createContext, useContext, useState, useEffect } from 'react';
 import { createStore, useStore } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 
 import type { Gate } from '@/features/gates/types';
@@ -69,13 +68,12 @@ const initialState: CircuitState = {
 const circuitStores = new Map<string, CircuitStoreApi>();
 const circuitSvgRefs = new Map<string, React.RefObject<SVGSVGElement | null>>();
 
-const createCircuitStore = (circuitId: string) => {
+const createCircuitStore = () => {
     let skipHistory = false;
     return createStore<CircuitStore>()(
-        persist(
-            temporal(
-                (set) => ({
-                    ...initialState,
+        temporal(
+            (set) => ({
+                ...initialState,
                     setPlacedGates: (placedGates, options?: { skipHistory?: boolean }) => {
                         skipHistory = options?.skipHistory === true;
                         set((state) => ({
@@ -200,24 +198,20 @@ const createCircuitStore = (circuitId: string) => {
                     },
                     reset: (newState) => set(newState),
                 }),
-                {
-                    limit: 50,
-                    partialize: (state) => {
-                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { showNestedCircuit, partitionHighlightIds, partitionHighlightEnabled, partitionHighlightColor, ...rest } = state;
-                        return rest;
-                    },
-                    equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),
-                    handleSet: (handleSet) => (state) => {
-                        if (skipHistory) {
-                            return state;
-                        }
-                        return handleSet(state);
-                    },
-                }
-            ),
             {
-                name: `circuit-${circuitId}-storage`
+                limit: 20,
+                partialize: (state) => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { showNestedCircuit, partitionHighlightIds, partitionHighlightEnabled, partitionHighlightColor, isExecuting, executionProgress, executionStatus, ...rest } = state;
+                    return rest;
+                },
+                equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+                handleSet: (handleSet) => (state) => {
+                    if (skipHistory) {
+                        return state;
+                    }
+                    return handleSet(state);
+                },
             }
         )
     );
@@ -225,7 +219,7 @@ const createCircuitStore = (circuitId: string) => {
 
 export function getOrCreateCircuitStore(circuitId: string): CircuitStoreApi {
     if (!circuitStores.has(circuitId)) {
-        circuitStores.set(circuitId, createCircuitStore(circuitId));
+        circuitStores.set(circuitId, createCircuitStore());
     }
     return circuitStores.get(circuitId)!;
 }

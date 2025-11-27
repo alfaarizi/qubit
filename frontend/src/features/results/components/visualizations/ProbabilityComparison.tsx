@@ -8,13 +8,17 @@ interface ProbabilityComparisonProps {
     probabilitiesPartitioned: number[];
     maxStates?: number;
     plotId?: string;
+    maxPartitionSize?: number;
+    strategy?: string;
 }
 
 export const ProbabilityComparison = memo(function ProbabilityComparison({
     probabilitiesOriginal,
     probabilitiesPartitioned,
     maxStates = 16,
-    plotId
+    plotId,
+    maxPartitionSize,
+    strategy
 }: ProbabilityComparisonProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -88,7 +92,9 @@ export const ProbabilityComparison = memo(function ProbabilityComparison({
 
     const layout = useMemo(() => ({
         title: {
-            text: 'Probability Distribution Comparison',
+            text: maxPartitionSize && strategy
+                ? `Probability Distribution Comparison (${maxPartitionSize} qubits per circuit, by ${strategy})`
+                : 'Probability Distribution Comparison',
             font: { size: 14, color: isDark ? '#e5e7eb' : '#1f2937' }
         },
         xaxis: {
@@ -116,7 +122,7 @@ export const ProbabilityComparison = memo(function ProbabilityComparison({
             font: { color: isDark ? '#e5e7eb' : '#1f2937' }
         },
         font: { family: 'ui-monospace, monospace' }
-    }), [isDark]);
+    }), [isDark, maxPartitionSize, strategy]);
 
     const config = useMemo(() => ({
         responsive: true,

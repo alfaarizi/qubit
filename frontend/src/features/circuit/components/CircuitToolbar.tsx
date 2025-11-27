@@ -333,6 +333,7 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
         try {
             const response = await circuitsApi.partition(
                 circuitId,
+                circuit?.name,
                 numQubits,
                 placedGates,
                 measurements,

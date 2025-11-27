@@ -150,6 +150,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                 strategy={partitionStrategy}
                                 maxPartitionSize={maxPartitionSize}
                                 plotId="plot-partition-distribution"
+                                circuitName={results?.circuit_name}
                             />
                         </div>
                     )}
@@ -175,7 +176,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                 <div data-testid="results-measurement-partitioned">
                                     <MeasurementHistogram
                                         counts={partitionedCounts}
-                                        title="Partitioned Circuit - Measurement Distribution"
+                                        title={`Partitioned Circuit - Measurement Distribution (${maxPartitionSize} qubits per circuit, by ${partitionStrategy})`}
                                         plotId="plot-measurement-partitioned"
                                     />
                                 </div>
@@ -190,6 +191,8 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                 probabilitiesOriginal={originalProbs}
                                 probabilitiesPartitioned={partitionedProbs}
                                 plotId="plot-probability-comparison"
+                                maxPartitionSize={maxPartitionSize}
+                                strategy={partitionStrategy}
                             />
                         </div>
                     )}
@@ -215,7 +218,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                 <div data-testid="results-state-vector-partitioned">
                                     <StateVectorVisualization
                                         stateVector={partitionedStateVector}
-                                        title="Partitioned Circuit - State Vector Amplitudes"
+                                        title={`Partitioned Circuit - State Vector Amplitudes (${maxPartitionSize} qubits per circuit, by ${partitionStrategy})`}
                                         plotId="plot-state-vector-partitioned"
                                     />
                                 </div>
@@ -239,7 +242,7 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                                 <div data-testid="results-density-matrix-partitioned">
                                     <DensityMatrixHeatmap
                                         densityMatrix={partitionedDensity}
-                                        title="Partitioned Circuit - Density Matrix"
+                                        title={`Partitioned Circuit - Density Matrix (${maxPartitionSize} qubits per circuit, by ${partitionStrategy})`}
                                         plotId="plot-density-matrix-partitioned"
                                     />
                                 </div>
@@ -257,6 +260,8 @@ export function ResultsPanel({ circuitId, partitionResult, simulationResults }: 
                             entropyOriginal={originalEntropy || []}
                             entropyPartitioned={partitionedEntropy || []}
                             plotId="plot-entropy-scaling"
+                            maxPartitionSize={maxPartitionSize}
+                            strategy={partitionStrategy}
                         />
                     </div>
                 </div>

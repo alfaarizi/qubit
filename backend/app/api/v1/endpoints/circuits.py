@@ -19,6 +19,7 @@ class PartitionRequest(BaseModel):
     options: Optional[dict] = None
     strategy: Optional[str] = "kahn"
     session_id: Optional[str] = None
+    circuit_name: Optional[str] = None
 
 class ImportQasmRequest(BaseModel):
     qasm_code: str
@@ -58,6 +59,7 @@ async def partition_circuit(
         options=request.options,
         strategy=request.strategy or "kahn",
         session_id=request.session_id,
+        circuit_name=request.circuit_name,
     ))
     active_jobs[job_id]["task"] = task
     return {"job_id": job_id, "status": "queued"}
@@ -230,6 +232,7 @@ async def run_partition(
     options: dict,
     strategy: str = "kahn",
     session_id: Optional[str] = None,
+    circuit_name: Optional[str] = None,
 ) -> None:
     room = f"partition-{job_id}"
     client = None
@@ -279,6 +282,7 @@ async def run_partition(
             measurements=measurements,
             options=options or {},
             strategy=strategy,
+            circuit_name=circuit_name,
         ):
             await manager.broadcast_to_room(room, {
                 **update,

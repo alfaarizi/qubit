@@ -96,6 +96,7 @@ export const circuitsApi = {
     },
     partition: async (
         circuitId: string,
+        circuitName: string | undefined,
         numQubits: number,
         placedGates: (Gate | Circuit)[],
         measurements: boolean[],
@@ -122,6 +123,7 @@ export const circuitsApi = {
                 options,
                 strategy: strategy || 'kahn',
                 session_id: sessionId,
+                circuit_name: circuitName,
             }
         );
         return data;

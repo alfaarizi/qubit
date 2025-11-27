@@ -12,12 +12,16 @@ interface EntanglementEntropyChartProps {
     entropyOriginal: EntropyData[];
     entropyPartitioned: EntropyData[];
     plotId?: string;
+    maxPartitionSize?: number;
+    strategy?: string;
 }
 
 export const EntanglementEntropyChart = memo(function EntanglementEntropyChart({
     entropyOriginal,
     entropyPartitioned,
-    plotId
+    plotId,
+    maxPartitionSize,
+    strategy
 }: EntanglementEntropyChartProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
@@ -101,7 +105,9 @@ export const EntanglementEntropyChart = memo(function EntanglementEntropyChart({
 
     const layout = useMemo(() => ({
         title: {
-            text: 'Entanglement Entropy Scaling',
+            text: maxPartitionSize && strategy
+                ? `Entanglement Entropy Scaling (${maxPartitionSize} qubits per circuit, by ${strategy})`
+                : 'Entanglement Entropy Scaling',
             font: { size: 14, color: isDark ? '#e5e7eb' : '#1f2937' }
         },
         xaxis: {
@@ -127,7 +133,7 @@ export const EntanglementEntropyChart = memo(function EntanglementEntropyChart({
             font: { color: isDark ? '#e5e7eb' : '#1f2937' }
         },
         font: { family: 'ui-monospace, monospace' }
-    }), [isDark]);
+    }), [isDark, maxPartitionSize, strategy]);
 
     const config = useMemo(() => ({
         responsive: true,

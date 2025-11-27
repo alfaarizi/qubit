@@ -313,6 +313,7 @@ class SquanderClient:
         measurements: list,
         options: Dict[str, Any],
         strategy: str = "kahn",
+        circuit_name: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Execute circuit partitioning on remote SQUANDER server"""
         remote_job_dir = f"/tmp/squander_jobs/{job_id}"
@@ -390,6 +391,10 @@ class SquanderClient:
             # Parse results
             result_data = json.loads(Path(local_result_file).read_text())
 
+            # Add circuit name to results
+            if circuit_name:
+                result_data["circuit_name"] = circuit_name
+
             # Cleanup remote directory (this takes time)
             yield {"type": "phase", "phase": "cleanup", "message": "Cleaning up..."}
             await self.execute_command(f"rm -rf {remote_job_dir}")
@@ -397,7 +402,7 @@ class SquanderClient:
             # Cleanup local files
             Path(local_circuit_file).unlink(missing_ok=True)
             Path(local_result_file).unlink(missing_ok=True)
-            
+
             yield {
                 "type": "complete",
                 "message": "Partition completed successfully",
