@@ -1,0 +1,337 @@
+\chapter{Developer Documentation}
+\label{ch:design}
+
+This chapter presents the design and implementation of the Qubit platform from the developer's perspective. The documentation progresses from architectural overview through object-oriented models to implementation details. The chapter demonstrates how distributed system design, object-oriented programming principles, and modern web technologies combine to create a platform that unifies quantum circuit composition, remote execution, and interactive visualization.
+
+\section{Design}
+\label{sec:design}
+
+\subsection{Design Overview}
+\label{subsec:design:intro}
+
+This section examines the three-tier architecture, the design principles that shaped it, and the requirements it satisfies.
+
+\subsubsection{Architectural Overview}
+\label{subsubsec:design:architecture}
+
+The platform uses a three-tier distributed architecture: a presentation layer (React frontend), an application layer (FastAPI backend), and a computational layer (SQUANDER simulation servers). Communication between these tiers flows through three patterns: REST APIs for synchronous operations, WebSockets for real-time job monitoring, and SSH connections for secure remote access. State management matches this split: the frontend holds local state through Zustand and Zundo middleware, the backend manages temporary state via job queues and sessions, while MongoDB Atlas stores user data and results permanently.
+
+\subsubsection{Design Principles and Constraints}
+\label{subsubsec:design:principles}
+
+The design emerged from balancing competing constraints and objectives:
+
+\textbf{Early Validation:} Invalid operations are rejected at the earliest stage to minimize resource consumption. The frontend validates operations before state mutations while the backend validates data before resource allocation, creating a multi-stage validation strategy that prevents wasted computation.
+
+\textbf{Connection Efficiency:} SSH connection establishment adds substantial latency cost, making connection reuse critical for performance. Rather than establishing new connections for each job submission, the design maintains and reuses authenticated sessions to optimize performance for sequential operations.
+
+\textbf{Technology Constraints:} External constraints shaped architectural decisions: browser security policies prevent direct SSH connections, requiring the backend to act as a proxy; quantum simulation's exponential memory requirements ($2^n$ amplitudes for $n$ qubits) require external computation rather than client-side processing; and MongoDB's document model, while fitting well with the project-circuit-gate structure, affects how nested data is queried.
+
+\subsubsection{Requirements Analysis}
+\label{subsubsec:design:requirements}
+
+Requirements divide into two categories: functional requirements specify what capabilities the system must provide, while non-functional requirements quantify how well it must deliver them.
+
+\textbf{Functional Requirements} define six core capabilities:
+
+\begin{compactitem}
+    \item \textbf{Multi-provider authentication}: Support Google OAuth 2.0, Microsoft Azure AD, and email verification (Section~\ref{subsubsec:design:auth-sequence}).
+
+    \item \textbf{Hierarchical project organization}: Provide CRUD operations with ownership enforcement (Section~\ref{subsubsec:design:project-sequence}).
+
+    \item \textbf{Interactive circuit composition}: Enable drag-and-drop gate placement, bidirectional QASM synchronization, and temporal undo/redo (Sections~\ref{subsubsec:design:circuit-use-cases},~\ref{subsubsec:design:temporal-state}).
+
+    \item \textbf{Distributed simulation execution}: Submit circuits to remote SQUANDER servers via SSH with SFTP file transfer (Section~\ref{subsubsec:design:execution-sequence}).
+
+    \item \textbf{Real-time progress monitoring}: Stream execution updates through WebSocket connections with room-based routing (Section~\ref{subsubsec:design:monitoring-sequence}).
+
+    \item \textbf{Multi-perspective visualization}: Present results through complementary views (Section~\ref{subsec:design:ui-design}).
+\end{compactitem}
+
+\textbf{Non-Functional Requirements} establish quantitative targets across five quality dimensions:
+
+\begin{compactitem}
+    \item \textbf{Performance}: Circuit rendering under 100ms (100 gates), WebSocket latency under 200ms, project listing under 500ms, and undo/redo under 50ms.
+
+    \item \textbf{Scalability}: Support 5 concurrent SSH connections, 1000+ projects per user, 2000+ gates per circuit, and 50 concurrent WebSocket connections.
+
+    \item \textbf{Reliability}: Automatic JWT token refresh, WebSocket reconnection with exponential backoff (10 attempts, 30s max delay), SSH retry logic (3 attempts), periodic connection cleanup, and localStorage persistence for crash recovery.
+
+    \item \textbf{Security}: JWT authentication on protected endpoints, bcrypt password hashing (cost 12), server-side SSH credentials with protected keys (mode 600), CORS origin whitelisting, input validation and sanitization.
+
+    \item \textbf{Usability}: Immediate visual feedback on user actions, progress indicators during async operations, and actionable error messages.
+\end{compactitem}
+
+The three-tier architecture fulfills these requirements through progressive validation, connection pooling, WebSocket streaming, and temporal state management detailed in subsequent sections.
+
+
+\subsection{System Architecture}
+\label{subsec:design:system-architecture}
+
+The system architecture defines the structural organization through three complementary perspectives: object-oriented class models, modular component architecture, and package dependencies. These models collectively document the static structure from which dynamic behavior emerges.
+
+\subsubsection{Object-Oriented Class Model}
+\label{subsubsec:design:class-diagram}
+
+The backend class diagram (Figure~\ref{fig:backend-class-diagram}) illustrates the object-oriented structure of the FastAPI application layer. The diagram follows UML conventions: rectangles represent classes, with compartments for attributes (upper) and methods (lower); solid lines indicate associations between classes; dashed arrows show dependencies; and multiplicities indicate relationship cardinalities.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.95\textwidth]{docs/class_diagram/backend_uml_class_diagram}
+    \caption{Backend UML class diagram showing core entities and their relationships}
+    \label{fig:backend-class-diagram}
+\end{figure}
+
+\textbf{Core Domain Models:} The domain layer models the fundamental entities and their relationships. The \texttt{User} class (\texttt{backend/app/models/user.py:6}) represents authenticated users, storing \texttt{email} as the unique identifier alongside \texttt{hashed\_password} (null for OAuth-authenticated users), \texttt{oauth\_provider} indicating authentication method ("google", "microsoft", or null for email-based accounts), and timestamp metadata for activity records. The \texttt{Project} class (\texttt{backend/app/models/project.py:101}) uses Pydantic validation to enforce data integrity, aggregating a \texttt{circuits} array, \texttt{active\_circuit\_id} tracking the currently-edited circuit, and \texttt{user\_id} establishing ownership. Each \texttt{CircuitInfo} instance (\texttt{backend/app/models/project.py:92}) encapsulates circuit state through \texttt{numQubits}, a \texttt{gates} array containing \texttt{SerializedGate} objects, optional \texttt{metadata} for user annotations, and optional \texttt{results} from simulation execution. The \texttt{SerializedGate} class (\texttt{backend/app/models/project.py:81}) leverages discriminated unions to represent atomic gates (\texttt{GateDefinition}) or composite subcircuits (\texttt{SerializedCircuit}), enabling type-safe recursive nesting that mirrors the visual circuit grouping feature.
+
+\textbf{Service Layer:} The service layer implements business logic and external system integration. The \texttt{SquanderClient} class (\texttt{backend/app/services/squander\_client.py:30}) encapsulates all SSH connectivity concerns, maintaining \texttt{ssh\_client} (Paramiko), \texttt{sftp\_client}, and connection state internally. Its \texttt{get\_pooled\_client(session\_id)} method implements connection pooling by retrieving existing authenticated sessions when available, avoiding redundant connection overhead. The \texttt{run\_partition()} method orchestrates the complete simulation workflow: uploading circuit definitions via SFTP, executing remote Python scripts via SSH, streaming real-time output, downloading results, and performing cleanup—all while broadcasting progress updates through WebSocket connections. Complementing this, the \texttt{ConnectionManager} class (\texttt{backend/app/services/websocket\_manager.py:40}) manages WebSocket lifecycle and message routing through room-based topology, maintaining three coordinated data structures: \texttt{connections} mapping client IDs to WebSocket instances, \texttt{rooms} mapping room names to member sets, and \texttt{sessions} storing connection metadata for activity tracking.
+
+\textbf{Relationship Cardinalities:} Users have many Projects (1:N via \texttt{user\_id}). Projects have many Circuits (1:N embedded array). Circuits contain many Gates (1:N embedded). SquanderClient maintains at most one SSH connection (1:0..1). ConnectionManager maintains many connections and rooms with N:M connection-room relationships.
+
+\textbf{Design Patterns:} The backend applies Repository (database isolation), Singleton (ConnectionManager), Factory (\texttt{get\_pooled\_client}), and Facade (\texttt{run\_partition}) patterns.
+
+\subsubsection{Modular Component Architecture}
+\label{subsubsec:design:component-diagram}
+
+The frontend component architecture (Figure~\ref{fig:frontend-component-diagram}) illustrates the modular organization of the React application. Unlike the class model which shows individual classes, this diagram represents larger architectural modules and their dependency relationships. Components are shown as rectangles with ports (small squares) indicating provided and required interfaces.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=1.0\textwidth]{docs/component_diagram/frontend_component_diagram}
+    \caption{Frontend component diagram showing major modules and their dependencies}
+    \label{fig:frontend-component-diagram}
+\end{figure}
+
+\textbf{Core Components:} The \texttt{App} component (\texttt{frontend/src/App.tsx}) configures React Router, context providers (theme, auth, i18n), and error boundaries. The \texttt{Layout} component (\texttt{frontend/src/components/layout/Layout.tsx}) provides common structure: header, sidebar, main content area, and status bar using CSS Grid for responsive positioning.
+
+\textbf{Feature Modules:} The \texttt{Circuit Composer} (\texttt{frontend/src/features/circuit/}) renders SVG-based circuits with D3.js. The \texttt{ComposerStore} (Zustand with Zundo) maintains \texttt{placedGates}, \texttt{selectedGates}, and \texttt{numQubits}, exporting \texttt{addGate()}, \texttt{removeGate()}, \texttt{updateGate()}, \texttt{groupGates()}, \texttt{undo()}, and \texttt{redo()} functions. The \texttt{Gates Palette} (\texttt{frontend/src/features/gates/}) provides draggable gates organized by category with HTML5 drag-and-drop. The \texttt{Results Visualizations} (\texttt{frontend/src/features/results/}) implements seven Plotly.js-based visualizations accepting \texttt{original} and \texttt{partitioned} quantum state data. The \texttt{Project Management} (\texttt{frontend/src/features/projects/}) handles project listing with \texttt{ProjectCard} components and caches projects in \texttt{ProjectStore}. The \texttt{Authentication} (\texttt{frontend/src/features/auth/}) provides OAuth and email login through the \texttt{useAuth} hook, storing JWT tokens in memory and refresh tokens in httpOnly cookies.
+
+\textbf{Shared Infrastructure:} The \texttt{WebSocket Manager} (\texttt{frontend/src/hooks/useWebSocket.ts}) maintains connections with automatic reconnection and room-based message routing. The \texttt{API Client} (\texttt{frontend/src/lib/api/}) wraps Axios with typed methods, automatic JWT injection, and token refresh on 401 responses. State persistence uses Zustand's persist middleware to serialize undo histories to localStorage with circular reference handling.
+
+\textbf{Communication Patterns:} Components communicate through props (parent-to-child), Zustand stores (global reactive state), and custom hooks (cross-cutting concerns like \texttt{useCircuitExecution}).
+
+\subsubsection{Module Organization and Dependencies}
+\label{subsubsec:design:package-diagram}
+
+The package diagram (Figure~\ref{fig:package-diagram}) provides a higher-level view of system organization, showing how code modules are grouped and their dependencies. This diagram reveals the layered architecture and enforces architectural constraints that maintain system integrity.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=1.0\textwidth]{docs/package_diagram/package_diagram}
+    \caption{Package diagram showing module organization and inter-package dependencies}
+    \label{fig:package-diagram}
+\end{figure}
+
+\textbf{Backend Packages:} The backend follows a layered architecture. The \texttt{app.api} package contains versioned endpoints (\texttt{v1}) subdivided by domain (\texttt{auth}, \texttt{projects}, \texttt{circuits}, \texttt{websocket}). The \texttt{app.core} package provides cross-cutting infrastructure (\texttt{config}, \texttt{security}, \texttt{oauth}, \texttt{email}). The \texttt{app.services} package implements business logic (\texttt{squander\_client}, \texttt{websocket\_manager}, \texttt{convert}, \texttt{simulate}). The \texttt{app.models} package defines Pydantic domain entities (\texttt{user}, \texttt{project}). The \texttt{app.schemas} package defines DTOs for API contracts. The \texttt{app.db} package abstracts MongoDB access using PyMongo.
+
+\textbf{Frontend Packages:} The frontend organizes by feature (\texttt{features/}: \texttt{auth}, \texttt{projects}, \texttt{composer}, \texttt{gates}, \texttt{results}), shared UI (\texttt{components/}: \texttt{layout}, \texttt{ui}, \texttt{common}), external integrations (\texttt{lib/}: \texttt{api}, \texttt{qasm}), global state (\texttt{stores/}: \texttt{authStore}, \texttt{jobStore}, \texttt{projectsStore}), and custom hooks (\texttt{hooks/}: \texttt{useWebSocket}, \texttt{useAuth}, \texttt{useCircuitExecution}).
+
+\textbf{Dependency Rules:} APIs depend on services/models/core but not database. Services depend on models/core but not APIs. Models/schemas depend only on third-party libraries. The WebSocket endpoint intentionally bypasses this pattern, depending directly on \texttt{websocket\_manager} due to persistent connection state requirements.
+
+
+\subsection{Behavioral Models}
+\label{subsec:design:behavioral-models}
+
+Behavioral models capture temporal interactions: message sequences, state transitions, and workflow orchestration across distributed components.
+
+\subsubsection{Authentication Workflow}
+\label{subsubsec:design:auth-sequence}
+
+The authentication sequence diagram (Figure~\ref{fig:auth-sequence-diagram}) models the OAuth 2.0 authentication workflow with external identity providers. This interaction demonstrates browser redirects, authorization code exchange, and JWT token issuance.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.9\textwidth]{docs/sequence_diagram/user_authentication_sequence_diagram}
+    \caption{Authentication sequence diagram showing OAuth flow and JWT token issuance}
+    \label{fig:auth-sequence-diagram}
+\end{figure}
+
+\textbf{Interaction Flow:} The user clicks "Sign in with Google", redirecting to Google's authorization server with client ID, scopes, and callback URL. After authenticating and authorizing, Google redirects back with an authorization code. The frontend sends this code to \texttt{POST /api/v1/auth/oauth/login}. The backend exchanges the code for an access token at Google's token endpoint, verifies the token, and queries MongoDB to find or create a user account (creating User documents with \texttt{oauth\_provider="google"} for new users, updating \texttt{last\_login} for existing users). The backend generates JWT access (30-minute) and refresh (7-day) tokens, responding with both. The frontend stores the access token in memory and refresh token in httpOnly cookies before redirecting to the project list.
+
+\textbf{Alternative Flows:} OAuth errors return 401 Unauthorized. Token exchange failures return 502 Bad Gateway. Expired access tokens trigger automatic refresh via \texttt{POST /api/v1/auth/refresh}, obtaining new tokens and retrying the original request transparently.
+
+\subsubsection{Distributed Simulation Workflow}
+\label{subsubsec:design:execution-sequence}
+
+The circuit execution sequence diagram (Figure~\ref{fig:execution-sequence-diagram}) models the distributed workflow spanning frontend, backend, and remote simulation infrastructure. This interaction involves asynchronous communication across network boundaries.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.8\textwidth]{docs/sequence_diagram/circuit_execution_sequence_diagram}
+    \caption{Circuit execution sequence diagram showing distributed simulation workflow}
+    \label{fig:execution-sequence-diagram}
+\end{figure}
+
+\textbf{Job Submission:} The user clicks "Partition Circuit". The frontend validates the circuit, generates a job ID, and dispatches \texttt{POST /api/v1/circuits/\{circuit\_id\}/partition}. The backend validates ownership, creates a "queued" job record, and responds with 202 Accepted. The \texttt{useJobManager} hook establishes a WebSocket connection, joins room \texttt{job:\{job\_id\}}, and registers message handlers.
+
+\textbf{SSH Connection and Transfer:} The simulation service dequeues the job, obtains a pooled SSH connection via \texttt{SquanderClient.get\_pooled\_client(session\_id)} (reusing if available), broadcasts "connecting" phase, converts gates to SQUANDER gates, generates a Python partition script, and uploads both via SFTP while broadcasting "preparing" and "uploading" phases.
+
+\textbf{Remote Execution:} The service executes \texttt{python3 /tmp/job\_\{id\}/partition.py} via SSH, capturing stdout/stderr in real-time. The SQUANDER script outputs JSON lines indicating progress (circuit analysis, graph construction, partitioning, simulation, aggregation). The service parses these into phase updates ("building", "simulating") and broadcasts them to the WebSocket room. The frontend updates the job card with phase, progress percentage, elapsed time, and logs.
+
+\textbf{Result Retrieval:} Upon completion, the script writes \texttt{results.json}. The service downloads via SFTP, parses into \texttt{SimulationResults}, validates, updates MongoDB, broadcasts "complete" with results, and cleans up temporary files. The frontend refreshes visualizations.
+
+\textbf{Error Handling:} Errors at any phase trigger "error" broadcasts with details, status updates, and cleanup attempts. The frontend displays toast notifications and updates job cards.
+
+\subsubsection{Real-Time Progress Communication}
+\label{subsubsec:design:monitoring-sequence}
+
+The job monitoring sequence diagram (Figure~\ref{fig:monitoring-sequence-diagram}) models the WebSocket-based progress streaming that provides real-time feedback during simulation execution.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.7\textwidth]{docs/sequence_diagram/job_monitoring_sequence_diagram}
+    \caption{Job monitoring sequence diagram showing WebSocket-based progress updates}
+    \label{fig:monitoring-sequence-diagram}
+\end{figure}
+
+The simulation service emits progress messages containing \texttt{type}, \texttt{phase}, \texttt{progress} (0-100\%), \texttt{message}, \texttt{job\_id}, and \texttt{circuit\_id}. The \texttt{ConnectionManager.broadcast\_to\_room()} method sends these to all connections subscribed to \texttt{job:\{job\_id\}} via \texttt{websocket.send\_json()}. Frontend \texttt{onMessage} handlers parse messages, update the Zustand job store, and trigger React re-renders. Log messages (type "log") stream raw output into a 100-line circular buffer. Completion messages (type "complete") contain full \texttt{SimulationResults}. Error messages (type "error") contain \texttt{error} text and failure \texttt{stage}.
+
+\subsubsection{Project Management Operations}
+\label{subsubsec:design:project-sequence}
+
+The project management sequence diagram (Figure~\ref{fig:project-sequence-diagram}) models CRUD operations for organizing circuits into projects, showing the interaction pattern between presentation, application, and persistence layers.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.575\textwidth]{docs/sequence_diagram/project_management_sequence_diagram}
+    \caption{Project management sequence diagram showing CRUD operations}
+    \label{fig:project-sequence-diagram}
+\end{figure}
+
+\textbf{Project Creation:} The user creates a project via dialog. The frontend dispatches \texttt{POST /api/v1/projects}. The backend extracts user ID from JWT, validates via \texttt{ProjectCreate} schema, generates a project ID, creates a \texttt{Project} instance, and inserts into MongoDB. The backend responds with 201 Created and the project JSON. The frontend updates the store and navigates to the workspace.
+
+\textbf{Circuit Operations:} Adding a circuit generates a \texttt{CircuitInfo} with defaults and dispatches \texttt{PUT /api/v1/projects/\{project\_id\}/circuits/\{circuit\_id\}}. The backend atomically pushes to the \texttt{circuits} array via \texttt{\$push}, sets \texttt{active\_circuit\_id}, and updates \texttt{updated\_at}. Circuit modifications debounce for 1 second, then update via \texttt{\$set} with positional syntax: \texttt{\{"circuits.\$": updated\_circuit\}}.
+
+\textbf{Project Deletion:} After confirmation, the frontend dispatches \texttt{DELETE /api/v1/projects/\{project\_id\}}. The backend verifies ownership, deletes via \texttt{db.projects.delete\_one()}, and responds with 204 No Content.
+
+\subsubsection{Job Execution Lifecycle}
+\label{subsubsec:design:state-diagram}
+
+The job execution state diagram (Figure~\ref{fig:state-diagram}) models the lifecycle states of a simulation job from submission through completion or failure. This diagram defines valid state transitions and the events that trigger them.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.8\textwidth]{docs/state_diagram/job_execution_state_diagram}
+    \caption{State diagram showing job execution lifecycle}
+    \label{fig:state-diagram}
+\end{figure}
+
+\textbf{States:} Jobs progress through Queued (awaiting SSH connection) → Connecting (establishing SSH) → Preparing (converting to QASM) → Uploading (SFTP transfer) → Executing (remote script running) → Downloading (retrieving results) → Processing (parsing and validating) → Complete (success) or Error/Cancelled (failure states). Connecting transitions to Error if connection fails after retries. Uploading transitions to Error on SFTP failure. Executing transitions to Downloading only if \texttt{[exit\_code == 0]}, otherwise Error. Processing transitions to Complete only if \texttt{[results.valid()]}.
+
+\textbf{State Actions:} The Executing state continuously reads stdout/stderr and broadcasts log messages. The Error state broadcasts error messages and cleans up resources. The Complete state updates MongoDB with results.
+
+
+\subsection{Functional Specifications}
+\label{subsec:design:functional-specifications}
+
+Functional specifications define user-facing capabilities through use case models that catalog system actors, user goals, and supported interactions.
+
+\subsubsection{Circuit Composition Capabilities}
+\label{subsubsec:design:circuit-use-cases}
+
+The circuit design use case diagram (Figure~\ref{fig:circuit-use-case-diagram}) catalogs composition capabilities within the visual workspace. The primary actor is the Circuit Designer—a student, researcher, or educator working with quantum algorithms.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.8\textwidth]{docs/use_case_diagram/circuit_design_use_case_diagram}
+    \caption{Use case diagram for circuit design activities}
+    \label{fig:circuit-use-case-diagram}
+\end{figure}
+
+The diagram encompasses visual composition with drag-and-drop placement, QASM code editing with bidirectional synchronization, hierarchical circuit grouping, parameterized gate configuration, temporal undo/redo operations, and multi-format serialization. Validation occurs at three layers—frontend, client-side, and backend—to ensure circuit integrity throughout the composition workflow.
+
+\subsubsection{Simulation Execution and Monitoring}
+\label{subsubsec:design:execution-use-cases}
+
+The circuit execution use case diagram (Figure~\ref{fig:execution-use-case-diagram}) catalogs capabilities for submitting circuits to remote servers and tracking simulation progress.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.8\textwidth]{docs/use_case_diagram/circuit_execution_and_job_monitoring_use_case_diagram}
+    \caption{Use case diagram for circuit execution and job monitoring}
+    \label{fig:execution-use-case-diagram}
+\end{figure}
+
+The diagram covers job submission with validation, real-time progress monitoring through WebSocket connections, job cancellation capabilities, result visualization with multiple chart types, and partition strategy comparison. The architecture supports automatic reconnection, persistent job history, and streaming execution logs.
+
+\subsubsection{Authentication and Project Organization}
+\label{subsubsec:design:auth-project-use-cases}
+
+The authentication and project management use case diagram (Figure~\ref{fig:auth-project-use-case-diagram}) catalogs account management and project organization capabilities.
+
+\begin{figure}[H]
+    \centering
+    \includesvg[inkscapelatex=false,width=0.8\textwidth]{docs/use_case_diagram/user_authentication_and_project_management_use_case_diagram}
+    \caption{Use case diagram for authentication and project management}
+    \label{fig:auth-project-use-case-diagram}
+\end{figure}
+
+The diagram illustrates multi-provider authentication (OAuth and email verification), automatic token management, and session lifecycle. Project management capabilities include creation, listing, opening, renaming, deletion, duplication, and search functionality with ownership enforcement throughout.
+
+
+\subsection{Frontend Architecture}
+\label{subsec:design:ui-design}
+
+The frontend architecture implements presentation and interaction logic through React components, SVG rendering, and state-driven updates.
+
+\subsubsection{Rendering Strategy and Performance Targets}
+\label{subsubsec:design:ui-goals}
+
+The rendering pipeline enforces sub-100ms update cycles for circuits containing up to 100 gates through virtual DOM reconciliation and selective SVG re-rendering. Gate palette components organize elements by quantum operation category (Pauli, Hadamard, rotation, controlled), implementing HTML5 drag-and-drop APIs with dataTransfer serialization. The circuit canvas employs D3.js for SVG generation, positioning gates on a two-dimensional grid (depth along x-axis, qubits along y-axis) with coordinate transformation functions mapping pixel positions to logical gate placements. WebSocket integration maintains sub-200ms message latency for progress updates through persistent connection pooling and JSON message batching. Circuit grouping renders collapsed subcircuits as SVG rectangles with expandable detail views, controlled by boolean state flags that toggle nested rendering depth. Visualization components default to measurement distribution charts, exposing state vector and density matrix representations through tabbed component switching.
+
+\subsubsection{Interaction Architecture}
+\label{subsubsec:design:interaction-patterns}
+
+The interaction layer implements Model-View-Controller separation through React components (View), Zustand stores (Model), and custom React hooks (Controller). Event propagation follows unidirectional data flow: DOM event listeners dispatch actions to Zustand stores, stores apply immutable state updates via Immer proxy objects, and React reconciliation re-renders affected component subtrees. The \texttt{useKeyboardShortcut} hook centralizes keyboard event handling, implementing platform detection (macOS Command versus Windows/Linux Control key detection via navigator.platform) and preventDefault() invocation to suppress browser default behaviors. The architecture implements optimistic UI updates—gate placement operations mutate local Zustand state immediately while dispatching asynchronous HTTP PUT requests with 1-second debounce intervals to batch rapid consecutive modifications. Persistence failures trigger rollback through Zustand state reset combined with toast notification rendering, maintaining eventual consistency between frontend stores and MongoDB documents.
+
+
+\subsection{Data Design}
+\label{subsec:design:data-design}
+
+Data design encompasses database schemas, serialization formats, and state representation across distributed components.
+
+\subsubsection{MongoDB Schema Design}
+\label{subsubsec:design:mongodb-schema}
+
+MongoDB's document model suits the hierarchical project-circuit-gate structure through embedded documents. The \texttt{users} collection stores \texttt{email} (unique index), \texttt{hashed\_password} (null for OAuth, bcrypt cost 12), \texttt{oauth\_provider}, \texttt{oauth\_subject\_id} (compound index for OAuth lookup), \texttt{profile\_url}, and timestamps. The \texttt{projects} collection embeds circuits within project documents (single-query retrieval, atomic updates) with \texttt{user\_id} (indexed), \texttt{name}, \texttt{description}, \texttt{active\_circuit\_id}, and \texttt{circuits} array containing \texttt{id}, \texttt{name}, \texttt{numQubits}, \texttt{gates} (with \texttt{id}, \texttt{depth}, \texttt{gate}, \texttt{target\_qubits}, \texttt{control\_qubits}, \texttt{parameters}), \texttt{metadata}, and \texttt{results}. Compound \texttt{(user\_id, updated\_at)} index optimizes project listing sorted by recency. Results embed \texttt{partition\_info}, \texttt{original}/\texttt{partitioned} state vectors, \texttt{comparison} fidelity metrics, and \texttt{timestamp}.
+
+\subsubsection{Frontend State Representation}
+\label{subsubsec:design:frontend-state}
+
+Zustand stores with Zundo middleware manage per-circuit state (\texttt{circuitId}, \texttt{numQubits}, \texttt{placedGates}, \texttt{selectedGates}, \texttt{executionStatus}, \texttt{results}) with 50-entry \texttt{pastStates}/\texttt{futureStates} arrays. Zundo intercepts updates, pushing previous states unless \texttt{skipHistory} is set. Persistence serializes to localStorage (\texttt{circuit-history:\{circuitId\}}) on debounced updates (500ms) and window unload, handling Sets (to arrays), Dates (to ISO strings), and circular references. Bidirectional synchronization maintains consistency: drag-and-drop triggers store updates and debounced database saves, QASM edits parse to gate arrays and re-render composers, project loads initialize stores and restore localStorage histories.
+
+\subsubsection{Circuit Serialization Formats}
+\label{subsubsec:design:serialization}
+
+Circuits serialize to internal JSON (Pydantic \texttt{CircuitInfo} schema with nested circuits, gate IDs, metadata), OpenQASM 2.0 (maps gates to standard syntax, iterates by depth, for interoperability with Qiskit), and SVG (clones canvas, removes interactive elements, embeds symbols, serializes to XML for documentation). QASM import uses recursive descent parsing (tokenization, AST construction, gate object conversion) with validation for undefined qubits and unsupported gates.
+
+
+\subsection{Core Functionality Design}
+\label{subsec:design:core-functionality}
+
+This subsection examines key technical capabilities: SSH connection pooling, WebSocket communication, and temporal state management.
+
+\subsubsection{SSH Connection Pooling}
+\label{subsubsec:design:ssh-pooling}
+
+SSH connection pooling represents a critical performance optimization for systems executing sequential remote jobs. Establishing new connections is expensive (250-500ms per connection due to TCP handshake, SSH negotiation, and authentication), but maintaining connections across jobs carries memory costs (5-10MB per idle connection). The key design decision was to cache authenticated sessions and reuse them across multiple job submissions, reducing overhead from connection establishment cost to under 100ms on subsequent jobs. This optimization proves essential when users iteratively test circuit variations—without connection reuse, five sequential jobs would accumulate 1.25-2.5 seconds of connection overhead alone.
+
+The tradeoff is managed through two constraints: a 300-second idle timeout (connections beyond this are destroyed to prevent unbounded memory consumption) and a concurrency limit (Semaphore restricts total pooled connections to 5, preventing remote server resource exhaustion). Robust cleanup mechanisms ensure failed connections are immediately removed and reconnection attempts (up to 3) occur transparently to users. Implementation details are documented in Section~\ref{subsubsec:design:class-diagram} (Service Layer: SquanderClient).
+
+\subsubsection{WebSocket Communication Architecture}
+\label{subsubsec:design:websocket-architecture}
+
+WebSocket connections provide full-duplex real-time communication, replacing inefficient HTTP polling with persistent bidirectional channels. To scope message delivery efficiently, the architecture employs a room-based topology where each simulation job instantiates a \texttt{job:\{job\_id\}} room upon creation. Clients join these rooms to monitor specific jobs, and server broadcasts automatically reach only subscribed room members without individual addressing. The \texttt{ConnectionManager} (\texttt{backend/app/services/websocket\_manager.py:40}) implements this topology through a dictionary mapping room names to connection ID sets, achieving O(1) lookups and O(n) broadcasts where n represents room membership.
+
+To handle diverse message types, the system employs two complementary message schemas. Management messages (\texttt{connection\_established}, \texttt{room\_joined}, \texttt{pong}, \texttt{error}) handle WebSocket lifecycle events, while simulation progress messages (\texttt{phase}, \texttt{log}, \texttt{complete}, \texttt{error}) carry execution updates. Both include ISO timestamps and routing metadata. When clients connect, the WebSocket endpoint (\texttt{backend/app/api/v1/endpoints/websocket.py}) authenticates them via query-string JWT tokens before registering with the connection manager. The frontend \texttt{useWebSocket} hook implements resilience through exponential backoff using the formula $\min(2^n \times 1000\text{ ms}, 30000\text{ ms})$, which gradually increases delays between reconnection attempts, offline message queuing to preserve messages during disconnections, and selective subscription to relevant message types. These mechanisms together ensure users reliably receive progress updates even when network connectivity is temporarily disrupted.
+
+A key design tradeoff emerges at scale. The backend stores room membership in application server memory, which works well for single-server deployments but complicates adding multiple servers—additional instances would not know about rooms from other servers. Production deployments can address this constraint by replacing in-memory storage with Redis pub/sub, a shared message broker that allows stateless server instances to coordinate room subscriptions and broadcasts through a centralized service.
+
+\subsubsection{Temporal State Management}
+\label{subsubsec:design:temporal-state}
+
+Undo/redo is essential for interactive circuit design, yet implementing it as scattered logic across components creates maintenance burden and inconsistency. The design decision was to implement temporal state management as a general middleware pattern (Zundo) applicable to any Zustand store. This centralizes undo logic and automatically extends undo support to new features added to stores.
+
+A critical subtlety is determining which state mutations should create history entries. Loading a circuit from the database should not create an undo entry—users expect undo to affect their current editing session, not revert to before they opened the project. Bulk QASM imports record a single atomic history entry for the entire parsed circuit, preserving user intent rather than exposing implementation details. WebSocket updates reflecting remote state changes should not clutter local undo history. The \texttt{skipHistory} flag enables these exceptions while maintaining a uniform mechanism for standard mutations.
+
+The 50-entry history limit balances practical editing workflows (users rarely exceed 10-20 undoable operations) against browser storage constraints. History persistence to localStorage enables recovery after crashes, while per-circuit store isolation prevents interference between concurrent editing sessions. Implementation details are documented in Section~\ref{subsubsec:design:frontend-state} (Frontend State Representation).
