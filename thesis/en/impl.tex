@@ -459,13 +459,13 @@ With eleven partitioning strategies available, selecting the appropriate algorit
 Partitioning algorithms span a wide spectrum of theoretical time complexity, from linear to exponential in the number of gates:
 
 \begin{itemize}
-    \item \textbf{$O(n)$}: Kahn, BQSKit-Quick, GTQCP—these greedy algorithms process each gate once with constant-time decisions, producing linear growth in execution time. Suitable for real-time interactive applications requiring sub-second response.
+    \item \textbf{$O(n)$}: Kahn, BQSKit-Quick—these greedy algorithms process each gate once with constant-time decisions, producing linear growth in execution time. Suitable for real-time interactive applications requiring sub-second response.
 
     \item \textbf{$O(n^2)$}: BQSKit-Scan—the sliding window requires examining pairs of gates within each window, producing quadratic growth. Remains practical for circuits up to several hundred gates.
 
     \item \textbf{$O(n^3)$}: BQSKit-Greedy—iterative selection of maximum partitions requires examining combinations of remaining gates at each step, producing cubic growth. Becomes prohibitive beyond approximately 500 gates.
 
-    \item \textbf{$O(2^n)$}: TDAG, ILP variants—exhaustive enumeration or constraint solving in worst case explores exponentially many configurations. Practical performance depends heavily on circuit structure: circuits with limited connectivity or strong locality often complete in reasonable time due to pruning, while highly connected circuits may hit time limits.
+    \item \textbf{$O(2^n)$}: TDAG, GTQCP, ILP variants—exhaustive enumeration or constraint solving in worst case explores exponentially many configurations. Practical performance depends heavily on circuit structure: circuits with limited connectivity or strong locality often complete in reasonable time due to pruning, while highly connected circuits may hit time limits. GTQCP demonstrates that tree-based optimization can achieve near-optimal quality while maintaining practical execution times through effective pruning.
 \end{itemize}
 
 These theoretical complexities provide useful guidance but should be interpreted cautiously—actual performance depends on circuit structure, qubit limits, and implementation optimizations.
@@ -475,17 +475,17 @@ These theoretical complexities provide useful guidance but should be interpreted
 
 Based on complexity analysis and the structure of quantum circuits, the following guidelines provide starting points for algorithm selection based on circuit characteristics and optimization objectives:
 
-For \textbf{small circuits under 50 gates}, TDAG or ILP can produce optimal solutions with acceptable execution times. The optimality guarantee justifies potential overhead for circuits where partitioning is not a frequent operation.
+For \textbf{real-time interactive applications} requiring immediate feedback, linear-time algorithms provide predictable performance regardless of circuit size. Kahn handles circuits ranging from hundreds to millions of gates with consistent $O(n)$ scaling, making it the default choice for real-time circuit editing and iterative design.
 
-For \textbf{medium circuits between 50-150 gates}, Kahn or BQSKit-Greedy provide reasonable balances between partition quality and execution time. Kahn offers more predictable performance, while BQSKit-Greedy may provide improved quality at the cost of increased execution time.
+For \textbf{quality-optimized batch processing} where partition quality matters more than speed, optimal and tree-based algorithms justify longer execution times. ILP produces provably optimal partitions but requires solving constraint optimization problems with exponential worst-case complexity. GTQCP achieves near-optimal quality through tree-based enumeration with effective pruning, often completing faster than ILP while producing comparable results. TDAG provides another optimal approach with different performance characteristics. The viability of these methods depends on circuit structure, qubit limits, and available computation time rather than gate count alone—circuits with limited connectivity or strong locality enable faster solving through search space pruning.
 
-For \textbf{large circuits exceeding 150 gates}, linear-time algorithms become necessary to maintain acceptable response times. GTQCP or BQSKit-Quick both achieve sub-second performance on circuits with thousands of gates. For offline optimization where execution time matters less, BQSKit-Greedy remains viable up to approximately 500 gates.
+For \textbf{exploring alternative strategies}, BQSKit provides four variants spanning different complexity-quality points. BQSKit-Quick matches Kahn's linear scaling. BQSKit-Scan provides quadratic complexity with sliding window lookahead. BQSKit-Greedy achieves cubic complexity through iterative partition selection. BQSKit-Cluster exploits circuit locality through hierarchical grouping for structured circuits.
 
-For \textbf{cost-sensitive applications} where simulation time dominates overall workflow, ILP with Fusion Cost or Control-Aware Fusion minimize total computational expense at the cost of longer partitioning time. This tradeoff favors simulation-heavy workloads where partitioning occurs once but simulation runs many times with varying parameters.
+For \textbf{simulation cost minimization} where total computational expense dominates workflow efficiency, ILP with Fusion Cost or Control-Aware Fusion minimize simulation time at the cost of longer partitioning time. This tradeoff favors simulation-heavy workloads where partitioning occurs once but simulation runs many times with varying parameters.
 
-For \textbf{hardware-constrained devices} with restricted qubit connectivity, Qiskit transpiler integration provides hardware-aware partitioning accounting for device topology. The Qiskit with Fusion variant balances hardware constraints with partition quality through post-processing optimization.
+For \textbf{hardware-specific optimization} targeting devices with restricted qubit connectivity, Qiskit transpiler integration provides hardware-aware partitioning accounting for device topology. The Qiskit with Fusion variant balances hardware constraints with partition quality through post-processing optimization.
 
-For \textbf{circuits with natural locality} (quantum Fourier transforms, lattice surgery, certain variational algorithms), BQSKit-Cluster exploits structure through hierarchical grouping, potentially matching optimal quality while significantly reducing execution time compared to exhaustive approaches.
+For \textbf{structured circuit patterns} exhibiting natural locality (quantum Fourier transforms, lattice surgery, variational algorithms), BQSKit-Cluster exploits structure through hierarchical grouping, potentially matching optimal quality while significantly reducing execution time compared to exhaustive approaches.
 
 The default strategy throughout the platform employs Kahn's algorithm, which provides consistent $O(n)$ performance across circuit sizes with predictable overhead. This conservative choice prioritizes response time and predictability for interactive circuit editing, where users expect immediate feedback.
 
