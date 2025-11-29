@@ -7,7 +7,7 @@ This section presents the technical realization of the quantum circuit visualiza
 \subsection{Technology Stack and Rationale}
 \label{subsec:impl:technology}
 
-The platform integrates over thirty libraries across presentation, application, and development layers, each selected to address specific technical challenges in the development of Qubit. This subsection documents major dependencies alongside the rationale guiding their selection.
+The platform integrates over thirty libraries across presentation, application, and development layers, each selected to address specific technical challenges in the development of Qubitkit. This subsection documents major dependencies alongside the rationale guiding their selection.
 
 \subsubsection{Presentation Layer}
 \label{subsubsec:impl:frontend-stack}
@@ -203,9 +203,9 @@ Movement operations must handle both horizontal repositioning (changing depth) a
 \subsubsection{Batch Injection Optimization}
 \label{subsubsec:impl:dag-batch}
 
-Operations like importing QASM circuits or pasting multiple gates require inserting many gates efficiently. Naively applying injection sequentially yields O(n²) complexity: each of n gates examines all previously inserted gates to determine parents and children. For large QASM files with hundreds of gates, this creates perceptible UI lag.
+Operations like importing QASM circuits or pasting multiple gates require inserting many gates efficiently. Naively applying injection sequentially yields $O(n^2)$ complexity: each of $n$ gates examines all previously inserted gates to determine parents and children. For large QASM files with hundreds of gates, this creates perceptible UI lag.
 
-The optimized batch injection algorithm (\texttt{useCircuitDAG.ts:238-297}) achieves O(n) complexity through state tracking that eliminates redundant searches:
+The optimized batch injection algorithm (\texttt{useCircuitDAG.ts:238-297}) achieves $O(n)$ complexity through state tracking that eliminates redundant searches:
 
 \begin{algorithm}[H]
 \caption{Batch Gate Injection Optimization}
@@ -248,7 +248,7 @@ The optimized batch injection algorithm (\texttt{useCircuitDAG.ts:238-297}) achi
 
 Algorithm~\ref{alg:dag-batch} maintains a \texttt{qubit\_last} map tracking the most recently added gate on each qubit line. The initialization phase (lines 5--11) processes existing gates to establish the current end of each qubit line—the gate with maximum depth on each qubit becomes the starting point for appending new gates. The injection phase (lines 13--28) then processes new gates in the order they should appear in the circuit. For each new gate, parents are simply the current last gates on the qubits it operates on, immediately available from the map without searching. Depth calculation follows from parent depths, and after adding the gate, the map updates to reflect it as the new last gate on its qubits.
 
-This optimization eliminates the need to search through all previously inserted gates when adding each new gate. Instead of O(n²) total comparisons, the algorithm performs O(n) map lookups and updates—one constant-time operation per gate per qubit it operates on. For typical quantum circuits where most gates operate on 1-2 qubits, this reduces insertion time from quadratic to effectively linear in the number of gates.
+This optimization eliminates the need to search through all previously inserted gates when adding each new gate. Instead of $O(n^2)$ total comparisons, the algorithm performs $O(n)$ map lookups and updates—one constant-time operation per gate per qubit it operates on. For typical quantum circuits where most gates operate on 1-2 qubits, this reduces insertion time from quadratic to effectively linear in the number of gates.
 
 
 \subsection{D3.js-Based Circuit Rendering}
@@ -439,11 +439,11 @@ The Qiskit with Fusion variant (\texttt{get\_qiskit\_fusion\_partitions}) extend
 
 \paragraph{BQSKit Partitioners} Berkeley Quantum Synthesis Toolkit (BQSKit)~\cite{bqskit2024} provides four partitioning strategies offering different speed-quality tradeoffs:
 
-The \textbf{Quick} partitioner uses greedy gate-by-gate assignment, examining each gate in sequence and adding it to the current partition if qubits allow, otherwise starting a new partition. This simplest approach achieves O(n) time complexity, processing even circuits with thousands of gates in milliseconds. However, partition quality may suffer compared to more sophisticated approaches. Quick partitioning suits scenarios prioritizing response time over optimality: rapid prototyping sessions where users iterate frequently, and very large circuits where enumeration-based algorithms become impractical.
+The \textbf{Quick} partitioner uses greedy gate-by-gate assignment, examining each gate in sequence and adding it to the current partition if qubits allow, otherwise starting a new partition. This simplest approach achieves $O(n)$ time complexity, processing even circuits with thousands of gates in milliseconds. However, partition quality may suffer compared to more sophisticated approaches. Quick partitioning suits scenarios prioritizing response time over optimality: rapid prototyping sessions where users iterate frequently, and very large circuits where enumeration-based algorithms become impractical.
 
-The \textbf{Scan} partitioner implements a sliding window approach that examines gates in windows of fixed size, selecting the maximum set of gates within each window that fit within qubit constraints. Windows slide forward through the circuit, building partitions incrementally while considering limited lookahead. This balances speed (O(n²) complexity due to window operations) with improved quality over purely greedy approaches. Scan serves as a reasonable choice for medium-sized circuits where enumeration becomes expensive but quality still matters.
+The \textbf{Scan} partitioner implements a sliding window approach that examines gates in windows of fixed size, selecting the maximum set of gates within each window that fit within qubit constraints. Windows slide forward through the circuit, building partitions incrementally while considering limited lookahead. This balances speed ($O(n^2)$ complexity due to window operations) with improved quality over purely greedy approaches. Scan serves as a reasonable choice for medium-sized circuits where enumeration becomes expensive but quality still matters.
 
-The \textbf{Greedy} partitioner iteratively selects maximum valid partitions from remaining gates without ILP's global optimization. Each iteration examines all unassigned gates and combinations thereof, selecting the largest valid partition, then removes those gates and repeats. Time complexity of O(n³) produces improved quality while running faster than ILP by avoiding the overhead of constraint solver invocation and binary variable management.
+The \textbf{Greedy} partitioner iteratively selects maximum valid partitions from remaining gates without ILP's global optimization. Each iteration examines all unassigned gates and combinations thereof, selecting the largest valid partition, then removes those gates and repeats. Time complexity of $O(n^3)$ produces improved quality while running faster than ILP by avoiding the overhead of constraint solver invocation and binary variable management.
 
 The \textbf{Cluster} partitioner applies hierarchical clustering based on qubit overlap and temporal proximity before partitioning. Gates using similar qubits and appearing near each other in circuit depth get grouped into clusters, then each cluster undergoes independent partitioning. This approach can excel for circuits exhibiting natural locality—for example, quantum Fourier transforms where gates cluster around specific qubit subsets, or lattice surgery operations where gates naturally group into spatial regions. For such circuits, clustering can match or exceed ILP quality while running faster by exploiting structure to decompose the problem into smaller subproblems.
 
@@ -459,13 +459,13 @@ With eleven partitioning strategies available, selecting the appropriate algorit
 Partitioning algorithms span a wide spectrum of theoretical time complexity, from linear to exponential in the number of gates:
 
 \begin{itemize}
-    \item \textbf{O(n)}: Kahn, BQSKit-Quick, GTQCP—these greedy algorithms process each gate once with constant-time decisions, producing linear growth in execution time. Suitable for real-time interactive applications requiring sub-second response.
+    \item \textbf{$O(n)$}: Kahn, BQSKit-Quick, GTQCP—these greedy algorithms process each gate once with constant-time decisions, producing linear growth in execution time. Suitable for real-time interactive applications requiring sub-second response.
 
-    \item \textbf{O(n²)}: BQSKit-Scan—the sliding window requires examining pairs of gates within each window, producing quadratic growth. Remains practical for circuits up to several hundred gates.
+    \item \textbf{$O(n^2)$}: BQSKit-Scan—the sliding window requires examining pairs of gates within each window, producing quadratic growth. Remains practical for circuits up to several hundred gates.
 
-    \item \textbf{O(n³)}: BQSKit-Greedy—iterative selection of maximum partitions requires examining combinations of remaining gates at each step, producing cubic growth. Becomes prohibitive beyond approximately 500 gates.
+    \item \textbf{$O(n^3)$}: BQSKit-Greedy—iterative selection of maximum partitions requires examining combinations of remaining gates at each step, producing cubic growth. Becomes prohibitive beyond approximately 500 gates.
 
-    \item \textbf{O($2^n$)}: TDAG, ILP variants—exhaustive enumeration or constraint solving in worst case explores exponentially many configurations. Practical performance depends heavily on circuit structure: circuits with limited connectivity or strong locality often complete in reasonable time due to pruning, while highly connected circuits may hit time limits.
+    \item \textbf{$O(2^n)$}: TDAG, ILP variants—exhaustive enumeration or constraint solving in worst case explores exponentially many configurations. Practical performance depends heavily on circuit structure: circuits with limited connectivity or strong locality often complete in reasonable time due to pruning, while highly connected circuits may hit time limits.
 \end{itemize}
 
 These theoretical complexities provide useful guidance but should be interpreted cautiously—actual performance depends on circuit structure, qubit limits, and implementation optimizations.
@@ -487,4 +487,25 @@ For \textbf{hardware-constrained devices} with restricted qubit connectivity, Qi
 
 For \textbf{circuits with natural locality} (quantum Fourier transforms, lattice surgery, certain variational algorithms), BQSKit-Cluster exploits structure through hierarchical grouping, potentially matching optimal quality while significantly reducing execution time compared to exhaustive approaches.
 
-The default strategy throughout the platform employs Kahn's algorithm, which provides consistent O(n) performance across circuit sizes with predictable overhead. This conservative choice prioritizes response time and predictability for interactive circuit editing, where users expect immediate feedback.
+The default strategy throughout the platform employs Kahn's algorithm, which provides consistent $O(n)$ performance across circuit sizes with predictable overhead. This conservative choice prioritizes response time and predictability for interactive circuit editing, where users expect immediate feedback.
+
+\subsubsection{Empirical Benchmark Comparison}
+\label{subsubsec:impl:benchmark}
+
+To validate theoretical complexity predictions and illustrate practical performance tradeoffs, we benchmarked eight partitioning strategies on the \texttt{adr4\_197.qasm} circuit from the RevLib benchmark suite using a maximum partition size of 4 qubits. Figure~\ref{fig:benchmark-kahn} and Figure~\ref{fig:benchmark-ilp} present representative results contrasting greedy versus optimal approaches, demonstrating the fundamental speed-quality tradeoff that guides algorithm selection.
+
+\begin{figure}[p]
+    \centering
+    \includesvg[width=0.8\textwidth,inkscapelatex=false]{docs/screenshots/benchmarks/partition_distribution_4_kahn_adr4_197.svg}
+    \caption{Kahn greedy partitioning on \texttt{adr4\_197.qasm} with 4 qubits per partition. Bars show gate counts per partition colored by qubit utilization; purple line tracks qubits used. The linear-time algorithm completes in 81 milliseconds, producing 268 partitions with variable density reflecting opportunistic gate assignment.}
+    \label{fig:benchmark-kahn}
+\end{figure}
+
+\begin{figure}[p]
+    \centering
+    \includesvg[width=0.8\textwidth,inkscapelatex=false]{docs/screenshots/benchmarks/partition_distribution_4_ilp_adr4_197.svg}
+    \caption{ILP optimal partitioning on \texttt{adr4\_197.qasm} with 4 qubits per partition. Global optimization achieves superior gate packing density, reducing total partitions to 204 through exhaustive exploration of valid configurations. Execution time increases to 977 milliseconds, illustrating the computational cost of optimality.}
+    \label{fig:benchmark-ilp}
+\end{figure}
+
+These visualizations capture the essential algorithmic contrast: greedy approaches prioritize execution speed through local decisions, while optimal methods sacrifice time for global quality. The performance gap quantifies this tradeoff: Kahn executes twelve times faster than ILP but produces 31\% more partitions. For interactive circuit editing where users expect immediate response, the speed advantage outweighs partition count. For batch simulation workflows where circuits undergo repeated execution with varying parameters, upfront partitioning cost spreads across many runs, justifying the investment in optimization. Complete benchmark results covering all eight strategies and detailed numerical analysis appear in Appendix~\ref{appx:benchmark}.

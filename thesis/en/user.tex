@@ -1,14 +1,14 @@
 \chapter{User Documentation}
 \label{ch:user}
 
-This chapter serves as a practical guide for users working with the Qubit platform. Whether you are a student exploring quantum algorithms for the first time, an educator demonstrating quantum concepts in the classroom, or a researcher prototyping novel circuits, this documentation will guide you through the platform's capabilities. The chapter progresses from initial setup through circuit design to result interpretation, providing both step-by-step procedures and conceptual explanations of the platform's behavior.
+This chapter serves as a practical guide for users working with the Qubitkit platform. Whether you are a student exploring quantum algorithms for the first time, an educator demonstrating quantum concepts in the classroom, or a researcher prototyping novel circuits, this documentation will guide you through the platform's capabilities. The chapter progresses from initial setup through circuit design to result interpretation, providing both step-by-step procedures and conceptual explanations of the platform's behavior.
 
 The documentation assumes basic familiarity with quantum computing concepts such as qubits, quantum gates, and measurement. Users without this background may wish to consult introductory quantum computing resources before proceeding. However, the platform's visual interface is designed to make circuit experimentation accessible even to those still developing their quantum intuition.
 
 \section{Accessing the Platform}
 \label{sec:user:access}
 
-The Qubit platform operates as a web application accessible through standard web browsers without local software installation. Users access the system by navigating to the deployed application URL or by setting up a local development environment as described in Section~\ref{sec:user:local-setup}.
+The Qubitkit platform operates as a web application accessible through standard web browsers without local software installation. Users access the system by navigating to the deployed application URL or by setting up a local development environment as described in Section~\ref{sec:user:local-setup}.
 
 \textbf{System Requirements:}
 \begin{compactitem}
@@ -23,7 +23,7 @@ The Qubit platform operates as a web application accessible through standard web
 \section{Local Development Setup}
 \label{sec:user:local-setup}
 
-Most users will access Qubit through a deployed web instance without requiring local installation. However, developers and contributors extending the platform will need to run it locally. This section guides you through setting up both frontend and backend components in a development environment.
+Most users will access Qubitkit through a deployed web instance without requiring local installation. However, developers and contributors extending the platform will need to run it locally. This section guides you through setting up both frontend and backend components in a development environment.
 
 The setup process requires approximately 20-30 minutes for users with Node.js 18+ and Python 3.8+ already installed. The platform architecture separates into frontend and backend components, each requiring independent setup and configuration. The primary challenge involves configuring environment variables correctly—particularly the MongoDB Atlas connection string and SQUANDER SSH credentials. We recommend following the subsections in order, verifying each component works before proceeding to the next.
 
@@ -231,7 +231,7 @@ The home landing page (Figure~\ref{fig:home-interface}) serves as the entry poin
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/home_page}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/pages/home_page}}
     \caption{Home landing page with hero banner, feature cards, SQUANDER integration section, and platform capabilities}
     \label{fig:home-interface}
 \end{figure}
@@ -245,7 +245,7 @@ Users access the platform through these authentication methods shown in Figure~\
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/login_page}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/pages/login_page}}
     \caption{Login interface showing Google OAuth, Microsoft Azure AD, and email verification authentication options}
     \label{fig:login-interface}
 \end{figure}
@@ -258,6 +258,18 @@ Users access the platform through these authentication methods shown in Figure~\
 
 All methods create or retrieve user accounts with encrypted credential storage. Upon successful authentication, the backend issues JWT access tokens (30-minute expiry) and refresh tokens (7-day expiry). Sessions remain active for 7 days or until explicit logout. The platform automatically refreshes expired access tokens in the background, preventing interruptions during circuit execution. When OAuth emails match existing accounts, the system links providers to avoid duplicates.
 
+\subsection{User Profile Management}
+\label{subsec:user:profile}
+
+After authentication, users can access their profile page (Figure~\ref{fig:profile-interface}) to view and manage account information. The profile interface displays personal information including first name, last name, email address, and user ID.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/pages/profile_page}}
+    \caption{User profile page showing personal information and account settings}
+    \label{fig:profile-interface}
+\end{figure}
+
 \section{Project and Circuit Management}
 \label{sec:user:projects}
 
@@ -268,7 +280,7 @@ After authentication, users land on the project list page (Figure~\ref{fig:proje
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/project_page}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/pages/project_page}}
     \caption{Project list interface displaying user projects in grid view with filters, search, and management options}
     \label{fig:project-interface}
 \end{figure}
@@ -282,7 +294,7 @@ Selecting a project opens the composer workspace (Figure~\ref{fig:composer-inter
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/composer_page}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/pages/composer_page}}
     \caption{Circuit composer interface showing multiple circuit tabs, gate palette (left), canvas (center), and inspector panel (right)}
     \label{fig:composer-interface}
 \end{figure}
@@ -369,7 +381,7 @@ Users can group multiple gates into a nested circuit structure, creating reusabl
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/gates_selected}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/miscellaneous/gates_selected}}
     \caption{Multiple gates selected using Shift+Click, highlighted with selection indicators before grouping}
     \label{fig:gates-selected}
 \end{figure}
@@ -378,7 +390,7 @@ After confirming the group creation, the selected gates collapse into a single c
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/gates_grouped}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/miscellaneous/gates_grouped}}
     \caption{Circuit after grouping showing the gates collapsed into a colored rectangle with custom name}
     \label{fig:grouped-circuit}
 \end{figure}
@@ -391,7 +403,7 @@ When working with grouped circuits, the toolbar provides a "Show Nested Circuits
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/flat_circuit_view}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/miscellaneous/circuit_flat_view}}
     \caption{Flat circuit view showing only the top-level structure—grouped circuits appear as colored rectangles}
     \label{fig:flat-circuit}
 \end{figure}
@@ -400,7 +412,7 @@ Enabling the toggle switches to nested view, which expands all grouped circuits 
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/nested_circuit_view}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/miscellaneous/circuit_nested_view}}
     \caption{Nested circuit view revealing the internal gate structure of all grouped subcircuits}
     \label{fig:nested-circuit}
 \end{figure}
@@ -412,7 +424,7 @@ The Monaco Editor integration (Figure~\ref{fig:qasm-editor}) provides syntax-hig
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.4\textwidth]{docs/screenshots/qasm_editor}}
+    \fbox{\includegraphics[width=0.4\textwidth]{docs/screenshots/components/qasm_editor}}
     \caption{Monaco Editor showing QASM code with syntax highlighting, line numbers, and auto-completion}
     \label{fig:qasm-editor}
 \end{figure}
@@ -480,7 +492,7 @@ The job monitoring interface (Figure~\ref{fig:job-monitoring}) displays real-tim
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/job_monitoring}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/miscellaneous/job_monitoring}}
     \caption{Job monitoring panel showing active jobs with real-time progress updates}
     \label{fig:job-monitoring}
 \end{figure}
@@ -535,17 +547,44 @@ Upon successful circuit execution, the visualization panel displays eight comple
 
 \subsubsection{Circuit Fidelity Check}
 
-The circuit fidelity metric appears prominently in the results header, displaying the quantum state fidelity between original and partitioned circuit outputs as a percentage. Fidelity $F = |\langle\psi_{\text{original}}|\psi_{\text{partitioned}}\rangle|^2$ quantifies how closely the partitioned circuit reproduces the original quantum state. The display uses color coding: green for fidelity $\geq 99\%$, blue for $95\%-99\%$, and orange for $< 95\%$.
-
-\subsubsection{Partition Viewer and Distribution}
-
-Figure~\ref{fig:viz-partition} shows partition-level analysis. The viewer displays individual partition circuits with gate placement statistics. The distribution histogram shows gate count per partition using color-coded bars: red ($> 90\%$ utilization), orange ($> 70\%$), blue ($> 50\%$), and green (efficient).
+The simulation results header (Figure~\ref{fig:viz-fidelity}) displays circuit fidelity alongside execution parameters including shot count, partitioning strategy, and maximum partition size. Fidelity $F = |\langle\psi_{\text{original}}|\psi_{\text{partitioned}}\rangle|^2$ quantifies how closely the partitioned circuit reproduces the original quantum state. The display uses color coding: green for fidelity $\geq 99\%$, blue for $95\%-99\%$, and orange for $< 95\%$.
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_partition}}
-    \caption{Partition viewer and distribution histogram}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/components/viz_fidelity}}
+    \caption{Circuit fidelity metric and execution parameters}
+    \label{fig:viz-fidelity}
+\end{figure}
+
+\subsubsection{Partition Viewer and Distribution}
+
+The partition viewer provides two viewing modes: individual and sequential. The individual mode (Figure~\ref{fig:viz-partition}) displays the gate structure of a selected partition, while the sequential mode (Figure~\ref{fig:viz-partition-individual}) displays all partitions together as a unified circuit, with line boundaries indicating partition divisions.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/components/viz_partition_individual}}
+    \caption{Individual partition view with gate structure}
     \label{fig:viz-partition}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/components/viz_partition}}
+    \caption{Sequential partition view showing all partitions with boundaries}
+    \label{fig:viz-partition-individual}
+\end{figure}
+
+Both modes include footer statistics displaying the gate count, qubit usage, and utilization percentage. The distribution histogram shows gate count per partition using color-coded bars: green ($\geq 85\%$ utilization), yellow ($70\%-85\%$), orange ($55\%-70\%$), and red ($< 55\%$).
+
+\subsubsection{Partition Highlighting in Original Circuit}
+
+Users can enable the "Show in Original Circuit" toggle to highlight the selected partition's gates in the main circuit composer (Figure~\ref{fig:gates-in-partition}), where gates are outlined with colored borders that match the partition color. This feature helps visualize how the original circuit has been divided across partitions.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/miscellaneous/gates_in_partition}}
+    \caption{Original circuit with highlighted gates from selected partition}
+    \label{fig:gates-in-partition}
 \end{figure}
 
 \subsubsection{Measurement and Probability Distributions}
@@ -554,7 +593,7 @@ Figure~\ref{fig:viz-measurement-prob} compares measurement outcomes (top 20 basi
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_measurement_prob}}
+    \fbox{\includegraphics[width=0.75\textwidth]{docs/screenshots/components/viz_measurement_prob}}
     \caption{Measurement distribution and probability comparison}
     \label{fig:viz-measurement-prob}
 \end{figure}
@@ -565,7 +604,7 @@ Figure~\ref{fig:viz-statevector-density} shows state vector amplitudes (top 32) 
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_statevector_density}}
+    \fbox{\includegraphics[width=0.75\textwidth]{docs/screenshots/components/viz_state-vector_density}}
     \caption{State vector amplitudes and density matrix heatmaps}
     \label{fig:viz-statevector-density}
 \end{figure}
@@ -576,7 +615,7 @@ Figure~\ref{fig:viz-entropy} plots Second Rényi entropy $S_2 = -\log_2(\text{Tr
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.7\textwidth]{docs/screenshots/viz_entropy}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/components/viz_entropy}}
     \caption{Entanglement entropy scaling}
     \label{fig:viz-entropy}
 \end{figure}
@@ -629,7 +668,7 @@ The interface supports automatic dark mode switching based on system preferences
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/composer_page_dark}}
+    \fbox{\includegraphics[width=0.8\textwidth]{docs/screenshots/pages/composer_page_dark}}
     \caption{Circuit composer interface in dark mode showing adapted colors for canvas, gates, and UI components}
     \label{fig:dark-mode}
 \end{figure}
@@ -641,7 +680,7 @@ Circuits can be exported in three formats: QASM 2.0 for compatibility with Qiski
 
 \begin{figure}[H]
     \centering
-    \fbox{\includegraphics[width=0.95\textwidth]{docs/screenshots/exported_circuit_view.png}}
+    \fbox{\includegraphics[width=0.95\textwidth]{docs/screenshots/miscellaneous/partition_exported_view.png}}
     \caption{Example of circuit exported as PNG showing clean vector graphics with gates, wires, and labels}
     \label{fig:export-svg}
 \end{figure}
@@ -649,7 +688,7 @@ Circuits can be exported in three formats: QASM 2.0 for compatibility with Qiski
 \section{Troubleshooting}
 \label{sec:user:troubleshooting}
 
-This section addresses common issues users encounter when working with Qubit. Each entry follows a three-part structure: symptoms you will observe, the underlying cause, and steps to resolve the issue.
+This section addresses common issues users encounter when working with Qubitkit. Each entry follows a three-part structure: symptoms you will observe, the underlying cause, and steps to resolve the issue.
 
 \subsection{Authentication Issues}
 \label{subsec:user:troubleshoot-auth}
@@ -661,7 +700,7 @@ This section addresses common issues users encounter when working with Qubit. Ea
 \textbf{Resolution:}
 \begin{enumerate}
     \item Check browser address bar for pop-up blocker icon (usually right side)
-    \item Temporarily allow pop-ups for the Qubit domain
+    \item Temporarily allow pop-ups for the Qubitkit domain
     \item Verify third-party cookies are enabled in browser privacy settings
     \item Clear browser cache and cookies, then retry authentication
     \item If issue persists, use email verification authentication instead
