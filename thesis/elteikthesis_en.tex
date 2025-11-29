@@ -1,0 +1,156 @@
+\documentclass[
+	%parspace, % Add vertical space between paragraphs
+	%noindent, % No indentation of first lines in each paragraph
+	%nohyp, % No hyphenation of words
+	%twoside, % Double sided format
+	%draft, % Quicker draft compilation without rendering images
+	%final, % Set final to hide todos
+]{elteikthesis}[2024/04/26]
+
+% The minted package is also supported for source highlighting
+% See elteikthesis_minted.tex for example
+%\usepackage[newfloat]{minted}
+
+% Document's metadata
+\title{Visual Quantum Circuit Partitioner} % title
+\date{2025} % year of defense
+
+% Author's metadata
+\author{Muhammad Al Farizi}
+\degree{Bachelor of Science}
+
+% Superivsor(s)' metadata
+\supervisor{Morse Gregory Reynolds} % internal supervisor's name
+\affiliation{Assistant Lecturer} % internal supervisor's affiliation
+%\extsupervisor{Jane Doe} % external supervisor's name
+%\extaffiliation{Senior Developer} % external supervisor's affiliation
+
+% University's metadata
+\university{Eötvös Loránd University} % university's name
+\faculty{Faculty of Informatics} % faculty's name
+\department{Dept. of Software Technology and Methodology} % department's name
+\city{Budapest} % city
+\logo{elte_cimer_szines} % logo
+
+% Add bibliography file
+\addbibresource{elteikthesis.bib}
+
+% Define JavaScript language for listings
+\usepackage{listings}
+\lstdefinelanguage{JavaScript}{
+  keywords={const, let, var, function, return, if, else, for, while, break, continue, switch, case, default, try, catch, throw, new, this, typeof, instanceof, void, delete, in, of, async, await, class, extends, super, static, import, export, from, as, get, set},
+  ndkeywords={describe, it, expect, test, beforeEach, afterEach, cy, should, assert, toEqual, toBeNull, toBe},
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`
+}
+
+% Apply custom chapter styles
+\input{styles/chapter.tex}
+
+% Apply custom title page
+\input{styles/title_page.tex}
+
+% Apply custom dedication page
+\input{styles/dedication_page.tex}
+
+% The document
+\begin{document}
+
+% Set document language
+%\documentlang{hungarian}
+\documentlang{english}
+
+% List of todos (not in the final document)
+%\listoftodos[\todolabel]
+
+% Title page (mandatory)
+\maketitle
+% Topic declaration page (mandatory) - can also be attached instead
+\includepdf[scale=0.9, pagecommand={\thispagestyle{empty}}]{files/topic_declaration.pdf}
+
+% Table of contents (mandatory)
+\tableofcontents
+\cleardoublepage
+
+% Dedication page (optional)
+\dedicationpage
+
+% Acknowledgements (optional) - in case your thesis received funding or would like to express special thanks to someone
+\chapter*{\acklabel}
+\addcontentsline{toc}{chapter}{\acklabel}
+
+I would like to express my deepest gratitude to everyone who has supported me throughout this thesis. This work was made possible through the generous support of the Quantum Information National Laboratory in Hungary, which awarded me the QNL Research Scholarship.
+
+First and foremost, I am profoundly grateful to Professor Morse Gregory Reynolds for his invaluable guidance as my thesis advisor and personal mentor. His expertise, constructive feedback, and engaging debates proved as formative as any coursework. I am also deeply indebted to Dr. Péter Rakyta for his patient guidance in quantum research, whose explanations have directly enabled the technical contributions of this thesis.
+
+I would like to extend my thanks to Dr. Máté Cserép András for his mentorship during my full-stack development internship, and to Dr. Pintér Balázs for entrusting me with teaching responsibilities.
+
+To my family and Farah, thank you for your unwavering love and support. Your encouragement kept me motivated throughout my years at ELTE.
+
+Finally, to my classmates and friends, thank you for the countless hours spent together. Your friendship and companionship made it all worthwhile.
+
+% Main content
+\input{en/intro.tex}
+\cleardoublepage
+
+\input{en/user.tex}
+\cleardoublepage
+
+\input{en/design}
+\cleardoublepage
+
+\input{en/impl.tex}
+\cleardoublepage
+
+\input{en/short.tex}
+\cleardoublepage
+
+\input{en/testing.tex}
+\cleardoublepage
+
+\input{en/sum.tex}
+\cleardoublepage
+
+% Appendices (optional) - useful for detailed information in long tables, many and/or large figures, etc.
+\appendix
+\input{en/sim.tex}
+\cleardoublepage
+
+% Bibliography (mandatory)
+\phantomsection
+\addcontentsline{toc}{chapter}{\biblabel}
+\printbibliography[title=\biblabel]
+\cleardoublepage
+
+% List of figures (optional) - useful over 3-5 figures
+\phantomsection
+\addcontentsline{toc}{chapter}{\lstfigurelabel}
+\listoffigures
+\cleardoublepage
+
+% List of tables (optional) - useful over 3-5 tables
+\phantomsection
+\addcontentsline{toc}{chapter}{\lsttablelabel}
+\listoftables
+\cleardoublepage
+
+% List of algorithms (optional) - useful over 3-5 algorithms
+\phantomsection
+\addcontentsline{toc}{chapter}{\lstalgorithmlabel}
+\listofalgorithms
+\cleardoublepage
+
+% List of codes (optional) - useful over 3-5 code samples
+\phantomsection
+\addcontentsline{toc}{chapter}{\lstcodelabel}
+\lstlistoflistings
+\cleardoublepage
+
+% List of symbols (optional)
+%\printnomenclature
+
+\end{document}
