@@ -117,6 +117,11 @@ export const selectors = {
     // Execution controls
     runButton: '[data-testid="run-circuit-button"]',
     abortButton: '[data-testid="abort-execution-button"]',
+
+    // Simulation options
+    simulationOptionsButton: '[data-testid="simulation-options-button"]',
+    optionDensityMatrix: '[data-testid="option-density-matrix"]',
+    optionEntropy: '[data-testid="option-entropy"]',
   },
   results: {
     // Main panel

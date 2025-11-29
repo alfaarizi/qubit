@@ -150,7 +150,7 @@
 
 % ------------------------------
 % Margin
-\RequirePackage[left=35mm, right=25mm, top=25mm, bottom=25mm, headheight=16pt]{geometry}
+\RequirePackage[left=35mm, right=25mm, top=25mm, bottom=25mm, headheight=16pt, portrait]{geometry}
 %\setlength{\textwidth}{150mm}
 %\setlength{\textheight}{247mm}
 % ------------------------------

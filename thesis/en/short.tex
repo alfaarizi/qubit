@@ -1,7 +1,7 @@
 \section{Shortcomings and Limitations}
 \label{sec:shortcomings}
 
-Qubit demonstrates that web-based platforms can effectively bridge visual circuit design with advanced simulation capabilities. However, several architectural constraints limit the system's scope and scalability. This section documents the most significant limitations, understanding which provides context for the system's current design and suggests directions for future work.
+Qubitkit demonstrates that web-based platforms can effectively bridge visual circuit design with advanced simulation capabilities. However, several architectural constraints limit the system's scope and scalability. This section documents the most significant limitations, understanding which provides context for the system's current design and suggests directions for future work.
 
 \subsection{Scalability Constraints}
 \label{subsec:shortcomings:scalability}
@@ -13,7 +13,7 @@ The WebSocket architecture maintains all active connections and job state in mem
 \subsection{Remote Execution Dependency}
 \label{subsec:shortcomings:execution}
 
-Qubit cannot simulate quantum circuits locally—all computation requires SSH access to external SQUANDER servers. This fundamental dependency prevents deployment for local educational use or in environments without external network access. While delegating computation to remote servers enables advanced simulation capabilities that browsers cannot provide, it also means the platform is useless without this infrastructure. Local simulation support, even if limited to small circuits, would increase flexibility for offline exploration and educational deployment.
+Qubitkit cannot simulate quantum circuits locally—all computation requires SSH access to external SQUANDER servers. This fundamental dependency prevents deployment for local educational use or in environments without external network access. While delegating computation to remote servers enables advanced simulation capabilities that browsers cannot provide, it also means the platform is useless without this infrastructure. Local simulation support, even if limited to small circuits, would increase flexibility for offline exploration and educational deployment.
 
 The authentication system similarly requires external dependencies: Google OAuth, Microsoft Azure AD, and email verification all require internet connectivity to identity providers. The platform provides no offline authentication mode or local credential storage, limiting deployment in environments without internet access or at institutions that restrict external connections.
 

@@ -12,13 +12,13 @@ The Qubitkit platform operates as a web application accessible through standard 
 
 \textbf{System Requirements:}
 \begin{compactitem}
-    \item Modern web browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
+    \item Modern web browser (Chrome~\cite{chrome2024} 90+, Firefox~\cite{firefox2024} 88+, Safari~\cite{safari2024} 14+, Edge~\cite{edge2024} 90+)
     \item Stable internet connection (minimum 1 Mbps for WebSocket streaming)
-    \item JavaScript and cookies enabled
+    \item JavaScript~\cite{ecmascript2025} and cookies enabled
     \item Display resolution 1280×720 pixels or larger (recommended)
 \end{compactitem}
 
-\textbf{Browser Configuration:} For optimal performance, enable third-party cookies for OAuth providers, WebSocket connections for real-time job monitoring, and LocalStorage for session persistence. Pop-up blockers may interfere with Microsoft Azure AD authentication—temporarily disable them if authentication fails. The platform supports English, German, and Hungarian interface languages through i18next~\cite{i18next2024} internationalization framework.
+\textbf{Browser Configuration:} For optimal performance, enable third-party cookies for OAuth~\cite{rfc6749} providers, WebSocket~\cite{rfc6455} connections for real-time job monitoring, and LocalStorage for session persistence. Pop-up blockers may interfere with Microsoft Azure AD authentication—temporarily disable them if authentication fails. The platform supports English, German, and Hungarian interface languages through i18next~\cite{i18next2024} internationalization framework.
 
 \section{Local Development Setup}
 \label{sec:user:local-setup}
@@ -27,7 +27,7 @@ Most users will access Qubitkit through a deployed web instance without requirin
 
 The complete source code is publicly available at \url{https://github.com/alfaarizi/qubit}, licensed under Apache-2.0 to encourage community contributions and research reproducibility.
 
-The setup process requires approximately 20-30 minutes for users with Node.js 18+ and Python 3.8+ already installed. The platform architecture separates into frontend and backend components, each requiring independent setup and configuration. The primary challenge involves configuring environment variables correctly—particularly the MongoDB Atlas connection string and SQUANDER SSH credentials. We recommend following the subsections in order, verifying each component works before proceeding to the next.
+The setup process requires approximately 20-30 minutes for users with Node.js~\cite{nodejs2024} 18+ and Python~\cite{pythondocs2024} 3.8+ already installed. The platform architecture separates into frontend and backend components, each requiring independent setup and configuration. The primary challenge involves configuring environment variables correctly—particularly the MongoDB Atlas connection string and SQUANDER SSH credentials. We recommend following the subsections in order, verifying each component works before proceeding to the next.
 
 \subsection{Frontend Setup}
 \label{subsec:user:frontend-setup}
@@ -211,7 +211,7 @@ With both frontend and backend running:
     \item Verify circuit composer interface renders properly
     \item Place a few gates and test undo/redo functionality
     \item Check backend terminal logs for successful MongoDB connection message
-    \item Verify WebSocket connection establishes (check Network tab in browser DevTools)
+    \item Verify WebSocket connection establishes (check Network tab in browser DevTools~\cite{chromedevtools2024})
 \end{enumerate}
 
 Common setup issues include:
@@ -335,7 +335,7 @@ Qubit wires are rendered as horizontal lines spaced 60 pixels apart vertically. 
 \subsection{Gate Placement}
 \label{subsec:user:gate-placement}
 
-Gate placement occurs through drag-and-drop interaction using native HTML drag-and-drop events. The workflow proceeds as follows:
+Gate placement occurs through drag-and-drop interaction using native HTML5~\cite{html5standard} drag-and-drop events. The workflow proceeds as follows:
 
 \begin{enumerate}
     \item User drags gate from palette onto canvas
@@ -470,7 +470,7 @@ The history limit of 50 states per circuit prevents excessive localStorage usage
 \subsection{Partitioning and Execution Workflow}
 \label{subsec:user:partition-exec}
 
-From the user's perspective, circuit execution is straightforward: click "Partition Circuit," watch real-time progress updates, and view results when complete. Behind this simple interface, however, the platform orchestrates a complex distributed workflow involving SSH connections to remote servers, file transfers, and WebSocket streaming. This section explains both what users see and what occurs behind the scenes.
+From the user's perspective, circuit execution is straightforward: click "Partition Circuit," watch real-time progress updates, and view results when complete. Behind this simple interface, however, the platform orchestrates a complex distributed workflow involving SSH~\cite{rfc4254} connections to remote servers, file transfers, and WebSocket~\cite{rfc6455} streaming. This section explains both what users see and what occurs behind the scenes.
 
 The platform executes quantum circuits by submitting partition jobs to the remote SQUANDER server. Circuit partitioning divides large quantum circuits into smaller subcircuits that can be simulated more efficiently. The workflow involves SSH-based connectivity with real-time WebSocket progress streaming.
 
@@ -507,7 +507,7 @@ The job monitoring interface (Figure~\ref{fig:job-monitoring}) displays real-tim
     \item Cancel button (sends cancellation signal via WebSocket)
 \end{compactitem}
 
-WebSocket messages use JSON format. Example phase update message:
+WebSocket messages use JSON~\cite{rfc7159} format. Example phase update message:
 
 \begin{verbatim}
 {

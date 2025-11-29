@@ -74,7 +74,15 @@ describe('Circuit Results', (): void => {
   it('should run partition execution to generate results', (): void => {
     cy.get(selectors.composer.toolbar, { timeout: 10000 }).should('be.visible')
     cy.wait(500)
-    
+
+    // Enable density matrix and entropy options
+    cy.get(selectors.composer.simulationOptionsButton).click()
+    cy.get(selectors.composer.optionDensityMatrix).click()
+    cy.get(selectors.composer.optionEntropy).click()
+    // Press Escape to close the dropdown
+    cy.get('body').type('{esc}')
+    cy.wait(500)
+
     cy.get(selectors.composer.strategySelect).click()
     cy.get(selectors.composer.strategyOption('gtqcp'), { timeout: 5000 }).click()
     cy.wait(500)

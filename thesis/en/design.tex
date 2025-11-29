@@ -14,7 +14,7 @@ This section examines the three-tier architecture, the design principles that sh
 \subsubsection{Architectural Overview}
 \label{subsubsec:design:architecture}
 
-The platform uses a three-tier distributed architecture: a presentation layer (React frontend), an application layer (FastAPI backend), and a computational layer (SQUANDER simulation servers). Communication between these tiers flows through three patterns: REST APIs for synchronous operations, WebSockets for real-time job monitoring, and SSH connections for secure remote access. State management matches this split: the frontend holds local state through Zustand and Zundo middleware, the backend manages temporary state via job queues and sessions, while MongoDB Atlas stores user data and results permanently.
+The platform uses a three-tier distributed architecture: a presentation layer (React frontend), an application layer (FastAPI backend), and a computational layer (SQUANDER simulation servers). Communication between these tiers flows through three patterns: REST~\cite{fielding2000architectural} APIs for synchronous operations, WebSockets~\cite{rfc6455} for real-time job monitoring, and SSH~\cite{rfc4254} connections for secure remote access. State management matches this split: the frontend holds local state through Zustand and Zundo middleware, the backend manages temporary state via job queues and sessions, while MongoDB Atlas stores user data and results permanently.
 
 \subsubsection{Design Principles and Constraints}
 \label{subsubsec:design:principles}
@@ -35,7 +35,7 @@ Requirements divide into two categories: functional requirements specify what ca
 \textbf{Functional Requirements} define six core capabilities:
 
 \begin{compactitem}
-    \item \textbf{Multi-provider authentication}: Support Google OAuth 2.0, Microsoft Azure AD, and email verification (Section~\ref{subsubsec:design:auth-sequence}).
+    \item \textbf{Multi-provider authentication}: Support Google OAuth 2.0~\cite{rfc6749}, Microsoft Azure AD, and email verification (Section~\ref{subsubsec:design:auth-sequence}).
 
     \item \textbf{Hierarchical project organization}: Provide CRUD operations with ownership enforcement (Section~\ref{subsubsec:design:project-sequence}).
 
@@ -55,7 +55,7 @@ Requirements divide into two categories: functional requirements specify what ca
 
     \item \textbf{Scalability}: Support 5 concurrent SSH connections, 1000+ projects per user, 2000+ gates per circuit, and 50 concurrent WebSocket connections.
 
-    \item \textbf{Reliability}: Automatic JWT token refresh, WebSocket reconnection with exponential backoff (10 attempts, 30s max delay), SSH retry logic (3 attempts), periodic connection cleanup, and localStorage persistence for crash recovery.
+    \item \textbf{Reliability}: Automatic JWT~\cite{rfc7519} token refresh, WebSocket reconnection with exponential backoff (10 attempts, 30s max delay), SSH retry logic (3 attempts), periodic connection cleanup, and localStorage persistence for crash recovery.
 
     \item \textbf{Security}: JWT authentication on protected endpoints, bcrypt password hashing (cost 12), server-side SSH credentials with protected keys (mode 600), CORS origin whitelisting, input validation and sanitization.
 
@@ -102,7 +102,7 @@ The frontend component architecture (Figure~\ref{fig:frontend-component-diagram}
     \label{fig:frontend-component-diagram}
 \end{figure}
 
-\textbf{Core Components:} The \texttt{App} component (\texttt{frontend/src/App.tsx}) configures React Router, context providers (theme, auth, i18n), and error boundaries. The \texttt{Layout} component (\texttt{frontend/src/components/layout/Layout.tsx}) provides common structure: header, sidebar, main content area, and status bar using CSS Grid for responsive positioning.
+\textbf{Core Components:} The \texttt{App} component (\texttt{frontend/src/App.tsx}) configures React Router, context providers (theme, auth, i18n), and error boundaries. The \texttt{Layout} component (\texttt{frontend/src/components/layout/Layout.tsx}) provides common structure: header, sidebar, main content area, and status bar using CSS~\cite{css3specifications} Grid for responsive positioning.
 
 \textbf{Feature Modules:} The \texttt{Circuit Composer} (\texttt{frontend/src/features/circuit/}) renders SVG-based circuits with D3.js. The \texttt{ComposerStore} (Zustand with Zundo) maintains \texttt{placedGates}, \texttt{selectedGates}, and \texttt{numQubits}, exporting \texttt{addGate()}, \texttt{removeGate()}, \texttt{updateGate()}, \texttt{groupGates()}, \texttt{undo()}, and \texttt{redo()} functions. The \texttt{Gates Palette} (\texttt{frontend/src/features/gates/}) provides draggable gates organized by category with HTML5 drag-and-drop. The \texttt{Results Visualizations} (\texttt{frontend/src/features/results/}) implements seven Plotly.js-based visualizations accepting \texttt{original} and \texttt{partitioned} quantum state data. The \texttt{Project Management} (\texttt{frontend/src/features/projects/}) handles project listing with \texttt{ProjectCard} components and caches projects in \texttt{ProjectStore}. The \texttt{Authentication} (\texttt{frontend/src/features/auth/}) provides OAuth and email login through the \texttt{useAuth} hook, storing JWT tokens in memory and refresh tokens in httpOnly cookies.
 
@@ -166,7 +166,7 @@ The circuit execution sequence diagram (Figure~\ref{fig:execution-sequence-diagr
 
 \textbf{SSH Connection and Transfer:} The simulation service dequeues the job, obtains a pooled SSH connection via \texttt{SquanderClient.get\_pooled\_client(session\_id)} (reusing if available), broadcasts "connecting" phase, converts gates to SQUANDER gates, generates a Python partition script, and uploads both via SFTP while broadcasting "preparing" and "uploading" phases.
 
-\textbf{Remote Execution:} The service executes \texttt{python3 /tmp/job\_\{id\}/partition.py} via SSH, capturing stdout/stderr in real-time. The SQUANDER script outputs JSON lines indicating progress (circuit analysis, graph construction, partitioning, simulation, aggregation). The service parses these into phase updates ("building", "simulating") and broadcasts them to the WebSocket room. The frontend updates the job card with phase, progress percentage, elapsed time, and logs.
+\textbf{Remote Execution:} The service executes \texttt{python3 /tmp/job\_\{id\}/partition.py} via SSH, capturing stdout/stderr in real-time. The SQUANDER script outputs JSON~\cite{rfc7159} lines indicating progress (circuit analysis, graph construction, partitioning, simulation, aggregation). The service parses these into phase updates ("building", "simulating") and broadcasts them to the WebSocket room. The frontend updates the job card with phase, progress percentage, elapsed time, and logs.
 
 \textbf{Result Retrieval:} Upon completion, the script writes \texttt{results.json}. The service downloads via SFTP, parses into \texttt{SimulationResults}, validates, updates MongoDB, broadcasts "complete" with results, and cleans up temporary files. The frontend refreshes visualizations.
 
@@ -277,12 +277,12 @@ The frontend architecture implements presentation and interaction logic through 
 \subsubsection{Rendering Strategy and Performance Targets}
 \label{subsubsec:design:ui-goals}
 
-The rendering pipeline enforces sub-100ms update cycles for circuits containing up to 100 gates through virtual DOM reconciliation and selective SVG re-rendering. Gate palette components organize elements by quantum operation category (Pauli, Hadamard, rotation, controlled), implementing HTML5 drag-and-drop APIs with dataTransfer serialization. The circuit canvas employs D3.js for SVG generation, positioning gates on a two-dimensional grid (depth along x-axis, qubits along y-axis) with coordinate transformation functions mapping pixel positions to logical gate placements. WebSocket integration maintains sub-200ms message latency for progress updates through persistent connection pooling and JSON message batching. Circuit grouping renders collapsed subcircuits as SVG rectangles with expandable detail views, controlled by boolean state flags that toggle nested rendering depth. Visualization components default to measurement distribution charts, exposing state vector and density matrix representations through tabbed component switching.
+The rendering pipeline enforces sub-100ms update cycles for circuits containing up to 100 gates through virtual DOM~\cite{domstandard} reconciliation and selective SVG re-rendering. Gate palette components organize elements by quantum operation category (Pauli, Hadamard, rotation, controlled), implementing HTML5~\cite{html5standard} drag-and-drop APIs with dataTransfer serialization. The circuit canvas employs D3.js for SVG generation, positioning gates on a two-dimensional grid (depth along x-axis, qubits along y-axis) with coordinate transformation functions mapping pixel positions to logical gate placements. WebSocket integration maintains sub-200ms message latency for progress updates through persistent connection pooling and JSON message batching. Circuit grouping renders collapsed subcircuits as SVG rectangles with expandable detail views, controlled by boolean state flags that toggle nested rendering depth. Visualization components default to measurement distribution charts, exposing state vector and density matrix representations through tabbed component switching.
 
 \subsubsection{Interaction Architecture}
 \label{subsubsec:design:interaction-patterns}
 
-The interaction layer implements Model-View-Controller separation through React components (View), Zustand stores (Model), and custom React hooks (Controller). Event propagation follows unidirectional data flow: DOM event listeners dispatch actions to Zustand stores, stores apply immutable state updates via Immer proxy objects, and React reconciliation re-renders affected component subtrees. The \texttt{useKeyboardShortcut} hook centralizes keyboard event handling, implementing platform detection (macOS Command versus Windows/Linux Control key detection via navigator.platform) and preventDefault() invocation to suppress browser default behaviors. The architecture implements optimistic UI updates—gate placement operations mutate local Zustand state immediately while dispatching asynchronous HTTP PUT requests with 1-second debounce intervals to batch rapid consecutive modifications. Persistence failures trigger rollback through Zustand state reset combined with toast notification rendering, maintaining eventual consistency between frontend stores and MongoDB documents.
+The interaction layer implements Model-View-Controller separation through React components (View), Zustand stores (Model), and custom React hooks (Controller). Event propagation follows unidirectional data flow: DOM event listeners dispatch actions to Zustand stores, stores apply immutable state updates via Immer proxy objects, and React reconciliation re-renders affected component subtrees. The \texttt{useKeyboardShortcut} hook centralizes keyboard event handling, implementing platform detection (macOS Command versus Windows/Linux Control key detection via navigator.platform) and preventDefault() invocation to suppress browser default behaviors. The architecture implements optimistic UI updates—gate placement operations mutate local Zustand state immediately while dispatching asynchronous HTTP~\cite{rfc2616} PUT requests with 1-second debounce intervals to batch rapid consecutive modifications. Persistence failures trigger rollback through Zustand state reset combined with toast notification rendering, maintaining eventual consistency between frontend stores and MongoDB documents.
 
 
 \subsection{Data Design}
@@ -303,13 +303,13 @@ Zustand stores with Zundo middleware manage per-circuit state (\texttt{circuitId
 \subsubsection{Circuit Serialization Formats}
 \label{subsubsec:design:serialization}
 
-Circuits serialize to internal JSON (Pydantic \texttt{CircuitInfo} schema with nested circuits, gate IDs, metadata), OpenQASM 2.0 (maps gates to standard syntax, iterates by depth, for interoperability with Qiskit), and SVG (clones canvas, removes interactive elements, embeds symbols, serializes to XML for documentation). QASM import uses recursive descent parsing (tokenization, AST construction, gate object conversion) with validation for undefined qubits and unsupported gates.
+Circuits serialize to internal JSON~\cite{rfc7159} (Pydantic \texttt{CircuitInfo} schema with nested circuits, gate IDs, metadata), OpenQASM 2.0 (maps gates to standard syntax, iterates by depth, for interoperability with Qiskit), and SVG (clones canvas, removes interactive elements, embeds symbols, serializes to XML~\cite{xml2008} for documentation). QASM import uses recursive descent parsing (tokenization, AST construction, gate object conversion) with validation for undefined qubits and unsupported gates.
 
 
 \subsection{Core Functionality Design}
 \label{subsec:design:core-functionality}
 
-This subsection examines key technical capabilities: SSH connection pooling, WebSocket communication, and temporal state management.
+This subsection examines key technical capabilities: SSH~\cite{rfc4254} connection pooling, WebSocket~\cite{rfc6455} communication, and temporal state management.
 
 \subsubsection{SSH Connection Pooling}
 \label{subsubsec:design:ssh-pooling}
@@ -321,7 +321,7 @@ The tradeoff is managed through two constraints: a 300-second idle timeout (conn
 \subsubsection{WebSocket Communication Architecture}
 \label{subsubsec:design:websocket-architecture}
 
-WebSocket connections provide full-duplex real-time communication, replacing inefficient HTTP polling with persistent bidirectional channels. To scope message delivery efficiently, the architecture employs a room-based topology where each simulation job instantiates a \texttt{job:\{job\_id\}} room upon creation. Clients join these rooms to monitor specific jobs, and server broadcasts automatically reach only subscribed room members without individual addressing. The \texttt{ConnectionManager} (\texttt{backend/app/services/websocket\_manager.py:40}) implements this topology through a dictionary mapping room names to connection ID sets, achieving O(1) lookups and O(n) broadcasts where n represents room membership.
+WebSocket connections provide full-duplex real-time communication, replacing inefficient HTTP~\cite{rfc2616} polling with persistent bidirectional channels. To scope message delivery efficiently, the architecture employs a room-based topology where each simulation job instantiates a \texttt{job:\{job\_id\}} room upon creation. Clients join these rooms to monitor specific jobs, and server broadcasts automatically reach only subscribed room members without individual addressing. The \texttt{ConnectionManager} (\texttt{backend/app/services/websocket\_manager.py:40}) implements this topology through a dictionary mapping room names to connection ID sets, achieving O(1) lookups and O(n) broadcasts where n represents room membership.
 
 To handle diverse message types, the system employs two complementary message schemas. Management messages (\texttt{connection\_established}, \texttt{room\_joined}, \texttt{pong}, \texttt{error}) handle WebSocket lifecycle events, while simulation progress messages (\texttt{phase}, \texttt{log}, \texttt{complete}, \texttt{error}) carry execution updates. Both include ISO timestamps and routing metadata. When clients connect, the WebSocket endpoint (\texttt{backend/app/api/v1/endpoints/websocket.py}) authenticates them via query-string JWT tokens before registering with the connection manager. The frontend \texttt{useWebSocket} hook implements resilience through exponential backoff using the formula $\min(2^n \times 1000\text{ ms}, 30000\text{ ms})$, which gradually increases delays between reconnection attempts, offline message queuing to preserve messages during disconnections, and selective subscription to relevant message types. These mechanisms together ensure users reliably receive progress updates even when network connectivity is temporarily disrupted.
 

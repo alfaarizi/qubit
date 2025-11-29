@@ -22,7 +22,7 @@ Visualization requirements drove selection of two complementary libraries. D3.js
 
 Authentication integrates multiple identity providers through specialized libraries: Google OAuth via \texttt{@react-oauth/google}~\cite{reactoauthgoogle2024}, Microsoft Azure AD via \texttt{@azure/msal-browser}~\cite{msalbrowser2024}, and custom email verification flows. React Router 7~\cite{reactrouter2024} manages client-side routing, allowing deep linking to specific projects and circuits while maintaining single-page application performance. HTTP communication flows through Axios~\cite{axios2024}, which provides interceptor patterns essential for automatic JWT injection and transparent token refresh on authentication failures. WebSocket connections uses \texttt{react-use-websocket}~\cite{reactusewebsocket2024} with automatic reconnection logic, maintaining real-time progress updates even during temporary network interruptions.
 
-Tab reordering uses \texttt{@dnd-kit}~\cite{dndkit2024}, while circuit gate interactions use native HTML5 drag-and-drop APIs. Additional UI enhancements include Sonner~\cite{sonner2024} for toast notifications, fast and lightweight KaTeX~\cite{katex2024} for mathematical notation rendering in gate definitions and quantum state expressions, and Lucide React~\cite{lucidereact2024} for a consistent icon system.
+Tab reordering uses \texttt{@dnd-kit}~\cite{dndkit2024}, while circuit gate interactions use native HTML5~\cite{html5standard} drag-and-drop APIs. Additional UI enhancements include Sonner~\cite{sonner2024} for toast notifications, fast and lightweight KaTeX~\cite{katex2024} for mathematical notation rendering in gate definitions and quantum state expressions, and Lucide React~\cite{lucidereact2024} for a consistent icon system.
 
 \subsubsection{Application Layer}
 \label{subsubsec:impl:backend-stack}
@@ -33,7 +33,7 @@ Database operations use PyMongo~\cite{pymongo2024} for MongoDB connectivity, int
 
 Authentication infrastructure combines several specialized libraries. JWT token encoding and decoding rely on \texttt{python-jose}~\cite{pythonjose2024} with cryptographic extensions, while Passlib~\cite{passlib2024} provides bcrypt password hashing with configurable cost factors balancing security and performance. OAuth token verification integrates \texttt{google-auth}~\cite{googleauth2024} for validating Google-issued tokens against public keys, preventing token forgery and replay attacks. Email delivery for verification codes employs Resend~\cite{resend2024}, which provides reliable transactional email with delivery tracking and bounce handling.
 
-SSH connectivity to remote SQUANDER simulation servers relies on Paramiko~\cite{paramiko2024}, a pure Python implementation of SSH2 protocol with SFTP support for secure file transfer. Since Paramiko operates synchronously with blocking network calls, integration with FastAPI's async architecture required wrapping SSH operations with \texttt{asyncio.run\_in\_executor()}, executing blocking I/O in dedicated worker threads while maintaining async semantics in request handlers.
+SSH~\cite{rfc4254} connectivity to remote SQUANDER simulation servers relies on Paramiko~\cite{paramiko2024}, a pure Python implementation of SSH2 protocol with SFTP support for secure file transfer. Since Paramiko operates synchronously with blocking network calls, integration with FastAPI's async architecture required wrapping SSH operations with \texttt{asyncio.run\_in\_executor()}, executing blocking I/O in dedicated worker threads while maintaining async semantics in request handlers.
 
 Development quality assurance relies on pytest~\cite{pytest2024} with \texttt{pytest-asyncio}~\cite{pytestasyncio2024} for coroutine-aware tests, while httpx~\cite{httpx2024} and Starlette's \texttt{TestClient}~\cite{starlette2024} exercise HTTP and WebSocket routes entirely in-memory. Locust~\cite{locust2024} supplies load, stress, and fuzz scenarios yielding response-time baselines for the test phase. \texttt{python-json-logger}~\cite{pythonjsonlogger2024} emits structured logs for centralized analysis.
 
@@ -268,7 +268,7 @@ Multi-qubit gates introduce additional rendering complexity beyond single-qubit 
 \subsubsection{Interactive Gate Placement}
 \label{subsubsec:impl:drag-drop}
 
-Gate placement uses native HTML5 drag-and-drop APIs (\texttt{useDraggableGate.ts}). When users drag gates, the implementation converts screen coordinates into circuit coordinates—determining which qubit line and depth position the gate should occupy.
+Gate placement uses native HTML5~\cite{html5standard} drag-and-drop APIs (\texttt{useDraggableGate.ts}). When users drag gates, the implementation converts screen coordinates into circuit coordinates—determining which qubit line and depth position the gate should occupy.
 
 Coordinate conversion proceeds through division by spacing constants followed by floor quantization. A mouse position at pixel coordinates $(x, y)$ maps to circuit coordinates $(\lfloor x / GATE\_SPACING \rfloor, \lfloor y / QUBIT\_SPACING \rfloor)$, producing the depth and qubit indices respectively. Floor quantization ensures gates snap to discrete positions rather than floating at arbitrary coordinates, maintaining the grid structure essential for quantum circuit semantics where gates must align to specific qubits and time steps.
 
@@ -279,7 +279,7 @@ Rendering performance requires avoiding unnecessary work for circuits with hundr
 
 First, incremental rendering uses React's useEffect dependency arrays to limit re-renders to only cases where the underlying circuit data actually changed. By specifying \texttt{gates} and \texttt{numQubits} as dependencies, the rendering function executes only when gates are added, removed, or modified, or when the circuit size changes. UI operations like opening sidebars or switching themes do not trigger circuit re-renders, preventing wasted computation.
 
-Second, SVG was chosen over Canvas specifically to enable granular updates. Canvas requires redrawing the entire image when any element changes, while SVG maintains individual DOM elements for each gate. D3's data-join pattern then updates only the specific gates that changed, leaving unchanged gates untouched. For a circuit with 200 gates where a single gate moves, Canvas would redraw all 200 gates while SVG updates only the one that moved plus any affected by layout changes.
+Second, SVG was chosen over Canvas specifically to enable granular updates. Canvas requires redrawing the entire image when any element changes, while SVG maintains individual DOM~\cite{domstandard} elements for each gate. D3's data-join pattern then updates only the specific gates that changed, leaving unchanged gates untouched. For a circuit with 200 gates where a single gate moves, Canvas would redraw all 200 gates while SVG updates only the one that moved plus any affected by layout changes.
 
 Third, drag operations use debouncing to throttle update frequency during continuous mouse or touch movement. Rather than recalculating gate positions on every pixel of mouse movement, updates occur at maximum 60 fps (every 16ms), matching typical display refresh rates. This prevents the update calculation and rendering pipeline from overwhelming the browser's event loop during rapid interaction, maintaining smooth animations and responsive controls.
 
@@ -492,7 +492,7 @@ The default strategy throughout the platform employs Kahn's algorithm, which pro
 \subsubsection{Empirical Benchmark Comparison}
 \label{subsubsec:impl:benchmark}
 
-To validate theoretical complexity predictions and illustrate practical performance tradeoffs, we benchmarked eight partitioning strategies on the \texttt{adr4\_197.qasm} circuit from the RevLib benchmark suite using a maximum partition size of 4 qubits. Figure~\ref{fig:benchmark-kahn} and Figure~\ref{fig:benchmark-ilp} present representative results contrasting greedy versus optimal approaches, demonstrating the fundamental speed-quality tradeoff that guides algorithm selection.
+To validate theoretical complexity predictions and illustrate practical performance tradeoffs, we benchmarked eight partitioning strategies on the \texttt{adr4\_197.qasm} circuit from the RevLib benchmark suite~\cite{revlib2024} using a maximum partition size of 4 qubits. Figure~\ref{fig:benchmark-kahn} and Figure~\ref{fig:benchmark-ilp} present representative results contrasting greedy versus optimal approaches, demonstrating the fundamental speed-quality tradeoff that guides algorithm selection.
 
 \begin{figure}[p]
     \centering
