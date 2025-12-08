@@ -13,7 +13,7 @@ describe('authStore', () => {
   })
   describe('setUser', () => {
     it('should set user data', () => {
-      const userData = { id: '1', email: 'test@example.com', first_name: 'Test' }
+      const userData = { id: '1', email: 'test@example.com', first_name: 'Test', is_active: true, is_superuser: false }
       useAuthStore.setState({ user: userData })
       expect(useAuthStore.getState().user).toEqual(userData)
     })
@@ -41,7 +41,7 @@ describe('authStore', () => {
   describe('clearAuth', () => {
     it('should clear all auth data', () => {
       useAuthStore.setState({
-        user: { id: '1', email: 'test@example.com', first_name: 'Test' },
+        user: { id: '1', email: 'test@example.com', first_name: 'Test', is_active: true, is_superuser: false },
         accessToken: 'token',
         refreshToken: 'refresh',
       })

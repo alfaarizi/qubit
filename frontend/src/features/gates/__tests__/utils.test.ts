@@ -7,7 +7,7 @@ describe('gate utilities', () => {
     it('should return sorted qubits for single-qubit gate', () => {
       const gate: Gate = {
         id: 'h-1',
-        type: 'H',
+        gate: { id: 'H', name: 'Hadamard', symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard', numControlQubits: 0, numTargetQubits: 1 },
         targetQubits: [2],
         controlQubits: [],
         depth: 0,
@@ -19,7 +19,7 @@ describe('gate utilities', () => {
     it('should return sorted qubits for two-qubit gate', () => {
       const gate: Gate = {
         id: 'cnot-1',
-        type: 'CNOT',
+        gate: { id: 'CNOT', name: 'CNOT', symbol: 'X', color: '#ff6600', category: 'controlled', description: 'CNOT', numControlQubits: 1, numTargetQubits: 1 },
         targetQubits: [1],
         controlQubits: [0],
         depth: 0,
@@ -31,7 +31,7 @@ describe('gate utilities', () => {
     it('should handle unsorted qubit arrays', () => {
       const gate: Gate = {
         id: 'gate-1',
-        type: 'TOFFOLI',
+        gate: { id: 'TOFFOLI', name: 'Toffoli', symbol: 'X', color: '#ff6600', category: 'controlled', description: 'Toffoli', numControlQubits: 2, numTargetQubits: 1 },
         targetQubits: [2],
         controlQubits: [3, 1],
         depth: 0,
@@ -45,7 +45,8 @@ describe('gate utilities', () => {
     it('should return contiguous span between min and max qubits', () => {
       const gate: Gate = {
         id: 'gate-1',
-        type: 'CNOT',
+        gate: {
+          id: 'CNOT', name: 'CNOT', symbol: 'X', color: '#ff6600', category: 'controlled', description: 'CNOT', numControlQubits: 1, numTargetQubits: 1 },
         targetQubits: [3],
         controlQubits: [0],
         depth: 0,
@@ -57,7 +58,8 @@ describe('gate utilities', () => {
     it('should return single qubit span', () => {
       const gate: Gate = {
         id: 'h-1',
-        type: 'H',
+        gate: {
+          id: 'H', name: 'Hadamard', symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard', numControlQubits: 0, numTargetQubits: 1 },
         targetQubits: [1],
         controlQubits: [],
         depth: 0,
@@ -72,7 +74,8 @@ describe('gate utilities', () => {
       const gates: Gate[] = [
         {
           id: 'gate-1',
-          type: 'H',
+          gate: {
+            id: 'H', name: 'Hadamard', symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard', numControlQubits: 0, numTargetQubits: 1 },
           targetQubits: [0],
           controlQubits: [],
           depth: 0,
@@ -81,7 +84,8 @@ describe('gate utilities', () => {
         },
         {
           id: 'gate-2',
-          type: 'X',
+          gate: {
+            id: 'X', name: 'Pauli-X', symbol: 'X', color: '#ff6600', category: 'single', description: 'Pauli-X', numControlQubits: 0, numTargetQubits: 1 },
           targetQubits: [1],
           controlQubits: [],
           depth: 2,
@@ -90,7 +94,8 @@ describe('gate utilities', () => {
         },
         {
           id: 'gate-3',
-          type: 'Z',
+          gate: {
+            id: 'Z', name: 'Pauli-Z', symbol: 'Z', color: '#6600ff', category: 'single', description: 'Pauli-Z', numControlQubits: 0, numTargetQubits: 1 },
           targetQubits: [2],
           controlQubits: [],
           depth: 1,
@@ -107,11 +112,14 @@ describe('gate utilities', () => {
   describe('createContiguousQubitArrays', () => {
     it('should create contiguous qubits for single-qubit gate', () => {
       const gateInfo: GateInfo = {
+        id: 'H',
         name: 'H',
-        numQubits: 1,
         numControlQubits: 0,
         numTargetQubits: 1,
         symbol: 'H',
+        color: '#0066cc',
+        category: 'single',
+        description: 'Hadamard',
       }
       const result = createContiguousQubitArrays(gateInfo, 2)
       expect(result.controlQubits).toEqual([])
@@ -119,11 +127,14 @@ describe('gate utilities', () => {
     })
     it('should create contiguous qubits for two-qubit gate', () => {
       const gateInfo: GateInfo = {
+        id: 'CNOT',
         name: 'CNOT',
-        numQubits: 2,
         numControlQubits: 1,
         numTargetQubits: 1,
         symbol: 'X',
+        color: '#ff6600',
+        category: 'controlled',
+        description: 'CNOT',
       }
       const result = createContiguousQubitArrays(gateInfo, 1)
       expect(result.controlQubits).toEqual([1])
@@ -131,11 +142,14 @@ describe('gate utilities', () => {
     })
     it('should create contiguous qubits for three-qubit gate', () => {
       const gateInfo: GateInfo = {
+        id: 'TOFFOLI',
         name: 'TOFFOLI',
-        numQubits: 3,
         numControlQubits: 2,
         numTargetQubits: 1,
         symbol: 'X',
+        color: '#ff6600',
+        category: 'controlled',
+        description: 'Toffoli',
       }
       const result = createContiguousQubitArrays(gateInfo, 0)
       expect(result.controlQubits).toEqual([0, 1])
