@@ -169,32 +169,29 @@ async def run_import_qasm(
             )
         except asyncio.TimeoutError:
             logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
-        if session_id:
-            client = await SquanderClient.get_pooled_client(session_id)
-        else:
-            client = SquanderClient()
-        # Broadcast connecting phase
-        await manager.broadcast_to_room(room, {
-            "type": "phase",
-            "phase": "connecting",
-            "message": "Connecting to SQUANDER...",
-            "progress": 0,
-            "job_id": job_id,
-            "circuit_id": circuit_id
-        })
-        # Connect if not using pooled connection
-        if not session_id:
-            logger.info(f"[run_import_qasm] Connecting SSH client for import {job_id}")
-            await client.connect()
-        # Broadcast connected
-        await manager.broadcast_to_room(room, {
-            "type": "phase",
-            "phase": "connected",
-            "message": "Connected to SQUANDER",
-            "progress": 1,
-            "job_id": job_id,
-            "circuit_id": circuit_id
-        })
+        client = await SquanderClient.create(session_id=session_id)
+        # broadcast connecting/connected phase only for remote execution
+        if not client.use_local:
+            await manager.broadcast_to_room(room, {
+                "type": "phase",
+                "phase": "connecting",
+                "message": "Connecting to SQUANDER...",
+                "progress": 0,
+                "job_id": job_id,
+                "circuit_id": circuit_id
+            })
+            # connect if not using pooled connection
+            if not session_id:
+                logger.info(f"[run_import_qasm] Connecting SSH client for import {job_id}")
+                await client.connect()
+            await manager.broadcast_to_room(room, {
+                "type": "phase",
+                "phase": "connected",
+                "message": "Connected to SQUANDER",
+                "progress": 1,
+                "job_id": job_id,
+                "circuit_id": circuit_id
+            })
         # Run import and stream updates
         logger.info(f"[run_import_qasm] Starting QASM import for {job_id}")
         async for update in client.import_qasm(qasm_code, options or {}):
@@ -246,33 +243,30 @@ async def run_partition(
         except asyncio.TimeoutError:
             logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
         logger.info(f"[run_partition] Got room connection for job {job_id}")
-        if session_id:
-            client = await SquanderClient.get_pooled_client(session_id)
-        else:
-            client = SquanderClient()
-        logger.info(f"[run_partition] Got pooled client for job {job_id}")
-        # Broadcast connecting phase
-        logger.info(f"[run_partition] Broadcasting connecting phase for job {job_id}")
-        await manager.broadcast_to_room(room, {
-            "type": "phase",
-            "phase": "connecting",
-            "message": "Connecting to SQUANDER...",
-            "progress": 0,
-            "job_id": job_id,
-            "circuit_id": circuit_id
-        })
-        if not session_id:
-            logger.info(f"[run_partition] Connecting SSH client for job {job_id}")
-            await client.connect()
-        # Broadcast connected
-        await manager.broadcast_to_room(room, {
-            "type": "phase",
-            "phase": "connected",
-            "message": "Connected to SQUANDER",
-            "progress": 1,
-            "job_id": job_id,
-            "circuit_id": circuit_id
-        })
+        client = await SquanderClient.create(session_id=session_id)
+        logger.info(f"[run_partition] Got client for job {job_id} (local={client.use_local})")
+        # broadcast connecting/connected phase only for remote execution
+        if not client.use_local:
+            logger.info(f"[run_partition] Broadcasting connecting phase for job {job_id}")
+            await manager.broadcast_to_room(room, {
+                "type": "phase",
+                "phase": "connecting",
+                "message": "Connecting to SQUANDER...",
+                "progress": 0,
+                "job_id": job_id,
+                "circuit_id": circuit_id
+            })
+            if not session_id:
+                logger.info(f"[run_partition] Connecting SSH client for job {job_id}")
+                await client.connect()
+            await manager.broadcast_to_room(room, {
+                "type": "phase",
+                "phase": "connected",
+                "message": "Connected to SQUANDER",
+                "progress": 1,
+                "job_id": job_id,
+                "circuit_id": circuit_id
+            })
         # Run partition and stream updates
         logger.info(f"[run_partition] Starting partition for job {job_id}")
         async for update in client.run_partition(
