@@ -170,6 +170,13 @@ async def run_import_qasm(
         except asyncio.TimeoutError:
             logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
         client = await SquanderClient.create(session_id=session_id)
+        # debug: broadcast client mode
+        await manager.broadcast_to_room(room, {
+            "type": "debug",
+            "message": f"DEBUG: use_local={client.use_local}, session_id={session_id}",
+            "job_id": job_id,
+            "circuit_id": circuit_id
+        })
         # broadcast connecting/connected phase only for remote execution
         if not client.use_local:
             await manager.broadcast_to_room(room, {
@@ -245,6 +252,13 @@ async def run_partition(
         logger.info(f"[run_partition] Got room connection for job {job_id}")
         client = await SquanderClient.create(session_id=session_id)
         logger.info(f"[run_partition] Got client for job {job_id} (local={client.use_local})")
+        # debug: broadcast client mode
+        await manager.broadcast_to_room(room, {
+            "type": "debug",
+            "message": f"DEBUG: use_local={client.use_local}, session_id={session_id}",
+            "job_id": job_id,
+            "circuit_id": circuit_id
+        })
         # broadcast connecting/connected phase only for remote execution
         if not client.use_local:
             logger.info(f"[run_partition] Broadcasting connecting phase for job {job_id}")
