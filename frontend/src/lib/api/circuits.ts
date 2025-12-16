@@ -107,7 +107,8 @@ export const circuitsApi = {
             compute_entropy?: boolean;
         },
         strategy?: string,
-        sessionId?: string
+        sessionId?: string,
+        jobId?: string
     ): Promise<PartitionResponse> => {
         const serializedGates = placedGates
             .slice()
@@ -124,6 +125,7 @@ export const circuitsApi = {
                 strategy: strategy || 'kahn',
                 session_id: sessionId,
                 circuit_name: circuitName,
+                job_id: jobId,
             }
         );
         return data;
@@ -132,7 +134,8 @@ export const circuitsApi = {
         circuitId: string,
         qasmCode: string,
         sessionId?: string,
-        options?: { simulation_timeout?: number }
+        options?: { simulation_timeout?: number },
+        jobId?: string
     ): Promise<ImportQasmResponse> => {
         const { data } = await api.post(
             `/circuits/${circuitId}/import-qasm`,
@@ -140,6 +143,7 @@ export const circuitsApi = {
                 qasm_code: qasmCode,
                 session_id: sessionId,
                 options,
+                job_id: jobId,
             },
             { timeout: 30000 }
         );

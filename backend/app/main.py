@@ -58,21 +58,12 @@ def create_application() -> FastAPI:
 
     @application.on_event("startup")
     async def start_cleanup_task():
-        """Start background task to cleanup stale SSH connections"""
-        # eagerly check SQUANDER availability in each worker process on startup
-        try:
-            import squander
-            import os
-            logging.info(f"worker PID {os.getpid()}: SQUANDER available, will use local execution")
-        except ImportError:
-            import os
-            logging.info(f"worker PID {os.getpid()}: SQUANDER not available, will use remote execution")
         async def cleanup_loop():
             while True:
-                await asyncio.sleep(60)  # Run every minute
+                await asyncio.sleep(60)
                 await SquanderClient.cleanup_stale_connections(max_idle_seconds=300)
         asyncio.create_task(cleanup_loop())
-        logging.info("Started SSH connection cleanup task (checks every 60s, cleans after 300s idle)")
+        logging.info("Started SSH connection cleanup task")
 
     @application.get('/favicon.ico', include_in_schema=False)
     async def favicon():

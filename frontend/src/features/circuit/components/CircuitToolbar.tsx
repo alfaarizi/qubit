@@ -255,30 +255,35 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
 
         const toastId = toast.loading(`Importing ${file.name}...`);
 
+        // Remove old job if exists
+        if (jobId) {
+            useJobStore.getState().dequeueJob(jobId);
+        }
+
+        // Generate job_id and enqueue BEFORE making POST request
+        const newJobId = crypto.randomUUID();
+        useJobStore.getState().enqueueJob(newJobId, circuitId, 'import');
+        useJobStore.getState().setJobToastId(newJobId, toastId);
+
         try {
             const text = await file.text();
-            const response = await circuitsApi.importQasm(
+            await circuitsApi.importQasm(
                 circuitId,
                 text,
                 sessionId,
                 {
                     simulation_timeout: simulationTimeout > 0 ? simulationTimeout : undefined
-                }
+                },
+                newJobId
             );
-
-            if (jobId) {
-                useJobStore.getState().dequeueJob(jobId);
-            }
-
-            useJobStore.getState().enqueueJob(response.job_id, circuitId, 'import');
-            useJobStore.getState().setJobToastId(response.job_id, toastId);
         } catch (error) {
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
             toast.dismiss(toastId);
+            useJobStore.getState().dequeueJob(newJobId);
 
-            const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail 
+            const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
                 || (error as Error)?.message || 'Unknown error';
             toast.error('Import failed', {
                 description: errorMessage,
@@ -330,8 +335,18 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
             `Executing ${circuit?.name || 'Circuit'} (${partitionStrategy})...`
         );
 
+        // Remove old job if exists
+        if (jobId) {
+            useJobStore.getState().dequeueJob(jobId);
+        }
+
+        // Generate job_id and enqueue BEFORE making POST request
+        const newJobId = crypto.randomUUID();
+        useJobStore.getState().enqueueJob(newJobId, circuitId);
+        useJobStore.getState().setJobToastId(newJobId, toastId);
+
         try {
-            const response = await circuitsApi.partition(
+            await circuitsApi.partition(
                 circuitId,
                 circuit?.name,
                 numQubits,
@@ -344,20 +359,15 @@ export function CircuitToolbar({ sessionId }: CircuitToolbarProps = {}) {
                     compute_entropy: simulationOptions.entropy,
                 },
                 partitionStrategy,
-                sessionId
+                sessionId,
+                newJobId
             );
-
-            if (jobId) {
-                useJobStore.getState().dequeueJob(jobId);
-            }
-
-            useJobStore.getState().enqueueJob(response.job_id, circuitId);
-            useJobStore.getState().setJobToastId(response.job_id, toastId);
         } catch (error) {
             setIsExecuting(false);
             setExecutionProgress(0);
             setExecutionStatus('');
             toast.dismiss(toastId);
+            useJobStore.getState().dequeueJob(newJobId);
 
             const errorMessage = (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
                 || (error as Error)?.message || 'Unknown error';

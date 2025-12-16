@@ -8,16 +8,21 @@ from concurrent.futures import ThreadPoolExecutor
 import asyncio
 import paramiko
 from app.core.config import settings
+from app.services.squander_detector import is_squander_available
 
 logger = logging.getLogger(__name__)
 
-# Separate thread pools for different operations
+# determine squander availability once at module load time
+_USE_LOCAL_SQUANDER = is_squander_available()
+logger.info(f"squander_client initialized: use_local={_USE_LOCAL_SQUANDER}")
+
+# separate thread pools for different operations
 _ssh_pool = ThreadPoolExecutor(max_workers=5, thread_name_prefix="ssh")
 _io_pool = ThreadPoolExecutor(max_workers=10, thread_name_prefix="io")
 _connection_pool: Dict[str, 'SquanderClient'] = {}
 _pool_lock = asyncio.Lock()
 
-# Use asyncio.Semaphore instead of threading.Semaphore
+# use asyncio.Semaphore instead of threading.Semaphore
 _semaphore = asyncio.Semaphore(5)
 
 class SquanderExecutionError(Exception):
@@ -31,13 +36,13 @@ class SSHConnectionError(Exception):
 class SquanderClient:
     """Client for executing SQUANDER operations locally or remotely via SSH"""
 
-    def __init__(self, session_id: Optional[str] = None, use_local: bool = False):
+    def __init__(self, session_id: Optional[str] = None):
         self.ssh_client = None
         self.sftp_client = None
         self.is_connected = False
         self.session_id = session_id
         self.last_used = None
-        self.use_local = use_local
+        self.use_local = _USE_LOCAL_SQUANDER
         if session_id:
             try:
                 self.last_used = asyncio.get_event_loop().time()
@@ -47,39 +52,35 @@ class SquanderClient:
     @classmethod
     async def create(cls, session_id: Optional[str] = None) -> 'SquanderClient':
         """factory method: creates local or remote client based on SQUANDER availability."""
-        from app.services.squander_detector import is_squander_available
-        use_local = is_squander_available()
-        logger.info(f"SquanderClient.create called: session_id={session_id}, use_local={use_local}")
+        logger.info(f"SquanderClient.create called: session_id={session_id}, use_local={_USE_LOCAL_SQUANDER}")
         if session_id:
-            return await cls.get_pooled_client(session_id, use_local=use_local)
+            return await cls.get_pooled_client(session_id)
+        client = cls(session_id=None)
+        if not _USE_LOCAL_SQUANDER:
+            await client.connect()
         else:
-            logger.info(f"using {'local' if use_local else 'remote'} SQUANDER execution")
-            client = cls(session_id=None, use_local=use_local)
-            if not use_local:
-                await client.connect()
-            else:
-                client.is_connected = True
-            return client
+            client.is_connected = True
+        return client
 
     @classmethod
-    async def get_pooled_client(cls, session_id: str, use_local: bool = False) -> 'SquanderClient':
+    async def get_pooled_client(cls, session_id: str) -> 'SquanderClient':
         """get or create a pooled connection for a session"""
-        logger.info(f"get_pooled_client called: session_id={session_id}, use_local={use_local}")
+        logger.info(f"get_pooled_client called: session_id={session_id}, use_local={_USE_LOCAL_SQUANDER}")
         async with _pool_lock:
             if session_id in _connection_pool:
                 client = _connection_pool[session_id]
-                logger.info(f"found pooled client: client.use_local={client.use_local}, client.is_connected={client.is_connected}")
-                # check if client's use_local matches current mode
-                if client.use_local == use_local and client.is_connected:
+                logger.info(f"found pooled client: use_local={client.use_local}, is_connected={client.is_connected}")
+                # check if client's mode matches and is connected
+                if client.use_local == _USE_LOCAL_SQUANDER and client.is_connected:
                     client.last_used = asyncio.get_event_loop().time()
-                    logger.info(f"reusing {'local' if use_local else 'SSH'} connection for session {session_id}")
+                    logger.info(f"reusing {'local' if _USE_LOCAL_SQUANDER else 'SSH'} connection for session {session_id}")
                     return client
-                # mode mismatch or not connected, remove old client
+                # mode mismatch or not connected, evict and recreate
                 logger.info(f"mode mismatch or not connected, evicting pooled client")
                 del _connection_pool[session_id]
-            client = cls(session_id=session_id, use_local=use_local)
+            client = cls(session_id=session_id)
             _connection_pool[session_id] = client
-        if not use_local:
+        if not _USE_LOCAL_SQUANDER:
             try:
                 await client.connect()
                 logger.info(f"created pooled SSH connection for session {session_id}")
@@ -89,10 +90,9 @@ class SquanderClient:
                     if session_id in _connection_pool and _connection_pool[session_id] is client:
                         del _connection_pool[session_id]
                 raise
-        else:
-            client.is_connected = True
-            logger.info(f"created pooled local client for session {session_id}")
-            return client
+        client.is_connected = True
+        logger.info(f"created pooled local client for session {session_id}")
+        return client
 
     @classmethod
     async def cleanup_stale_connections(cls, max_idle_seconds: int = 300) -> None:

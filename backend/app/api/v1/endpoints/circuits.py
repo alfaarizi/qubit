@@ -20,11 +20,13 @@ class PartitionRequest(BaseModel):
     strategy: Optional[str] = "kahn"
     session_id: Optional[str] = None
     circuit_name: Optional[str] = None
+    job_id: Optional[str] = None
 
 class ImportQasmRequest(BaseModel):
     qasm_code: str
     session_id: Optional[str] = None
     options: Optional[dict] = None
+    job_id: Optional[str] = None
 
 active_jobs = {}
 
@@ -41,7 +43,7 @@ async def partition_circuit(
 ):
     if request.num_qubits <= 0 or not request.placed_gates:
         raise HTTPException(status_code=400, detail="Invalid circuit data")
-    job_id = str(uuid4())
+    job_id = request.job_id or str(uuid4())
     active_jobs[job_id] = {
         "circuit_id": circuit_id,
         "status": "queued",
@@ -126,7 +128,7 @@ async def import_qasm(
     request: ImportQasmRequest,
     current_user: User = Depends(get_current_user)
 ):
-    job_id = str(uuid4())
+    job_id = request.job_id or str(uuid4())
     active_jobs[job_id] = {
         "circuit_id": circuit_id,
         "status": "processing",
@@ -165,19 +167,13 @@ async def run_import_qasm(
         try:
             await asyncio.wait_for(
                 _wait_for_room_connection(room),
-                timeout=10.0
+                timeout=2.0
             )
+            logger.debug(f"[run_import_qasm] Client connected to room {room}")
         except asyncio.TimeoutError:
-            logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
+            logger.debug(f"[run_import_qasm] No client in room {room} yet, proceeding anyway")
         client = await SquanderClient.create(session_id=session_id)
-        # debug: broadcast client mode
-        await manager.broadcast_to_room(room, {
-            "type": "debug",
-            "message": f"DEBUG: use_local={client.use_local}, session_id={session_id}",
-            "job_id": job_id,
-            "circuit_id": circuit_id
-        })
-        # broadcast connecting/connected phase only for remote execution
+        # broadcast connection phase only for remote execution
         if not client.use_local:
             await manager.broadcast_to_room(room, {
                 "type": "phase",
@@ -189,7 +185,6 @@ async def run_import_qasm(
             })
             # connect if not using pooled connection
             if not session_id:
-                logger.info(f"[run_import_qasm] Connecting SSH client for import {job_id}")
                 await client.connect()
             await manager.broadcast_to_room(room, {
                 "type": "phase",
@@ -199,8 +194,6 @@ async def run_import_qasm(
                 "job_id": job_id,
                 "circuit_id": circuit_id
             })
-        # Run import and stream updates
-        logger.info(f"[run_import_qasm] Starting QASM import for {job_id}")
         async for update in client.import_qasm(qasm_code, options or {}):
             await manager.broadcast_to_room(room, {
                 **update,
@@ -241,27 +234,18 @@ async def run_partition(
     room = f"partition-{job_id}"
     client = None
     try:
-        logger.info(f"[run_partition] Starting job {job_id} in room {room}")
+        logger.info(f"[run_partition] Starting partition {job_id} in room {room}")
         try:
             await asyncio.wait_for(
                 _wait_for_room_connection(room),
-                timeout=10.0
+                timeout=2.0
             )
+            logger.debug(f"[run_partition] Client connected to room {room}")
         except asyncio.TimeoutError:
-            logger.warning(f"[run_import_qasm] Timeout waiting for client to join room {room}")
-        logger.info(f"[run_partition] Got room connection for job {job_id}")
+            logger.debug(f"[run_partition] No client in room {room} yet, proceeding anyway")
         client = await SquanderClient.create(session_id=session_id)
-        logger.info(f"[run_partition] Got client for job {job_id} (local={client.use_local})")
-        # debug: broadcast client mode
-        await manager.broadcast_to_room(room, {
-            "type": "debug",
-            "message": f"DEBUG: use_local={client.use_local}, session_id={session_id}",
-            "job_id": job_id,
-            "circuit_id": circuit_id
-        })
-        # broadcast connecting/connected phase only for remote execution
+        # broadcast connection phase only for remote execution
         if not client.use_local:
-            logger.info(f"[run_partition] Broadcasting connecting phase for job {job_id}")
             await manager.broadcast_to_room(room, {
                 "type": "phase",
                 "phase": "connecting",
@@ -271,7 +255,6 @@ async def run_partition(
                 "circuit_id": circuit_id
             })
             if not session_id:
-                logger.info(f"[run_partition] Connecting SSH client for job {job_id}")
                 await client.connect()
             await manager.broadcast_to_room(room, {
                 "type": "phase",
@@ -281,8 +264,6 @@ async def run_partition(
                 "job_id": job_id,
                 "circuit_id": circuit_id
             })
-        # Run partition and stream updates
-        logger.info(f"[run_partition] Starting partition for job {job_id}")
         async for update in client.run_partition(
             job_id=job_id,
             num_qubits=num_qubits,

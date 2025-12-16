@@ -4,8 +4,6 @@ import { useMessageListener } from './useMessageBus';
 import { useJobStore } from '@/stores/jobStore';
 import { toast } from 'sonner';
 
-const ROOM_CHECK_INTERVAL = 100;
-
 export const useJobManager = () => {
     const roomsJoinedRef = useRef<Set<string>>(new Set());
     const processedJobsRef = useRef<Set<string>>(new Set());
@@ -20,36 +18,28 @@ export const useJobManager = () => {
     useEffect(() => {
         if (!isConnected) return;
 
-        const syncRoomsWithQueue = () => {
-            const queue = useJobStore.getState().queue;
-            const jobIdsInQueue = new Set(queue.keys());
+        const jobIdsInQueue = new Set(queue.keys());
 
-            jobIdsInQueue.forEach((jobId) => {
-                if (!roomsJoinedRef.current.has(jobId)) {
-                    const job = queue.get(jobId);
-                    if (job) {
-                        const roomName = `${job.jobType}-${jobId}`;
-                        roomsJoinedRef.current.add(jobId);
-                        joinRoom(roomName, jobId);
-                    }
+        jobIdsInQueue.forEach((jobId) => {
+            if (!roomsJoinedRef.current.has(jobId)) {
+                const job = queue.get(jobId);
+                if (job) {
+                    const roomName = `${job.jobType}-${jobId}`;
+                    roomsJoinedRef.current.add(jobId);
+                    joinRoom(roomName, jobId);
                 }
-            });
+            }
+        });
 
-            roomsJoinedRef.current.forEach((jobId) => {
-                if (!jobIdsInQueue.has(jobId)) {
-                    const job = queue.get(jobId);
-                    const roomName = job ? `${job.jobType}-${jobId}` : `partition-${jobId}`;
-                    roomsJoinedRef.current.delete(jobId);
-                    leaveRoom(roomName, jobId);
-                }
-            });
-        };
-
-        syncRoomsWithQueue();
-        const interval = setInterval(syncRoomsWithQueue, ROOM_CHECK_INTERVAL);
-
-        return () => clearInterval(interval);
-    }, [isConnected, joinRoom, leaveRoom]);
+        roomsJoinedRef.current.forEach((jobId) => {
+            if (!jobIdsInQueue.has(jobId)) {
+                const job = queue.get(jobId);
+                const roomName = job ? `${job.jobType}-${jobId}` : `partition-${jobId}`;
+                roomsJoinedRef.current.delete(jobId);
+                leaveRoom(roomName, jobId);
+            }
+        });
+    }, [isConnected, joinRoom, leaveRoom, version, queue]);
 
     // Handle job completions and errors
     useEffect(() => {
