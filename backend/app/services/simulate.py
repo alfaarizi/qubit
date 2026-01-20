@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Callable, Any
 
 from squander import Circuit
 from squander.partitioning.partition import PartitionCircuit
-from convert import CircuitConverter
+from app.services.convert import CircuitConverter
 
 class TimeoutError(Exception):
     """Raised when a step times out"""

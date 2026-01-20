@@ -1,96 +1,80 @@
 import { useEffect, useRef } from 'react';
-import { useWebSocket } from './useWebSocket';
-import { useMessageListener } from './useMessageBus';
-import { useJobStore } from '@/stores/jobStore';
 import { toast } from 'sonner';
 
-export const useJobManager = () => {
-    const roomsJoinedRef = useRef<Set<string>>(new Set());
-    const processedJobsRef = useRef<Set<string>>(new Set());
+import { useJobStore } from '@/stores/jobStore';
 
-    const { isConnected, joinRoom, leaveRoom } = useWebSocket({ enabled: true });
+import { useMessageListener } from './useMessageBus';
+import { useWebSocket } from './useWebSocket';
+
+interface JobResult {
+    totalPartitions?: number;
+    totalGates?: number;
+    num_qubits?: number;
+    placed_gates?: unknown[];
+}
+
+function capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function getSuccessDescription(jobType: string, result: JobResult | undefined): string | undefined {
+    if (jobType === 'partition' && result?.totalPartitions) {
+        return `Created ${result.totalPartitions} partitions with ${result.totalGates} gates`;
+    }
+    if (jobType === 'import' && result?.num_qubits && result?.placed_gates) {
+        return `Imported ${result.placed_gates.length} gates on ${result.num_qubits} qubits`;
+    }
+    return undefined;
+}
+
+export function useJobManager(): void {
+    const processedJobs = useRef<Set<string>>(new Set());
+    const { leaveRoom } = useWebSocket({ enabled: true });
     const version = useJobStore((state) => state.version);
     const queue = useJobStore((state) => state.queue);
 
     useMessageListener(() => {});
 
-    // Manage WebSocket room subscriptions
-    useEffect(() => {
-        if (!isConnected) return;
-
-        const jobIdsInQueue = new Set(queue.keys());
-
-        jobIdsInQueue.forEach((jobId) => {
-            if (!roomsJoinedRef.current.has(jobId)) {
-                const job = queue.get(jobId);
-                if (job) {
-                    const roomName = `${job.jobType}-${jobId}`;
-                    roomsJoinedRef.current.add(jobId);
-                    joinRoom(roomName, jobId);
-                }
-            }
-        });
-
-        roomsJoinedRef.current.forEach((jobId) => {
-            if (!jobIdsInQueue.has(jobId)) {
-                const job = queue.get(jobId);
-                const roomName = job ? `${job.jobType}-${jobId}` : `partition-${jobId}`;
-                roomsJoinedRef.current.delete(jobId);
-                leaveRoom(roomName, jobId);
-            }
-        });
-    }, [isConnected, joinRoom, leaveRoom, version, queue]);
-
-    // Handle job completions and errors
     useEffect(() => {
         const jobs = Array.from(queue.values());
 
-        jobs.forEach((job) => {
-            if (processedJobsRef.current.has(job.jobId)) return;
+        for (const job of jobs) {
+            if (processedJobs.current.has(job.jobId)) continue;
+
+            const isTerminal = job.status === 'complete' || job.status === 'error';
+            if (!isTerminal) continue;
+
+            processedJobs.current.add(job.jobId);
+
+            const jobTypeDisplay = capitalize(job.jobType);
+            const roomName = `${job.jobType}-${job.jobId}`;
+
+            if (job.toastId) {
+                toast.dismiss(job.toastId);
+            }
 
             if (job.status === 'complete') {
-                processedJobsRef.current.add(job.jobId);
-
-                if (job.toastId) toast.dismiss(job.toastId);
-
-                const completeUpdate = job.updates.find(u => u.type === 'complete');
-                const result = completeUpdate?.result as { totalPartitions?: number; totalGates?: number; num_qubits?: number; placed_gates?: unknown[] } | undefined;
-
-                // Capitalize first letter of job type for display
-                const jobTypeDisplay = job.jobType.charAt(0).toUpperCase() + job.jobType.slice(1);
-
-                if (job.jobType === 'partition' && result?.totalPartitions) {
-                    toast.success(`${jobTypeDisplay} completed successfully!`, {
-                        description: `Created ${result.totalPartitions} partitions with ${result.totalGates} gates`
-                    });
-                } else if (job.jobType === 'import' && result?.num_qubits && result?.placed_gates) {
-                    toast.success(`${jobTypeDisplay} completed successfully!`, {
-                        description: `Imported ${result.placed_gates.length} gates on ${result.num_qubits} qubits`
-                    });
-                } else {
-                    toast.success(`${jobTypeDisplay} completed successfully!`);
-                }
-            }
-
-            if (job.status === 'error') {
-                processedJobsRef.current.add(job.jobId);
-
-                if (job.toastId) toast.dismiss(job.toastId);
-
-                const jobTypeDisplay = job.jobType.charAt(0).toUpperCase() + job.jobType.slice(1);
-                const errorMessage = job.error || 'Unknown error occurred';
+                const completeUpdate = job.updates.find((u) => u.type === 'complete');
+                const result = completeUpdate?.result as JobResult | undefined;
+                toast.success(`${jobTypeDisplay} completed successfully!`, {
+                    description: getSuccessDescription(job.jobType, result),
+                });
+            } else {
                 toast.error(`${jobTypeDisplay} failed`, {
-                    description: errorMessage,
-                    duration: 5000
+                    description: job.error || 'Unknown error occurred',
+                    duration: 5000,
                 });
             }
-        });
 
-        const currentJobIds = new Set(jobs.map(j => j.jobId));
-        processedJobsRef.current.forEach((jobId) => {
+            leaveRoom(roomName, job.jobId);
+            useJobStore.getState().dequeueJob(job.jobId);
+        }
+
+        const currentJobIds = new Set(jobs.map((j) => j.jobId));
+        for (const jobId of processedJobs.current) {
             if (!currentJobIds.has(jobId)) {
-                processedJobsRef.current.delete(jobId);
+                processedJobs.current.delete(jobId);
             }
-        });
-    }, [version, queue]);
-};
+        }
+    }, [version, queue, leaveRoom]);
+}
