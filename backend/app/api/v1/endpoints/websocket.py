@@ -113,9 +113,7 @@ async def websocket_endpoint(
         if not email:
             await websocket.close(code=1008, reason="invalid token")
             return
-        logger.info(f"[WebSocket] Authenticated user: {email}")
     connection_id = await manager.connect(websocket, client_id)
-    logger.info(f"[WebSocket] Connection established: {connection_id}")
     try:
         try:
             await manager.send_message(connection_id, {
@@ -124,13 +122,11 @@ async def websocket_endpoint(
                 "message": f"connected to {settings.PROJECT_NAME}",
                 "timestamp": datetime.now(UTC).isoformat()
             })
-            logger.info(f"[WebSocket] Welcome message sent: {connection_id}")
         except Exception as e:
             logger.error(f"[WebSocket] Failed to send welcome message: {connection_id} - {e}", exc_info=True)
             raise
         while True:
             data = await websocket.receive_text()
-            logger.debug(f"[WebSocket] Message received okfewfegregreg: {connection_id} - {data}")
             try:
                 message_data = json.loads(data)
                 if not isinstance(message_data, dict):
@@ -180,7 +176,6 @@ async def room_websocket_endpoint(
         if not email:
             await websocket.close(code=1008, reason="invalid token")
             return
-        logger.info(f"[WebSocket] Authenticated user: {email}")
     connection_id = await manager.connect(websocket, client_id)
     await manager.join_room(connection_id, room_name)
     await manager.send_message(connection_id, {

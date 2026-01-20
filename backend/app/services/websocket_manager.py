@@ -78,13 +78,10 @@ class ConnectionManager:
             return
         if connection_id in self.sessions:
             rooms = self.sessions[connection_id]["rooms"].copy()
-            if rooms:
-                logger.warning(f"WebSocket {connection_id} disconnecting while in rooms: {list(rooms)} - this will cause message buffering!")
             for room in rooms:
                 if room in self.rooms and connection_id in self.rooms[room]:
                     self.rooms[room].remove(connection_id)
                     if not self.rooms[room]:
-                        logger.warning(f"room '{room}' is now EMPTY after {connection_id} disconnected!")
                         del self.rooms[room]
             del self.sessions[connection_id]
         if connection_id in self.connections:
@@ -136,13 +133,11 @@ class ConnectionManager:
             is_removed = True
             if not self.rooms[room]:
                 del self.rooms[room]
-                logger.warning(f"room '{room}' is now EMPTY after {connection_id} left - this may cause message buffering!")
                 # cleanup buffer when room becomes empty
                 if room in self.room_buffers:
                     del self.room_buffers[room]
                     if room in self.buffer_created_at:
                         del self.buffer_created_at[room]
-                    logger.debug(f"cleaned up buffer for empty room '{room}'")
         if connection_id in self.sessions:
             self.sessions[connection_id]["rooms"].discard(room)
         if is_removed:
@@ -171,11 +166,9 @@ class ConnectionManager:
                 self.room_buffers[room] = deque(maxlen=self.buffer_max_size)
                 self.buffer_created_at[room] = datetime.now(UTC)
             self.room_buffers[room].append(message)
-            logger.debug(f"buffered message for room '{room}' (no connections yet, buffer size: {len(self.room_buffers[room])})")
             return
 
         message_str = json.dumps(message) if isinstance(message, dict) else str(message)
-        logger.debug(f"Broadcasting to room '{room}': {message}")
         await asyncio.gather(
             *(
                 self._send_message_safe(self.connections[connection_id], connection_id, message_str)

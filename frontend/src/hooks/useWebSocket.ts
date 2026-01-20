@@ -35,9 +35,7 @@ function buildSocketUrl(endpoint: string): string {
             const { state } = JSON.parse(authStorage);
             token = state?.accessToken || '';
         }
-    } catch {
-        console.error('Failed to parse auth storage');
-    }
+    } catch {}
 
     const wsUrl = `${protocol}//${url.host}/api/v1${endpoint}`;
     return token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl;

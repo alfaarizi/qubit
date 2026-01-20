@@ -53,7 +53,6 @@ class SquanderClient:
             return await cls.get_pooled_client(session_id)
 
         client = cls(session_id=None)
-        logger.info(f"Creating SquanderClient: use_local={client.use_local}")
 
         if client.use_local:
             client.is_connected = True
@@ -70,11 +69,8 @@ class SquanderClient:
                 client = _connection_pool[session_id]
                 if client.is_connected:
                     client.last_used = asyncio.get_event_loop().time()
-                    connection_type = "local" if client.use_local else "SSH"
-                    logger.info(f"Reusing {connection_type} connection for session {session_id}")
                     return client
                 # Not connected, evict and recreate
-                logger.info(f"Evicting disconnected client for session {session_id}")
                 del _connection_pool[session_id]
 
             client = cls(session_id=session_id)
@@ -82,11 +78,9 @@ class SquanderClient:
 
         if client.use_local:
             client.is_connected = True
-            logger.info(f"Created pooled local client for session {session_id}")
         else:
             try:
                 await client.connect()
-                logger.info(f"Created pooled SSH connection for session {session_id}")
             except Exception:
                 async with _pool_lock:
                     if session_id in _connection_pool and _connection_pool[session_id] is client:
@@ -113,7 +107,6 @@ class SquanderClient:
             if client:
                 try:
                     await client.disconnect()
-                    logger.info(f"Cleaned up stale connection for session {session_id}")
                 except Exception as e:
                     logger.warning(f"Error disconnecting stale session {session_id}: {e}")
 
@@ -127,7 +120,6 @@ class SquanderClient:
             await loop.run_in_executor(_ssh_pool, self._connect_blocking)
             if self.session_id:
                 self.last_used = loop.time()
-            logger.info("SSH connection established")
 
     def _connect_blocking(self) -> None:
         """Blocking SSH connection (runs in thread pool)."""
@@ -188,7 +180,6 @@ class SquanderClient:
         self.sftp_client = None
         self.ssh_client = None
         self.is_connected = False
-        logger.info("SSH connection closed")
 
     async def execute_command(self, command: str) -> tuple[str, str, int]:
         """Execute command on remote server and return (stdout, stderr, exit_code)."""
@@ -518,9 +509,6 @@ class SquanderClient:
         circuit_name: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Execute circuit partitioning locally or on remote SQUANDER server."""
-        logger.info(
-            f"run_partition: job_id={job_id}, use_local={self.use_local}, session_id={self.session_id}"
-        )
 
         if self.use_local:
             async for update in self._run_partition_local(
@@ -656,7 +644,6 @@ class SquanderClient:
         self, qasm_code: str, options: Optional[Dict[str, Any]] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Import QASM circuit locally or using remote SQUANDER server."""
-        logger.info(f"import_qasm: use_local={self.use_local}, session_id={self.session_id}")
 
         if self.use_local:
             async for update in self._import_qasm_local(qasm_code, options):

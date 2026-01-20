@@ -168,12 +168,6 @@ async def import_qasm(
 
 async def _wait_for_room_connection(room: str, check_interval: float = 0.1) -> None:
     """Wait until at least one connection is in the room."""
-    connections = manager.get_room_connections(room)
-    if connections:
-        logger.debug(f"Room {room} already has {len(connections)} connection(s)")
-        return
-
-    logger.debug(f"Room {room} is empty, waiting for connections")
     while not manager.get_room_connections(room):
         await asyncio.sleep(check_interval)
 
@@ -226,13 +220,10 @@ async def run_import_qasm(
     client: Optional[SquanderClient] = None
 
     try:
-        logger.info(f"[run_import_qasm] Starting import {job_id} in room {room}")
-
         try:
             await asyncio.wait_for(_wait_for_room_connection(room), timeout=2.0)
-            logger.debug(f"[run_import_qasm] Client connected to room {room}")
         except asyncio.TimeoutError:
-            logger.debug(f"[run_import_qasm] No client in room {room} yet, proceeding anyway")
+            pass
 
         client = await SquanderClient.create(session_id=session_id)
         await _broadcast_connection_phases(room, job_id, circuit_id, client, session_id)
@@ -240,9 +231,7 @@ async def run_import_qasm(
         async for update in client.import_qasm(qasm_code, options or {}):
             await _broadcast_update(room, job_id, circuit_id, update)
 
-            if update.get("type") == "complete":
-                logger.info(f"[run_import_qasm] Import {job_id} completed successfully")
-            elif update.get("type") == "error":
+            if update.get("type") == "error":
                 logger.error(f"[run_import_qasm] Import {job_id} failed: {update.get('message')}")
 
     except Exception as e:
@@ -275,13 +264,10 @@ async def run_partition(
     client: Optional[SquanderClient] = None
 
     try:
-        logger.info(f"[run_partition] Starting partition {job_id} in room {room}")
-
         try:
             await asyncio.wait_for(_wait_for_room_connection(room), timeout=2.0)
-            logger.debug(f"[run_partition] Client connected to room {room}")
         except asyncio.TimeoutError:
-            logger.debug(f"[run_partition] No client in room {room} yet, proceeding anyway")
+            pass
 
         client = await SquanderClient.create(session_id=session_id)
         await _broadcast_connection_phases(room, job_id, circuit_id, client, session_id)
