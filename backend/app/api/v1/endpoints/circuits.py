@@ -183,31 +183,6 @@ async def _broadcast_update(
     })
 
 
-async def _broadcast_connection_phases(
-    room: str, job_id: str, circuit_id: str, client: SquanderClient, session_id: Optional[str]
-) -> None:
-    """Broadcast connection phases for remote execution."""
-    if client.use_local:
-        return
-
-    await _broadcast_update(room, job_id, circuit_id, {
-        "type": "phase",
-        "phase": "connecting",
-        "message": "Connecting to SQUANDER...",
-        "progress": 0,
-    })
-
-    if not session_id:
-        await client.connect()
-
-    await _broadcast_update(room, job_id, circuit_id, {
-        "type": "phase",
-        "phase": "connected",
-        "message": "Connected to SQUANDER",
-        "progress": 1,
-    })
-
-
 async def run_import_qasm(
     job_id: str,
     circuit_id: str,
@@ -225,8 +200,20 @@ async def run_import_qasm(
         except asyncio.TimeoutError:
             pass
 
+        await _broadcast_update(room, job_id, circuit_id, {
+            "type": "phase",
+            "phase": "connecting",
+            "message": "Connecting to SQUANDER...",
+            "progress": 0,
+        })
         client = await SquanderClient.create(session_id=session_id)
-        await _broadcast_connection_phases(room, job_id, circuit_id, client, session_id)
+        if not client.use_local:
+            await _broadcast_update(room, job_id, circuit_id, {
+                "type": "phase",
+                "phase": "connected",
+                "message": "Connected to SQUANDER",
+                "progress": 1,
+            })
 
         async for update in client.import_qasm(qasm_code, options or {}):
             await _broadcast_update(room, job_id, circuit_id, update)
@@ -247,6 +234,9 @@ async def run_import_qasm(
                 await client.disconnect()
             except Exception as e:
                 logger.warning(f"[run_import_qasm] Error disconnecting: {e}")
+
+        if job_id in active_jobs:
+            del active_jobs[job_id]
 
 async def run_partition(
     job_id: str,
@@ -269,8 +259,20 @@ async def run_partition(
         except asyncio.TimeoutError:
             pass
 
+        await _broadcast_update(room, job_id, circuit_id, {
+            "type": "phase",
+            "phase": "connecting",
+            "message": "Connecting to SQUANDER...",
+            "progress": 0,
+        })
         client = await SquanderClient.create(session_id=session_id)
-        await _broadcast_connection_phases(room, job_id, circuit_id, client, session_id)
+        if not client.use_local:
+            await _broadcast_update(room, job_id, circuit_id, {
+                "type": "phase",
+                "phase": "connected",
+                "message": "Connected to SQUANDER",
+                "progress": 1,
+            })
 
         async for update in client.run_partition(
             job_id=job_id,

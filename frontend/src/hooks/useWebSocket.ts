@@ -89,29 +89,45 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         sendMessage({ type: 'ping', timestamp: Date.now() });
     }, [sendMessage]);
 
-    const joinRoom = useCallback(async (roomName: string, jobId?: string): Promise<void> => {
-        if (readyState !== ReadyState.OPEN) {
-            throw new Error('WebSocket not connected');
-        }
+    const joinRoom = useCallback(async (roomName: string, jobId?: string, maxRetries = 3): Promise<void> => {
+        const attemptJoin = (): Promise<void> => {
+            if (readyState !== ReadyState.OPEN) {
+                return Promise.reject(new Error('WebSocket not connected'));
+            }
 
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                window.removeEventListener('message-bus', handler);
-                reject(new Error('Room join timeout'));
-            }, 5000);
-
-            const handler = (event: Event) => {
-                const message = (event as CustomEvent<Message>).detail;
-                if (message.type === 'room_joined' && message.room === roomName) {
-                    clearTimeout(timeout);
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
                     window.removeEventListener('message-bus', handler);
-                    resolve();
-                }
-            };
+                    reject(new Error('Room join timeout'));
+                }, 5000);
 
-            window.addEventListener('message-bus', handler);
-            sendMessage({ type: 'join_room', room: roomName, job_id: jobId });
-        });
+                const handler = (event: Event) => {
+                    const message = (event as CustomEvent<Message>).detail;
+                    if (message.type === 'room_joined' && message.room === roomName) {
+                        clearTimeout(timeout);
+                        window.removeEventListener('message-bus', handler);
+                        resolve();
+                    }
+                };
+
+                window.addEventListener('message-bus', handler);
+                sendMessage({ type: 'join_room', room: roomName, job_id: jobId });
+            });
+        };
+
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                await attemptJoin();
+                return;
+            } catch (err) {
+                lastError = err as Error;
+                if (attempt < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+                }
+            }
+        }
+        throw lastError;
     }, [readyState, sendMessage]);
 
     const leaveRoom = useCallback((roomName: string, jobId?: string): void => {
