@@ -206,10 +206,10 @@ async def send_email_verification_code(request: EmailVerificationRequest):
     try:
         send_verification_email(request.email)
         return {"message": "verification code sent"}
-    except Exception as e:
+    except Exception:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"failed to send verification code: {str(e)}"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email login is currently limited. Please use Google or Microsoft sign-in instead."
         )
 
 @router.post("/email/verify", response_model=Token)
