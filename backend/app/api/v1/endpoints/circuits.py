@@ -34,6 +34,15 @@ class ImportQasmRequest(BaseModel):
 
 active_jobs: Dict[str, Dict[str, Any]] = {}
 
+
+def verify_job_ownership(job_id: str, user_id: str) -> bool:
+    """Verify that a job belongs to a specific user."""
+    job = active_jobs.get(job_id)
+    if not job:
+        return False
+    return job.get("user_id") == user_id
+
+
 @router.post("/{circuit_id}/partition")
 async def partition_circuit(
     circuit_id: str,

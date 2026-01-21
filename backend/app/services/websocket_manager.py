@@ -76,6 +76,7 @@ class ConnectionManager:
     def disconnect(self, connection_id: str):
         if connection_id not in self.connections:
             return
+        rooms = set()
         if connection_id in self.sessions:
             rooms = self.sessions[connection_id]["rooms"].copy()
             for room in rooms:
@@ -86,6 +87,9 @@ class ConnectionManager:
             del self.sessions[connection_id]
         if connection_id in self.connections:
             del self.connections[connection_id]
+        for room in rooms:
+            if room not in self.rooms:
+                self._cleanup_room_buffer(room)
         logger.info("WebSocket connection closed", extra={"connection_id": connection_id})
         try:
             asyncio.get_running_loop().create_task(self.broadcast_to_all({
@@ -133,11 +137,7 @@ class ConnectionManager:
             is_removed = True
             if not self.rooms[room]:
                 del self.rooms[room]
-                # cleanup buffer when room becomes empty
-                if room in self.room_buffers:
-                    del self.room_buffers[room]
-                    if room in self.buffer_created_at:
-                        del self.buffer_created_at[room]
+                self._cleanup_room_buffer(room)
         if connection_id in self.sessions:
             self.sessions[connection_id]["rooms"].discard(room)
         if is_removed:
@@ -211,6 +211,13 @@ class ConnectionManager:
     def get_connection_rooms(self, connection_id: str) -> Set[str]:
         return self.sessions[connection_id]["rooms"].copy() if connection_id in self.sessions else set()
 
+    def _cleanup_room_buffer(self, room: str) -> None:
+        """Remove buffer and timestamp for a room if they exist."""
+        if room in self.room_buffers:
+            del self.room_buffers[room]
+        if room in self.buffer_created_at:
+            del self.buffer_created_at[room]
+
     def get_stats(self) -> Dict[str, Any]:
         return {
             "total_connections": len(self.connections),
@@ -246,11 +253,8 @@ class ConnectionManager:
         ]
 
         for room in rooms_to_cleanup:
-            if room in self.room_buffers:
-                del self.room_buffers[room]
-                if room in self.buffer_created_at:
-                    del self.buffer_created_at[room]
-                logger.info(f"cleaned up old buffer for room '{room}'")
+            self._cleanup_room_buffer(room)
+            logger.info(f"cleaned up old buffer for room '{room}'")
 
         return len(rooms_to_cleanup)
 
