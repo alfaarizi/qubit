@@ -89,7 +89,7 @@ async def list_jobs(
     """List all jobs for a circuit owned by the current user."""
     user_id = str(current_user._id)
     jobs = {
-        jid: info
+        jid: {k: v for k, v in info.items() if k != "task"}
         for jid, info in active_jobs.items()
         if info["circuit_id"] == circuit_id and info.get("user_id") == user_id
     }
@@ -109,7 +109,7 @@ async def get_job(
     if job.get("user_id") != str(current_user._id):
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
 
-    return {"job_id": job_id, **job}
+    return {"job_id": job_id, **{k: v for k, v in job.items() if k != "task"}}
 
 
 @router.post("/{circuit_id}/jobs/{job_id}/cancel")

@@ -214,7 +214,7 @@ class TestProtectedEndpoint:
     async def test_get_current_user_no_token(self, http_client):
         """test get current user without token fails"""
         response = await http_client.get("/api/v1/auth/me")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     async def test_get_current_user_invalid_token(self, http_client):
         """test get current user with invalid token fails"""
