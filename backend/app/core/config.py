@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "QubitKit <noreply@qubitkit.com>"
 
     # SQUANDER Configuration
-    SQUANDER_AVAILABLE: str = "0"
     SQUANDER_SSH_HOST: Optional[str] = None
     SQUANDER_SSH_USER: Optional[str] = None
     SQUANDER_SSH_PATH: Optional[str] = None

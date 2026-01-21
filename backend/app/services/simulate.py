@@ -22,7 +22,12 @@ from typing import Dict, List, Optional, Callable, Any
 
 from squander import Circuit
 from squander.partitioning.partition import PartitionCircuit
-from app.services.convert import CircuitConverter
+
+# Support both standalone execution (remote SSH) and package execution (local)
+try:
+    from convert import CircuitConverter
+except ImportError:
+    from app.services.convert import CircuitConverter
 
 class TimeoutError(Exception):
     """Raised when a step times out"""

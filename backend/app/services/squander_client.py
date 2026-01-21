@@ -11,9 +11,20 @@ from typing import Any, AsyncGenerator, Dict, Optional
 import paramiko
 
 from app.core.config import settings
-from app.services.squander_detector import is_squander_available
 
 logger = logging.getLogger(__name__)
+
+# Detect SQUANDER availability once at module load
+def _detect_squander() -> bool:
+    try:
+        import squander  # noqa: F401
+        logger.info("SQUANDER library detected, using local execution")
+        return True
+    except ImportError:
+        logger.info("SQUANDER library not found, will use SSH execution")
+        return False
+
+_squander_available: bool = _detect_squander()
 
 # Thread pools for SSH and IO operations
 _ssh_pool = ThreadPoolExecutor(max_workers=5, thread_name_prefix="ssh")
@@ -24,7 +35,6 @@ _semaphore = asyncio.Semaphore(5)
 
 class SquanderExecutionError(Exception):
     """Raised when SQUANDER command execution fails."""
-
 
 class SSHConnectionError(Exception):
     """Raised when SSH connection fails."""
@@ -38,7 +48,7 @@ class SquanderClient:
         self.is_connected: bool = False
         self.session_id: Optional[str] = session_id
         self.last_used: Optional[float] = None
-        self.use_local: bool = is_squander_available()
+        self.use_local: bool = _squander_available
 
         if session_id:
             try:
