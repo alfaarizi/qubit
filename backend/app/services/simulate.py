@@ -16,8 +16,8 @@ import argparse
 import time
 import os
 import tempfile
-import numpy as np
 import multiprocessing
+import numpy as np
 from typing import Dict, List, Optional, Callable, Any
 
 from squander import Circuit
@@ -28,35 +28,42 @@ class TimeoutError(Exception):
     """Raised when a step times out"""
     pass
 
+def _worker_wrapper(queue, func, args, kwargs):
+    """Module-level wrapper for multiprocessing (required for pickling)."""
+    try:
+        queue.put(('success', func(*args, **kwargs)))
+    except Exception as e:
+        queue.put(('error', e))
+
 def run_with_timeout(func, args=(), kwargs=None, timeout_seconds=None):
-    """Run a function with a timeout using multiprocessing (works with C/C++)"""
-    if kwargs is None:
-        kwargs = {}
+    """Run a function with a timeout using multiprocessing.Process for proper termination."""
     if timeout_seconds is None or timeout_seconds <= 0:
-        return func(*args, **kwargs)
-    result_queue = multiprocessing.Queue()
-    def wrapper():
-        try:
-            result = func(*args, **kwargs)
-            result_queue.put(('success', result))
-        except Exception as e:
-            result_queue.put(('error', e))
-    process = multiprocessing.Process(target=wrapper)
+        return func(*args, **(kwargs or {}))
+
+    ctx = multiprocessing.get_context('spawn')
+    result_queue = ctx.Queue()
+    process = ctx.Process(
+        target=_worker_wrapper,
+        args=(result_queue, func, args, kwargs or {})
+    )
     process.start()
     process.join(timeout=timeout_seconds)
+
     if process.is_alive():
         process.terminate()
-        process.join(timeout=1)
+        process.join(timeout=2)
         if process.is_alive():
             process.kill()
+            process.join()
         raise TimeoutError(f"Operation timed out after {timeout_seconds} seconds")
-    if not result_queue.empty():
-        status, result = result_queue.get()
-        if status == 'error':
-            raise result
-        return result
-    else:
-        raise TimeoutError(f"Process ended without returning a result")
+
+    if result_queue.empty():
+        raise RuntimeError("Process completed but returned no result")
+
+    status, payload = result_queue.get_nowait()
+    if status == 'error':
+        raise payload
+    return payload
 
 class QuantumCircuitSimulator:    
     def __init__(self, num_qubits: int):
@@ -226,6 +233,59 @@ def serialize_results(results: Dict) -> Dict:
             serialized[key] = value
     return serialized
 
+# ============================================================================
+# Module-level wrapper functions for multiprocessing (required for pickling)
+# ============================================================================
+
+def _simulate_statevector(num_qubits: int, circuit, parameters):
+    """Module-level helper for statevector simulation"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    return simulator.simulate_statevector(circuit, parameters)
+
+def _get_probabilities(num_qubits: int, state_vector: np.ndarray):
+    """Module-level helper for probability calculation"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    return simulator.get_probabilities(state_vector)
+
+def _sample_measurements(num_qubits: int, state_vector: np.ndarray, num_shots: int):
+    """Module-level helper for measurement sampling"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    return simulator.sample_measurements(state_vector, num_shots)
+
+def _partition_circuit(num_qubits: int, circuit, parameters, max_partition_size: int, strategy: str, qasm_file: str, gate_ids: list):
+    """Module-level helper for circuit partitioning"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    simulator.gate_ids = gate_ids
+    return simulator.partition_circuit(circuit, parameters, max_partition_size, strategy, qasm_file)
+
+def _calculate_fidelity(state1: np.ndarray, state2: np.ndarray):
+    """Module-level helper for fidelity calculation"""
+    return float(np.abs(np.vdot(state1.flatten(), state2.flatten()))**2)
+
+def _analyze_entanglement_scaling(num_qubits: int, circuit, parameters):
+    """Module-level helper for entropy analysis"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    return simulator.analyze_entanglement_scaling(circuit, parameters)
+
+def _simulate_partitioned_circuit(num_qubits: int, partitioned_circ, partitioned_params, num_shots: int):
+    """Module-level helper for partitioned circuit simulation"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    state = simulator.simulate_statevector(partitioned_circ, partitioned_params)
+    probs = simulator.get_probabilities(state)
+    counts = simulator.sample_measurements(state, num_shots)
+    return state, probs, counts
+
+def _compute_density_matrices(num_qubits: int, state_original: np.ndarray, state_partitioned: np.ndarray):
+    """Module-level helper for density matrix computation"""
+    simulator = QuantumCircuitSimulator(num_qubits)
+    dens_orig = simulator.get_density_matrix(state_original)
+    dens_part = simulator.get_density_matrix(state_partitioned)
+    return dens_orig, dens_part
+
+# ============================================================================
+# Main simulations
+# ============================================================================
+
 def run_simulation(
     circuit_data: Dict,
     max_partition_size: int = 4,
@@ -283,8 +343,8 @@ def run_simulation(
     report_progress("simulating_original", step, total_steps, "Simulating original circuit...")
     try:
         state_original = run_with_timeout(
-            simulator.simulate_statevector,
-            args=(circuit, parameters),
+            _simulate_statevector,
+            args=(num_qubits, circuit, parameters),
             timeout_seconds=simulation_timeout
         )
     except TimeoutError as e:
@@ -297,8 +357,8 @@ def run_simulation(
     report_progress("calculating_probabilities", step, total_steps, "Calculating probabilities...")
     try:
         probs_original = run_with_timeout(
-            simulator.get_probabilities,
-            args=(state_original,),
+            _get_probabilities,
+            args=(num_qubits, state_original),
             timeout_seconds=simulation_timeout
         )
     except TimeoutError as e:
@@ -310,8 +370,8 @@ def run_simulation(
     report_progress("sampling_measurements", step, total_steps, f"Sampling {num_shots} measurements...")
     try:
         counts_original = run_with_timeout(
-            simulator.sample_measurements,
-            args=(state_original, num_shots),
+            _sample_measurements,
+            args=(num_qubits, state_original, num_shots),
             timeout_seconds=simulation_timeout
         )
     except TimeoutError as e:
@@ -338,8 +398,8 @@ def run_simulation(
 
     try:
         partition_result = run_with_timeout(
-            simulator.partition_circuit,
-            args=(circuit, parameters, max_partition_size, strategy, qasm_file),
+            _partition_circuit,
+            args=(num_qubits, circuit, parameters, max_partition_size, strategy, qasm_file, simulator.gate_ids),
             timeout_seconds=simulation_timeout
         )
         partitioned_circ = partition_result['partitioned_circuit']
@@ -371,15 +431,10 @@ def run_simulation(
     step += 1
     report_progress("simulating_partitioned", step, total_steps, "Simulating partitioned circuit...")
 
-    def simulate_partitioned_circuit():
-        state = simulator.simulate_statevector(partitioned_circ, partitioned_params)
-        probs = simulator.get_probabilities(state)
-        counts = simulator.sample_measurements(state, num_shots)
-        return state, probs, counts
-
     try:
         state_partitioned, probs_partitioned, counts_partitioned = run_with_timeout(
-            simulate_partitioned_circuit,
+            _simulate_partitioned_circuit,
+            args=(num_qubits, partitioned_circ, partitioned_params, num_shots),
             timeout_seconds=simulation_timeout
         )
     except TimeoutError as e:
@@ -394,7 +449,7 @@ def run_simulation(
     report_progress("calculating_fidelity", step, total_steps, "Calculating fidelity...")
     try:
         fidelity = run_with_timeout(
-            simulator.calculate_fidelity,
+            _calculate_fidelity,
             args=(state_original, state_partitioned),
             timeout_seconds=simulation_timeout
         )
@@ -410,14 +465,10 @@ def run_simulation(
         step += 1
         report_progress("computing_density_matrix", step, total_steps, "Computing density matrices...")
 
-        def compute_density_matrices():
-            dens_orig = simulator.get_density_matrix(state_original)
-            dens_part = simulator.get_density_matrix(state_partitioned)
-            return dens_orig, dens_part
-
         try:
             density_original, density_partitioned = run_with_timeout(
-                compute_density_matrices,
+                _compute_density_matrices,
+                args=(num_qubits, state_original, state_partitioned),
                 timeout_seconds=simulation_timeout
             )
         except TimeoutError as e:
@@ -434,8 +485,8 @@ def run_simulation(
         report_progress("analyzing_entropy", step, total_steps, "Analyzing entanglement entropy...")
         try:
             entropy_original = run_with_timeout(
-                simulator.analyze_entanglement_scaling,
-                args=(circuit, parameters),
+                _analyze_entanglement_scaling,
+                args=(num_qubits, circuit, parameters),
                 timeout_seconds=simulation_timeout
             )
         except TimeoutError as e:
@@ -446,8 +497,8 @@ def run_simulation(
 
         try:
             entropy_partitioned = run_with_timeout(
-                simulator.analyze_entanglement_scaling,
-                args=(partitioned_circ, partitioned_params),
+                _analyze_entanglement_scaling,
+                args=(num_qubits, partitioned_circ, partitioned_params),
                 timeout_seconds=simulation_timeout
             )
         except TimeoutError as e:
