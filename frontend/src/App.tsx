@@ -4,8 +4,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { MsalProvider } from '@azure/msal-react';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { msalConfig } from '@/lib/msalConfig';
-import { Analytics } from "@vercel/analytics/react"
-import { SpeedInsights } from "@vercel/speed-insights/react"
 import { Toaster } from "@/components/ui/sonner"
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
@@ -82,8 +80,6 @@ function App() {
                             },
                         }}
                     />
-                    <Analytics />
-                    <SpeedInsights/>
                 </ThemeProvider>
             </GoogleOAuthProvider>
         </MsalProvider>

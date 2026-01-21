@@ -1,9 +1,10 @@
-from typing import Dict, Optional, Set, Any
+from typing import Dict, Optional, Set, Any, List
 from datetime import datetime, UTC
 from enum import Enum
 import logging
 import json
 import uuid
+from collections import deque
 
 from fastapi import WebSocket
 import asyncio
@@ -42,6 +43,9 @@ class ConnectionManager:
         self.connections: Dict[str, WebSocket] = {}
         self.sessions: Dict[str, Dict[str, Any]] = {}
         self.rooms: Dict[str, Set[str]] = {}
+        self.room_buffers: Dict[str, deque] = {}
+        self.buffer_created_at: Dict[str, datetime] = {}
+        self.buffer_max_size = 100
 
     async def connect(self, websocket: WebSocket, client_id: Optional[str] = None) -> str:
         await websocket.accept()
@@ -72,6 +76,7 @@ class ConnectionManager:
     def disconnect(self, connection_id: str):
         if connection_id not in self.connections:
             return
+        rooms = set()
         if connection_id in self.sessions:
             rooms = self.sessions[connection_id]["rooms"].copy()
             for room in rooms:
@@ -82,6 +87,9 @@ class ConnectionManager:
             del self.sessions[connection_id]
         if connection_id in self.connections:
             del self.connections[connection_id]
+        for room in rooms:
+            if room not in self.rooms:
+                self._cleanup_room_buffer(room)
         logger.info("WebSocket connection closed", extra={"connection_id": connection_id})
         try:
             asyncio.get_running_loop().create_task(self.broadcast_to_all({
@@ -105,6 +113,14 @@ class ConnectionManager:
             self.sessions[connection_id]["rooms"].add(room)
         if is_added:
             logger.info("Connection joined room", extra={"connection_id": connection_id, "room": room})
+
+            # replay buffered messages for this room
+            if room in self.room_buffers and self.room_buffers[room]:
+                buffered_count = len(self.room_buffers[room])
+                logger.info(f"replaying {buffered_count} buffered messages for room {room}")
+                for buffered_message in self.room_buffers[room]:
+                    await self.send_message(connection_id, buffered_message)
+
             await self.broadcast_to_room(room, {
                 "type": ServerMessage.CONNECTION_UPDATE,
                 "event": ConnectionEvent.USER_JOINED_ROOM,
@@ -121,6 +137,7 @@ class ConnectionManager:
             is_removed = True
             if not self.rooms[room]:
                 del self.rooms[room]
+                self._cleanup_room_buffer(room)
         if connection_id in self.sessions:
             self.sessions[connection_id]["rooms"].discard(room)
         if is_removed:
@@ -143,11 +160,15 @@ class ConnectionManager:
         return True
 
     async def broadcast_to_room(self, room: str, message: Any, exclude_connection: Optional[str] = None):
-        if room not in self.rooms:
-            logger.warning(f"Room '{room}' does not exist. Connections in room: none. Active rooms: {list(self.rooms.keys())}")
+        if room not in self.rooms or not self.rooms[room]:
+            # buffer message if room has no connections yet
+            if room not in self.room_buffers:
+                self.room_buffers[room] = deque(maxlen=self.buffer_max_size)
+                self.buffer_created_at[room] = datetime.now(UTC)
+            self.room_buffers[room].append(message)
             return
+
         message_str = json.dumps(message) if isinstance(message, dict) else str(message)
-        logger.debug(f"Broadcasting to room '{room}': {message}")
         await asyncio.gather(
             *(
                 self._send_message_safe(self.connections[connection_id], connection_id, message_str)
@@ -190,15 +211,27 @@ class ConnectionManager:
     def get_connection_rooms(self, connection_id: str) -> Set[str]:
         return self.sessions[connection_id]["rooms"].copy() if connection_id in self.sessions else set()
 
+    def _cleanup_room_buffer(self, room: str) -> None:
+        """Remove buffer and timestamp for a room if they exist."""
+        if room in self.room_buffers:
+            del self.room_buffers[room]
+        if room in self.buffer_created_at:
+            del self.buffer_created_at[room]
+
     def get_stats(self) -> Dict[str, Any]:
         return {
             "total_connections": len(self.connections),
             "total_sessions": len(self.sessions),
             "total_rooms": len(self.rooms),
+            "total_buffered_rooms": len(self.room_buffers),
             "active_connection_ids": list(self.connections.keys()),
             "connections_per_room": {
                 room: len(connections)
                 for room, connections in self.rooms.items()
+            },
+            "buffered_messages_per_room": {
+                room: len(buffer)
+                for room, buffer in self.room_buffers.items()
             },
             "activity_per_connection": {
                 cid: {
@@ -210,6 +243,20 @@ class ConnectionManager:
                 for cid, session in self.sessions.items()
             }
         }
+
+    def cleanup_old_buffers(self, max_age_seconds: int = 300) -> int:
+        """cleanup buffers that are older than max_age_seconds"""
+        current_time = datetime.now(UTC)
+        rooms_to_cleanup = [
+            room for room, created_at in self.buffer_created_at.items()
+            if (current_time - created_at).total_seconds() > max_age_seconds
+        ]
+
+        for room in rooms_to_cleanup:
+            self._cleanup_room_buffer(room)
+            logger.info(f"cleaned up old buffer for room '{room}'")
+
+        return len(rooms_to_cleanup)
 
     async def _send_message_safe(self, websocket: WebSocket, connection_id: str, message: str):
         try:

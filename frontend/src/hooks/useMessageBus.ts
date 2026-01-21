@@ -22,29 +22,33 @@ export function addMessageListener(listener: MessageListener) {
 }
 
 export function broadcastMessage(message: Message) {
+    // Dispatch window event for all messages (used by joinRoom/leaveRoom handlers)
+    window.dispatchEvent(new CustomEvent('message-bus', { detail: message }));
+
     const jobId = message.job_id;
     const type = message.type;
 
-    if (!jobId || !type) return;
+    // Job-related message handling
+    if (jobId && type) {
+        const store = useJobStore.getState();
 
-    const store = useJobStore.getState();
-
-    if (type === 'error') {
-        store.setJobError(jobId, message.message || 'Unknown error');
-    } else if (type === 'cancelled') {
-        store.dequeueJob(jobId);
-    } else if (['phase', 'log', 'complete'].includes(type)) {
-        const update = {
-            type: type as 'phase' | 'log' | 'complete',
-            phase: message.phase,
-            message: message.message,
-            progress: message.progress,
-            result: message.result,
-            timestamp: Date.now()
-        };
-        store.addUpdate(jobId, update);
-        if (type === 'complete') {
-            store.completeJob(jobId);
+        if (type === 'error') {
+            store.setJobError(jobId, message.message || 'Unknown error');
+        } else if (type === 'cancelled') {
+            store.dequeueJob(jobId);
+        } else if (['phase', 'log', 'complete'].includes(type)) {
+            const update = {
+                type: type as 'phase' | 'log' | 'complete',
+                phase: message.phase,
+                message: message.message,
+                progress: message.progress,
+                result: message.result,
+                timestamp: Date.now()
+            };
+            store.addUpdate(jobId, update);
+            if (type === 'complete') {
+                store.completeJob(jobId);
+            }
         }
     }
 
@@ -52,7 +56,7 @@ export function broadcastMessage(message: Message) {
         try {
             listener(message);
         } catch (error) {
-            console.error('Error in partition message listener:', error);
+            console.error('Error in message listener:', error);
         }
     });
 }

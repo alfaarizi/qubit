@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from .core.config import settings
 from .api.v1.api import api_router
 from .services.squander_client import SquanderClient
+from .services.websocket_manager import manager
 
 def setup_logging():
     # Use simple formatter for readability (comment out for JSON)
@@ -58,13 +59,13 @@ def create_application() -> FastAPI:
 
     @application.on_event("startup")
     async def start_cleanup_task():
-        """Start background task to cleanup stale SSH connections"""
         async def cleanup_loop():
             while True:
-                await asyncio.sleep(60)  # Run every minute
+                await asyncio.sleep(60)
                 await SquanderClient.cleanup_stale_connections(max_idle_seconds=300)
+                manager.cleanup_old_buffers(max_age_seconds=300)
         asyncio.create_task(cleanup_loop())
-        logging.info("Started SSH connection cleanup task (checks every 60s, cleans after 300s idle)")
+        logging.info("Started cleanup task for SSH connections and WebSocket buffers")
 
     @application.get('/favicon.ico', include_in_schema=False)
     async def favicon():

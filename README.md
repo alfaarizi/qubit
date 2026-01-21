@@ -14,56 +14,77 @@ A comprehensive web-based platform for designing, simulating, and analyzing quan
 
 ## Features
 
-- **Visual Circuit Composer** - Intuitive drag-and-drop interface for building quantum circuits
+- **Visual Circuit Composer** - Drag-and-drop interface for building quantum circuits
 - **QASM Editor** - Write and edit circuits using OpenQASM 2.0
-- **Circuit Partitioning** - Optimize large quantum circuits using SQUANDER's partitioning algorithms
-- **Advanced Visualizations** - Explore statevector density, measurement probabilities, entropy, and partition structures
-- **Project Management** - Organize and track multiple quantum circuits and experiments
-- **Job Monitoring** - Real-time execution tracking and result analysis
+- **Circuit Partitioning** - Optimize circuits using SQUANDER's partitioning algorithms
+- **Visualizations** - Statevector density, measurement probabilities, entropy, partition structures
+- **Project Management** - Organize multiple quantum circuits and experiments
+- **Job Monitoring** - Real-time execution tracking via WebSocket
 
 ## Tech Stack
 
-- **Frontend**: React + TypeScript + Vite + TailwindCSS
-- **Backend**: FastAPI (Python) + MongoDB
-- **Quantum Computing**: SQUANDER library, QubitKit Python package
-- **Authentication**: Google, Azure MSAL
+| Component | Technologies |
+|-----------|-------------|
+| Frontend  | React 19, TypeScript, Vite, TailwindCSS, Zustand, D3, Plotly |
+| Backend   | FastAPI, MongoDB, WebSocket, SQUANDER |
+| Auth      | Google OAuth, Azure MSAL, JWT |
+
+## Prerequisites
+
+- **Node.js** 18+
+- **Python** 3.8+
+- **MongoDB** (local or Atlas)
+- **SQUANDER** library (optional, for circuit partitioning)
 
 ## Quick Start
 
-### Prerequisites
-- Node.js 18+
-- Python 3.8+
-- MongoDB
-
-### Installation
-
-1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/qubit.git
+# Clone repository
+git clone https://github.com/alfaarizi/qubit.git
 cd qubit
-```
 
-2. Start the backend:
-```bash
+# Backend setup
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+cp .env.example .env          # Configure environment variables
 pip install -e .
-uvicorn src.main:app --reload
-```
+serve                         # Runs on http://localhost:8000
 
-3. Start the frontend:
-```bash
+# Frontend setup (new terminal)
 cd frontend
+cp .env.example .env.local    # Configure environment variables
 npm install
-npm run dev
+npm run dev                   # Runs on http://localhost:5173
 ```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
+See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md) for detailed configuration.
+
+## Project Structure
+
+```
+qubit/
+├── backend/              # FastAPI backend
+│   ├── app/              # Application code
+│   │   ├── api/          # REST & WebSocket endpoints
+│   │   ├── core/         # Config, security, dependencies
+│   │   ├── db/           # MongoDB connection
+│   │   ├── models/       # Database models
+│   │   ├── schemas/      # Pydantic schemas
+│   │   └── services/     # Business logic
+│   └── tests/            # Unit, integration, performance tests
+├── frontend/             # React frontend
+│   ├── src/
+│   │   ├── components/   # Reusable UI components
+│   │   ├── features/     # Feature modules (circuit, gates, results)
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── lib/          # Utilities (QASM parser, API client)
+│   │   ├── pages/        # Route pages
+│   │   └── stores/       # Zustand state management
+│   └── cypress/          # E2E tests
+├── packages/qubitkit/    # Python package (PyPI)
+└── docs/                 # Documentation
+```
 
 ## QubitKit Python Package
-
-The QubitKit package is available on [Test PyPI](https://test.pypi.org/project/qubitkit/0.1.0/):
 
 ```bash
 pip install -i https://test.pypi.org/simple/ qubitkit
@@ -71,8 +92,8 @@ pip install -i https://test.pypi.org/simple/ qubitkit
 
 ## License
 
-Apache-2.0 - see [LICENSE](LICENSE) for details
+Apache-2.0 - see [LICENSE](LICENSE)
 
-## About SQUANDER
+---
 
-This project leverages the [SQUANDER](https://github.com/rakytap/sequential-quantum-gate-decomposer) library for quantum circuit decomposition and optimization.
+*Powered by [SQUANDER](https://github.com/rakytap/sequential-quantum-gate-decomposer)*

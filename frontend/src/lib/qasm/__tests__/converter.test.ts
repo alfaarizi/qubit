@@ -24,7 +24,7 @@ describe('QASM converter', () => {
         depth: 0,
         children: [],
         parents: [],
-        gate: { id: 'H', name: 'Hadamard', numQubits: 1, numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
+        gate: { id: 'H', name: 'Hadamard', numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
       }
       const code = circuitToQASM(1, [gate], [false])
       expect(code).toContain('h q[0];')
@@ -37,7 +37,7 @@ describe('QASM converter', () => {
         depth: 0,
         children: [],
         parents: [],
-        gate: { id: 'CNOT', name: 'CNOT', numQubits: 2, numControlQubits: 1, numTargetQubits: 1, symbol: 'X', color: '#ff6600', category: 'controlled', description: 'CNOT' },
+        gate: { id: 'CNOT', name: 'CNOT', numControlQubits: 1, numTargetQubits: 1, symbol: 'X', color: '#ff6600', category: 'controlled', description: 'CNOT' },
       }
       const code = circuitToQASM(2, [gate], [false, false])
       expect(code).toContain('cx q[0], q[1];')
@@ -56,7 +56,7 @@ describe('QASM converter', () => {
         depth: 1,
         children: [],
         parents: [],
-        gate: { id: 'H', name: 'Hadamard', numQubits: 1, numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
+        gate: { id: 'H', name: 'Hadamard', numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
       }
       const gate2: Gate = {
         id: 'gate-2',
@@ -65,7 +65,7 @@ describe('QASM converter', () => {
         depth: 0,
         children: [],
         parents: [],
-        gate: { id: 'X', name: 'Pauli-X', numQubits: 1, numControlQubits: 0, numTargetQubits: 1, symbol: 'X', color: '#ff0000', category: 'single', description: 'Pauli-X' },
+        gate: { id: 'X', name: 'Pauli-X', numControlQubits: 0, numTargetQubits: 1, symbol: 'X', color: '#ff0000', category: 'single', description: 'Pauli-X' },
       }
       const code = circuitToQASM(2, [gate1, gate2], [false, false])
       const xIndex = code.indexOf('x q[0];')
@@ -82,7 +82,7 @@ describe('QASM converter', () => {
         depth: 0,
         children: [],
         parents: [],
-        gate: { id: 'H', name: 'Hadamard', numQubits: 1, numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
+        gate: { id: 'H', name: 'Hadamard', numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
       }
       const result = getQASMWithMetadata(1, [gate], [true])
       expect(result.code).toContain('h q[0];')
@@ -99,7 +99,7 @@ describe('QASM converter', () => {
           depth: 0,
           children: [],
           parents: [],
-          gate: { id: 'H', name: 'Hadamard', numQubits: 1, numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
+          gate: { id: 'H', name: 'Hadamard', numControlQubits: 0, numTargetQubits: 1, symbol: 'H', color: '#0066cc', category: 'single', description: 'Hadamard' },
         },
         {
           id: 'gate-2',
@@ -108,7 +108,7 @@ describe('QASM converter', () => {
           depth: 2,
           children: [],
           parents: [],
-          gate: { id: 'X', name: 'Pauli-X', numQubits: 1, numControlQubits: 0, numTargetQubits: 1, symbol: 'X', color: '#ff0000', category: 'single', description: 'Pauli-X' },
+          gate: { id: 'X', name: 'Pauli-X', numControlQubits: 0, numTargetQubits: 1, symbol: 'X', color: '#ff0000', category: 'single', description: 'Pauli-X' },
         },
       ]
       const result = getQASMWithMetadata(2, gates, [false, false])
